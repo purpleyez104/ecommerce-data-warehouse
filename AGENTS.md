@@ -12,14 +12,18 @@
 
 ## 当前阶段门禁
 
-当前处于 Milestone 0“项目定义与文档基线”，状态为 `in progress`。在用户确认规格和阶段顺序前：
+Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。Milestone 1“基础设施与兼容性”状态为 `pending`，进入门禁已满足。开始 Milestone 1 后：
 
-- 不进入 Milestone 1，不安装软件，不锁定精确组件版本。
+- 严格按 `docs/plan.md` 的主机、网络、JDK 和组件前置顺序实施，不跳过兼容性与资源门禁。
 - 不创建正式业务表、数据模型、指标 SQL、离线任务或实时作业。
 - 不把预留目录、占位文件、候选组件或静态检查描述为已经实现或运行通过。
-- 只修改 Milestone 0 确实需要的项目文档、协作规则和安全配置。
+- 只创建 Milestone 1 确实需要维护的环境、基础设施、兼容性、安装排障和验证内容。
 
-所有后续 Milestone 必须满足 `docs/plan.md` 的进入条件后才能开始。上一阶段存在未解决阻断项时，不得提前开发下一阶段内容。
+经用户确认的 `DR-004` 允许在 Milestone 1、2 均保持 `pending` 时开展一次受限的 Milestone 2 预设计活动。该活动只能维护 `docs/milestone-2-predesign-review.md` 及与门禁一致性直接相关的治理文档，用于整理业务过程、概念关系、指标依赖、验收场景和 `DECISION_REQUIRED`。它不构成正式进入 Milestone 2，不允许创建或修改正式 DDL、seed、数据生成器、测试程序、运行脚本、字段类型、状态枚举或可执行接口，也不得把预设计草案描述为业务模型已经实现。MySQL 通过 Milestone 1 的启动和连接验证且业务规则经用户确认后，才能正式进入 Milestone 2。
+
+`completed` 只表示对应 Milestone 的进入条件、交付物和验收项已满足，不替代 `draft`、`candidate`、`planned`、`implemented`、`verified` 等内容证据状态。M0 完成不证明任何组件已经安装或数据链路已经运行。
+
+除 `DR-004` 明确限定的 M2 文档预设计外，所有后续 Milestone 必须满足 `docs/plan.md` 的进入条件后才能开始。上一阶段存在未解决阻断项时，不得提前开发下一阶段内容。
 
 ## 项目范围与实施顺序
 

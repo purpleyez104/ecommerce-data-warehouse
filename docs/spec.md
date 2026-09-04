@@ -1,7 +1,7 @@
 # 电商离实时一体化数据仓库项目规格
 
 版本：`0.3-draft`
-状态：离线链路修订待评审，尚未实施
+状态：Milestone 0 `completed`，运行链路尚未实施
 更新时间：2026-09-04  
 Repository：`ecommerce-data-warehouse`
 
@@ -112,6 +112,12 @@ V1 覆盖五个主题：
 - 不引入阿里云专有中间件、Kafka ZooKeeper 模式、Spark Standalone、Flink Standalone、Kubernetes、HBase、Redis、Elasticsearch、ClickHouse、Iceberg、Hudi 或 Paimon。
 - 不在 Project 1 中实现 DataOps、AI 服务或前端。
 - 不预设百万级、QPS、延迟、Exactly-Once 或性能提升数字。
+
+### 3.3 Milestone 2 预设计例外
+
+用户已通过 `DR-004` 确认：Milestone 1、2 均保持 `pending` 时，可以先维护 [Milestone 2 预设计评审包](milestone-2-predesign-review.md)。该例外只允许整理五个主题的业务过程、概念关系、30 项正式指标的过程依赖、验收场景和 `DECISION_REQUIRED`，目的是为后续业务评审提供直接可编辑的输入。
+
+该活动不构成正式进入 Milestone 2，不改变本规格第 13 节的强制顺序，也不豁免 MySQL 启动和连接验证。预设计期间不得创建或修改正式 DDL、seed、数据生成器、测试程序、运行脚本、字段类型、状态枚举或可执行接口。所有概念关系保持 `draft`；未获得用户确认的业务规则必须保留为 `DECISION_REQUIRED`，不得使用经验默认值补全。只有 MySQL 通过 Milestone 1 的启动和连接验证，且 OLTP 表、字段、主外键、状态机和硬删除策略经用户确认后，才能正式进入 Milestone 2。
 
 ## 4. 技术栈与开发方式
 

@@ -1,7 +1,7 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
 版本：`0.3-draft`
-状态：Milestone 0 文档修订和静态检查已完成，等待用户评审
+状态：Milestone 0 已完成；Milestone 1 待开始，进入门禁已满足
 更新时间：2026-09-04
 
 ## 1. 使用方式
@@ -27,6 +27,7 @@
 | `blocked` | 存在必须由用户或真实环境解决的阻断项 |
 | `implemented` | 实现已进入仓库，但运行验收未完成 |
 | `verified` | 在记录环境中完成安装、启动、连通、执行和结果核对 |
+| `completed` | 对应 Milestone 的进入条件、交付物和验收项已满足；不替代内容或运行证据状态 |
 
 ## 2. 模块与阶段映射
 
@@ -50,7 +51,7 @@
 
 ## 3. Milestone 0：项目定义与文档基线
 
-**状态：`in progress`**
+**状态：`completed`**
 
 ### 目标
 
@@ -98,7 +99,12 @@ docs/decision-register.md
 
 ### 阻断
 
-- 用户尚未确认规格或阶段顺序时，不进入 Milestone 1。
+- 无。用户已于 2026-09-04 确认规格和 Milestone 0-10 阶段顺序。
+
+### 评审记录
+
+- 2026-09-04：离线主线、项目范围、阶段顺序、状态边界和 Milestone 0 交付物通过用户评审。
+- 本次完成只证明文档基线验收通过；组件安装、启动、连通和数据链路运行仍未验证。
 
 ## 4. Milestone 1：基础设施与兼容性
 
@@ -173,6 +179,12 @@ docs/installation-troubleshooting.md
 ## 5. Milestone 2：业务模型与数据生成
 
 **状态：`pending`**
+
+### 预设计例外
+
+`DR-004` 允许在 Milestone 1、2 均保持 `pending` 时维护 `docs/milestone-2-predesign-review.md`。允许内容仅限业务过程、概念关系、指标依赖、验收场景和 `DECISION_REQUIRED`；该活动不满足或替代下方进入条件，也不构成正式进入 Milestone 2 或将其标记为 `in progress`。
+
+预设计期间不得创建或修改正式 DDL、seed、数据生成器、测试程序、运行脚本、字段类型、状态枚举或可执行接口。`mysql/ddl/`、`mysql/seed/` 和 `mock/` 继续保持占位状态，不创建 `generator/` 或 `tests/`。只有 MySQL 通过 Milestone 1 的启动和连接验证，且相关业务规则经用户确认后，才能正式进入 Milestone 2。
 
 ### 目标
 
@@ -585,7 +597,7 @@ docs/
 
 ### 进入条件
 
-- Milestone 0-7 全部 verified。
+- Milestone 0 为 `completed`，Milestone 1-7 全部为 `verified`。
 - 如果简历包含实时能力，Milestone 8-9 也必须 verified；否则实时内容只能描述为规划，不进入成果数字。
 
 ### 涉及模块
@@ -639,11 +651,11 @@ scheduler/
 
 ## 15. 当前下一步
 
-当前只推进 Milestone 0：
+Milestone 0 已完成，Milestone 1 的进入门禁已满足。正式实施主线仍从 Milestone 1“基础设施与兼容性”开始：
 
-1. 完成 `README.md`、`docs/spec.md` 和 `docs/plan.md` 的离线链路修订与静态一致性检查。
-2. 用户评审修订结果，并确认 Milestone 0 的范围和阶段顺序。
-3. 保留业务口径、版本和实时细节为待决策项。
-4. 用户确认后，将 Milestone 0 标记为 `completed`，Milestone 1 保持 `pending` 但解除进入门禁。
+1. 实测并记录三节点身份、访问方式、主机名、网络、时区、磁盘和权限。
+2. 按主机与网络 → JDK → MySQL → HDFS → YARN → Hive → Kafka KRaft → Spark on YARN 的顺序验证核心环境。
+3. 前置依赖通过后，再验证 DataX、Doris、DolphinScheduler 和 Flink/Flink CDC。
+4. 精确版本只有取得官方依据和真实启动、连通、最小链路及重启证据后才能锁定。
 
-在 Milestone 0 完成前，不安装软件、不锁定精确版本、不创建业务表，也不生成离线或实时业务代码。
+在正式主线之外，当前只允许按 `DR-004` 维护 M2 预设计评审包并收集用户决策。Milestone 1、2 均保持 `pending`；本次预设计没有安装软件、创建 `infra/`、锁定版本、创建业务表或执行运行验证。
