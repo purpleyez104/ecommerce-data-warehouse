@@ -12,18 +12,19 @@
 
 ## 当前阶段门禁
 
-Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。Milestone 1“基础设施与兼容性”状态为 `pending`，进入门禁已满足。开始 Milestone 1 后：
+Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。Milestone 1“基础设施与兼容性”状态为 `in progress`。当前 ECS 集群记录中的 `CONFIRMED` 已由用户确认为本项目事实；Ubuntu、网络、磁盘、`yee` 用户和 Hadoop 3.4.1 运行拓扑不重新初始化。Hadoop 整体暂为 `implemented`，当前门禁是补齐 HDFS 固定文件、完整 MapReduce 输出和受控重启证据。推进 Milestone 1 时：
 
 - 严格按 `docs/plan.md` 的主机、网络、JDK 和组件前置顺序实施，不跳过兼容性与资源门禁。
 - 不创建正式业务表、数据模型、指标 SQL、离线任务或实时作业。
 - 不把预留目录、占位文件、候选组件或静态检查描述为已经实现或运行通过。
 - 只创建 Milestone 1 确实需要维护的环境、基础设施、兼容性、安装排障和验证内容。
+- 禁止格式化已存在的 NameNode；验证脚本只能删除自己创建且经过前缀和运行编号约束的临时对象。
 
-经用户确认的 `DR-004` 允许在 Milestone 1、2 均保持 `pending` 时开展一次受限的 Milestone 2 预设计活动。该活动只能维护 `docs/milestone-2-predesign-review.md` 及与门禁一致性直接相关的治理文档，用于整理业务过程、概念关系、指标依赖、验收场景和 `DECISION_REQUIRED`。它不构成正式进入 Milestone 2，不允许创建或修改正式 DDL、seed、数据生成器、测试程序、运行脚本、字段类型、状态枚举或可执行接口，也不得把预设计草案描述为业务模型已经实现。MySQL 通过 Milestone 1 的启动和连接验证且业务规则经用户确认后，才能正式进入 Milestone 2。
+经用户确认的 `DR-004`、`DR-005` 允许在 Milestone 1 为 `in progress`、Milestone 2 为 `pending` 时继续开展受限的 Milestone 2 预设计活动。该活动只能维护 `docs/milestone-2-predesign-review.md` 及与门禁一致性直接相关的治理文档，用于整理业务过程、概念关系、指标依赖、验收场景和 `DECISION_REQUIRED`。它不构成正式进入 Milestone 2，不允许创建或修改正式 DDL、seed、数据生成器、测试程序、运行脚本、字段类型、状态枚举或可执行接口，也不得把预设计草案描述为业务模型已经实现。MySQL 通过 Milestone 1 的启动和连接验证且业务规则经用户确认后，才能正式进入 Milestone 2。
 
 `completed` 只表示对应 Milestone 的进入条件、交付物和验收项已满足，不替代 `draft`、`candidate`、`planned`、`implemented`、`verified` 等内容证据状态。M0 完成不证明任何组件已经安装或数据链路已经运行。
 
-除 `DR-004` 明确限定的 M2 文档预设计外，所有后续 Milestone 必须满足 `docs/plan.md` 的进入条件后才能开始。上一阶段存在未解决阻断项时，不得提前开发下一阶段内容。
+除 `DR-004`、`DR-005` 明确限定的 M2 文档预设计外，所有后续 Milestone 必须满足 `docs/plan.md` 的进入条件后才能开始。上一阶段存在未解决阻断项时，不得提前开发下一阶段内容。
 
 ## 项目范围与实施顺序
 
@@ -63,7 +64,7 @@ MySQL ecommerce_oltp
 
 DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，输出格式为 ORC + Snappy；不建设独立持久化的中间数据层。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储，ODS 装载负责分区注册、审计字段、幂等发布和失败隔离。DataX 不负责决定正式金额精度、状态枚举和最终字段类型。ODS 保留源语义，DWD 保存原子事实，DIM 保存一致维度，DWS 保存可复用度量以及比率的分子和分母，ADS 负责最终指标表达。DolphinScheduler 只能在任务独立运行通过后接入，负责参数、依赖、重试、回补、质量阻断、装载和对账，不承载业务计算逻辑。
 
-仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 只是已规划的模块边界。仅在对应阶段产生可维护内容时加入源码、配置或测试。`infra/`、`generator/`、`hive/dim/`、`reconciliation/`、`tests/` 和 `kafka/` 等后续目录必须满足 `README.md` 与 `docs/plan.md` 中的创建条件后再建立。
+仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。`generator/`、`hive/dim/`、`reconciliation/`、`tests/` 和 `kafka/` 等后续目录仍须满足 `README.md` 与 `docs/plan.md` 中的创建条件后再建立。
 
 ## 业务语义与待决策项
 

@@ -19,6 +19,8 @@
 | `DR-002` | Agent 答复总结与记录确认门禁 | `accepted` | 2026-09-04 | 协作规则、变更日志、决策治理、Milestone 0 |
 | `DR-003` | Milestone 0 验收与 Milestone 1 门禁开放 | `accepted` | 2026-09-04 | 项目状态、阶段顺序、Milestone 0-1 |
 | `DR-004` | Milestone 2 受限预设计例外 | `accepted` | 2026-09-04 | 阶段门禁、业务模型预设计、Milestone 1-2 |
+| `DR-005` | 采用当前 ECS 集群记录作为 Milestone 1 确认事实基线 | `accepted` | 2026-09-04 | 事实来源、证据状态、集群配置、Milestone 1-2 |
+| `DR-006` | Milestone 1 扩展组件顺序、Doris 端口与调度注册中心 | `accepted` | 2026-09-04 | 组件顺序、端口、Kafka、Doris、DolphinScheduler |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -149,6 +151,87 @@ Milestone 1、2 均保持 `pending`，允许先创建和维护 `docs/milestone-2
 ### 回滚方式
 
 若用户决定停止预设计，新增后续决策将本记录标记为 `superseded`，同步移除四份治理文档中的例外入口并恢复“当前只推进 M1”。评审包保留为未采用的 `draft` 历史输入，除非用户另行明确授权删除；不得覆盖或删除本决策记录。
+
+## DR-005：采用当前 ECS 集群记录作为 Milestone 1 确认事实基线
+
+- 状态：`accepted`
+- 决策日期：2026-09-04
+- 决策人：用户
+- 影响范围：事实来源、证据状态、集群配置、Milestone 1-2
+- 替代决策：补充 `DR-003`、`DR-004`，不改变其历史状态
+
+### 背景
+
+Milestone 1 原计划从三节点主机、网络、磁盘、Java 和 Hadoop 的现场盘点开始。用户随后提供 `alibaba-ecs-hadoop-cluster-rebuild-spec.md`，并确认该文件是本项目当前集群的实际搭建记录，不是通用参考方案；文件中的 `CONFIRMED` 可以作为当前确认事实。
+
+来源快照日期为 2026-09-04，SHA-256 为 `0556E06CBF754D01E4CCD451356E0EB15F6BE6A3E7B49E91632FA85313F25264`。文件包含杭州地域、VPC/vSwitch、三节点私网地址和规格、`yee` 用户、`/data` 磁盘布局、OpenJDK 17/11 分工以及 Hadoop 3.4.1 的 HDFS/YARN 运行拓扑。
+
+### 决策
+
+把来源文件的状态按以下方式纳入 Project 1：
+
+- `CONFIRMED` 直接作为当前集群确认事实，不降级为候选，也不要求重新证明事实是否存在。
+- `CONFIGURED` 作为已采用配置，但不自动补足来源明确缺失的功能测试证据。
+- `PLANNED` 保持候选或计划状态，不描述为已安装或已验证。
+- `UNKNOWN` 必须现场获取，不猜测、不复制其他节点值，也不把秘密或阿里云账号级资源写入 Git。
+
+Milestone 1 状态改为 `in progress`。现有 Ubuntu、网络、磁盘、用户和 Hadoop 拓扑不重新初始化；组件统一沿用 `yee`、`/data/software`、`/data/module` 和 `/data/<component>`。默认 Java 为 OpenJDK 17，Hadoop 3.4.1 单独使用 OpenJDK 11。NameNode 已存在，禁止再次格式化。
+
+Hadoop 的版本、进程和拓扑已确认，但完整 HDFS 固定文件校验、MapReduce 输出和重启恢复证据尚未保留，因此 Hadoop 整体暂记为 `implemented`；补齐后才能标记 `verified`。`DR-004` 的 M2 文档预设计例外在 M1 为 `in progress`、M2 为 `pending` 时继续有效，允许和禁止范围不变。
+
+### 理由
+
+该记录来自本次项目集群的实际搭建过程，重复把确认事实降级为未知会造成无意义的重建风险，尤其可能误触现有 NameNode 格式化。按来源状态分别处理，既保留用户确认的事实，也不会用进程和静态配置替代项目要求的最小任务与重启证据。
+
+未采用整份复制外部文件的方案，因为其中包含复建说明、Project 2 规划和不得进入 Git 的现场值类别；仓库只提取 M1 所需事实，并保存来源、哈希、适配和验证边界。
+
+### 验证方法
+
+静态核对 `docs/cluster-baseline.md`、兼容性矩阵、README、规格、计划和架构中的节点、私网地址、用户、目录、Java 与 Hadoop 拓扑一致。执行 `scripts/m1/collect-hadoop-evidence.sh`，固定输入为两行 UTF-8 文本，预期 HDFS SHA-256 一致、MapReduce `wordcount` 为 `alpha=2`、`beta=2`、`gamma=1`、退出状态为 0，并保存 YARN application ID 和聚合日志。评审通过后执行带精确确认参数的受控重启脚本，预期恢复 2 个 Live DataNode、2 个 RUNNING NodeManager 和 `hadoop201` 的四个控制进程。
+
+上述补测用于满足项目验收，不否定来源中的确认事实。没有执行 ECS 脚本前，仓库改动最多证明 M1 验证入口已 `implemented`。
+
+### 影响与风险
+
+M1 从“准备开始”变为实际实施，并从 Hadoop 补证门禁继续。外部来源路径不属于仓库，若原文件后续变化，必须重新计算哈希并评审差异；不得用同一路径下的新内容静默替代当前快照。
+
+受控重启会影响现有 Hadoop 服务，因此与非中断测试分离，并要求 `--confirm-restart EXISTING_HADOOP_CLUSTER`。脚本不得格式化 NameNode或删除既有 HDFS 数据。
+
+### 回滚方式
+
+若事实来源认定需要调整，新增后续决策将本记录标记为 `superseded`，同步回滚仓库中的事实提取、状态和入口。不得因文档回滚而停止 ECS 服务、格式化 NameNode、删除 HDFS 数据、修改云盘或覆盖现有集群配置。
+
+## DR-006：Milestone 1 扩展组件顺序、Doris 端口与调度注册中心
+
+- 状态：`accepted`
+- 决策日期：2026-09-04
+- 决策人：用户
+- 影响范围：组件顺序、端口、Kafka、Doris、DolphinScheduler
+- 替代决策：无
+
+### 背景
+
+外部集群记录和仓库阶段计划对核心链路之后的扩展组件顺序存在差异，同时 YARN ResourceManager Scheduler 已确认占用 `hadoop201:8030`，与 Doris FE 默认 HTTP 端口冲突。DolphinScheduler 还需要注册中心，但 Kafka 已确定必须使用 KRaft，不能为 Kafka 引入 ZooKeeper 模式。
+
+### 决策
+
+核心链路通过后，扩展组件严格按 `DataX → Doris → DolphinScheduler → Flink / Flink CDC` 推进。Doris FE HTTP 使用 `hadoop201:18030`，YARN `8030` 保持不变。DolphinScheduler 在 `hadoop201` 使用单节点 ZooKeeper 3.8.4 作为开发环境注册中心；该 ZooKeeper 只服务 DolphinScheduler，Kafka 三节点继续使用 KRaft，不连接 ZooKeeper。
+
+### 理由
+
+沿用仓库顺序可以保持 `docs/plan.md` 为当前权威门禁，并在 Flink Doris Connector 验证前准备好 Doris 目标端。修改 Doris FE HTTP 比调整已运行的 YARN 端口影响更小。单节点 ZooKeeper 满足成本受限开发环境中的 DolphinScheduler 注册需要，同时保持 Kafka KRaft 边界清晰；本项目不把它描述为高可用。
+
+### 验证方法
+
+Doris 安装前在三节点检查 `18030` 未被占用，安装后验证 FE 实际监听 `18030`、BE 注册、临时表写入查询、健康检查、安全组和 SSH 隧道。DolphinScheduler 验证 ZooKeeper 连接、Master/API/Alert、两个 Worker、一个成功任务、一个预期失败任务和重启恢复。Kafka 配置和进程检查不得出现 ZooKeeper 连接参数，并完成 KRaft 仲裁、生产、消费和单 Broker 重启测试。
+
+### 影响与风险
+
+所有引用 Doris FE HTTP 的配置、脚本、健康检查和访问说明必须使用 `18030`。单节点 ZooKeeper 故障会使 DolphinScheduler 注册能力不可用，属于开发环境接受的单点限制。未取得组件真实测试前，版本和拓扑仍保持 `candidate` 或 `planned`。
+
+### 回滚方式
+
+如果 `18030` 被实际占用或组件验证失败，保存端口与启动证据，停止 Doris 门禁并由用户选择新端口；不得改动 YARN `8030`。如果 DolphinScheduler 的 ZooKeeper 方案不可用，保存日志并新增替代决策后再调整注册中心；不得让 Kafka 退回 ZooKeeper 模式。
 
 ## 记录模板
 

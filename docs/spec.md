@@ -1,7 +1,7 @@
 # 电商离实时一体化数据仓库项目规格
 
 版本：`0.3-draft`
-状态：Milestone 0 `completed`，运行链路尚未实施
+状态：Milestone 0 `completed`；Milestone 1 `in progress`
 更新时间：2026-09-04  
 Repository：`ecommerce-data-warehouse`
 
@@ -115,7 +115,7 @@ V1 覆盖五个主题：
 
 ### 3.3 Milestone 2 预设计例外
 
-用户已通过 `DR-004` 确认：Milestone 1、2 均保持 `pending` 时，可以先维护 [Milestone 2 预设计评审包](milestone-2-predesign-review.md)。该例外只允许整理五个主题的业务过程、概念关系、30 项正式指标的过程依赖、验收场景和 `DECISION_REQUIRED`，目的是为后续业务评审提供直接可编辑的输入。
+用户已通过 `DR-004` 建立预设计例外，并通过 `DR-005` 确认：Milestone 1 为 `in progress`、Milestone 2 保持 `pending` 时，仍可以维护 [Milestone 2 预设计评审包](milestone-2-predesign-review.md)。该例外只允许整理五个主题的业务过程、概念关系、30 项正式指标的过程依赖、验收场景和 `DECISION_REQUIRED`，目的是为后续业务评审提供直接可编辑的输入。
 
 该活动不构成正式进入 Milestone 2，不改变本规格第 13 节的强制顺序，也不豁免 MySQL 启动和连接验证。预设计期间不得创建或修改正式 DDL、seed、数据生成器、测试程序、运行脚本、字段类型、状态枚举或可执行接口。所有概念关系保持 `draft`；未获得用户确认的业务规则必须保留为 `DECISION_REQUIRED`，不得使用经验默认值补全。只有 MySQL 通过 Milestone 1 的启动和连接验证，且 OLTP 表、字段、主外键、状态机和硬删除策略经用户确认后，才能正式进入 Milestone 2。
 
@@ -125,15 +125,15 @@ V1 覆盖五个主题：
 
 | 职责 | 技术 | 当前状态 |
 | --- | --- | --- |
-| 业务数据源 | MySQL | candidate |
-| 离线抽取 | DataX | candidate |
-| 分布式存储与资源管理 | Hadoop HDFS、YARN | candidate |
-| 数仓元数据与 SQL | Hive | candidate |
-| 离线计算 | Spark SQL、PySpark，运行于 YARN | candidate |
-| 消息传输 | Kafka KRaft | candidate |
+| 业务数据源 | MySQL | candidate；尚未安装验证 |
+| 离线抽取 | DataX | candidate；尚未安装验证 |
+| 分布式存储与资源管理 | Hadoop HDFS、YARN | implemented；版本和运行拓扑已确认，完整 M1 功能证据待补 |
+| 数仓元数据与 SQL | Hive | candidate；尚未安装验证 |
+| 离线计算 | Spark SQL、PySpark，运行于 YARN | candidate；尚未安装验证 |
+| 消息传输 | Kafka KRaft | candidate；尚未安装验证 |
 | CDC 与实时计算 | Flink CDC、Flink SQL、Java DataStream，运行于 YARN | planned |
-| 分析服务 | Doris | candidate |
-| 工作流调度 | DolphinScheduler | candidate |
+| 分析服务 | Doris | candidate；尚未安装验证 |
+| 工作流调度 | DolphinScheduler | candidate；尚未安装验证 |
 | 数据生成和质量工具 | Python、SQL | candidate |
 
 开发方式：
@@ -243,25 +243,27 @@ Flink 实时清洗与计算
 
 三个节点均运行于阿里云 ECS：
 
-| ECS 节点 | 集群角色 | 计算资源 | 系统盘 | 数据盘 | 候选职责 |
-| --- | --- | --- | --- | --- | --- |
-| `hadoop201` | `master` | 4 vCPU / 16 GB | 50 GiB | 80 GiB | NameNode、ResourceManager、Hive 服务、Kafka Broker/Controller、Doris FE、MySQL、DolphinScheduler 控制服务 |
-| `hadoop202` | `worker01` | 8 vCPU / 16 GB | 50 GiB | 120 GiB | DataNode、NodeManager、Kafka Broker/Controller、Doris BE、DataX、计算任务、DolphinScheduler Worker |
-| `hadoop203` | `worker02` | 8 vCPU / 16 GB | 50 GiB | 120 GiB | DataNode、NodeManager、Kafka Broker/Controller、Doris BE、DataX、计算任务、DolphinScheduler Worker |
+| ECS 节点 | 私网 IPv4 | 集群角色 | 计算资源 | 系统盘 | 数据盘 | 当前与候选职责 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `hadoop201` | `10.20.1.201` | `master` | 4 vCPU / 16 GB | 50 GiB | 80 GiB | 已确认 NameNode、SecondaryNameNode、ResourceManager、JobHistoryServer；后续 Hive、Kafka、Doris FE、MySQL、DolphinScheduler 控制服务 |
+| `hadoop202` | `10.20.1.202` | `worker01` | 8 vCPU / 16 GB | 50 GiB | 120 GiB | 已确认 DataNode、NodeManager；后续 Kafka、Doris BE、DataX、计算任务、DolphinScheduler Worker |
+| `hadoop203` | `10.20.1.203` | `worker02` | 8 vCPU / 16 GB | 50 GiB | 120 GiB | 已确认 DataNode、NodeManager；后续 Kafka、Doris BE、DataX、计算任务、DolphinScheduler Worker |
 
 约束：
 
 - 这是成本受限的阿里云 ECS 开发环境，不代表生产拓扑。
-- 系统盘和数据盘的挂载点、文件系统、目录分配及实际可用容量尚未确认，必须在 Milestone 1 通过真实磁盘检查后记录。
+- 三台数据盘已确认为 `/dev/vdb`、ext4、挂载到 `/data`；各节点实际 UUID 属于现场值，不进入 Git。
+- 组件统一由 `yee` 运行；默认 Java 为 OpenJDK 17，Hadoop 3.4.1 通过 `hadoop-env.sh` 单独使用 OpenJDK 11。
 - Hadoop 使用单 NameNode 和双 DataNode，HDFS 候选副本数为 2；是否正式采用必须在 HDFS 验证时记录。
 - Kafka 三节点 Broker/Controller 混合角色只用于开发环境，不能描述为生产最佳实践。
 - 只有 `hadoop201` 需要公网 SSH 管理入口；集群组件端口只允许私网访问，本地 Web UI 优先使用 SSH 端口转发。
 - 是否扩容必须依据磁盘空间不足、OOM、持续 Swap、频繁 Full GC、进程被杀或核心组件无法稳定共存等实测证据。
 - 不得通过关闭当前链路的关键服务伪装组件兼容或链路稳定。
+- 当前事实来源、状态映射和证据缺口以 [集群事实基线](cluster-baseline.md) 为准。
 
 ## 8. 版本与兼容性门禁
 
-本规格不锁定精确组件版本。候选组件只有依次完成以下检查，才能写入 `infra/versions.env`：
+Hadoop 3.4.1 已在当前集群运行并确认版本和拓扑，但仍需补齐 HDFS 固定文件、完整 MapReduce 和重启证据才能达到本项目的 `verified`。其余精确版本仍为候选。候选组件只有依次完成以下检查，才能写入 `infra/versions.env`：
 
 ```text
 官方版本和兼容依据
@@ -295,7 +297,9 @@ Flink 实时清洗与计算
 
 不允许使用容器作为兼容性兜底。兼容失败时应暂停、保存证据、调整版本或架构并重新验证。
 
-YARN ResourceManager 与 Doris FE 默认使用 `8030` 存在端口冲突。Doris 配置前必须重新规划端口，并记录客户端、健康检查、安全组和文档中的同步修改。
+YARN ResourceManager Scheduler 已确认使用 `8030`。Doris FE HTTP 已决定使用 `18030`；Doris 配置前必须确认端口未占用，并同步客户端、健康检查、安全组和文档。
+
+当前候选基线为 MySQL 8.0.46、Connector/J 8.0.33、Hive 4.1.0、Kafka 3.9.1 Scala 2.12、Spark 3.5.9-bin-hadoop3、DataX 202309、Doris 4.0.8、DolphinScheduler 3.4.2、Flink 1.20.5 和 Flink CDC 3.6.0。候选值不构成运行证明，具体状态和官方依据见 [组件兼容性矩阵](compatibility-matrix.md)。
 
 实时组件可以完成安装兼容性验证，但在实时规格确认前不得进入正式业务开发。
 

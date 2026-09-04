@@ -1,7 +1,7 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
 版本：`0.3-draft`
-状态：Milestone 0 已完成；Milestone 1 待开始，进入门禁已满足
+状态：Milestone 0 已完成；Milestone 1 实施中
 更新时间：2026-09-04
 
 ## 1. 使用方式
@@ -108,7 +108,7 @@ docs/decision-register.md
 
 ## 4. Milestone 1：基础设施与兼容性
 
-**状态：`pending`**
+**状态：`in progress`**
 
 ### 目标
 
@@ -122,6 +122,13 @@ docs/decision-register.md
   - `hadoop202`：阿里云 ECS，集群角色 `worker01`，8 vCPU / 16 GB，系统盘 50 GiB，数据盘 120 GiB。
   - `hadoop203`：阿里云 ECS，集群角色 `worker02`，8 vCPU / 16 GB，系统盘 50 GiB，数据盘 120 GiB。
 - 不使用容器作为兼容性兜底。
+
+### 当前已确认基线
+
+- 用户确认 2026-09-04 的外部 ECS 集群记录是本项目实际搭建记录，其中 `CONFIRMED` 可作为当前事实。
+- Ubuntu 24.04、三节点网络与磁盘、`yee` 用户、OpenJDK 17 默认环境以及 Hadoop 3.4.1 的 HDFS/YARN 运行拓扑已经确认。
+- Hadoop 整体暂为 `implemented`：版本、进程和节点拓扑已确认，但 HDFS 固定文件、完整 MapReduce 输出和重启证据尚未满足本项目验收。
+- NameNode 已存在，禁止再次格式化；当前工作从 Hadoop 补证继续，不重新初始化主机或 Hadoop。
 
 ### 涉及模块
 
@@ -150,6 +157,23 @@ docs/installation-troubleshooting.md
 → Flink / Flink CDC
 ```
 
+当前集群已完成标准顺序中的主机、JDK、HDFS 和 YARN 建设。继续实施顺序为：
+
+```text
+迁入确认事实
+→ 补齐 Hadoop HDFS / MapReduce / 重启证据
+→ MySQL
+→ Hive
+→ Kafka KRaft
+→ Spark on YARN
+→ DataX
+→ Doris
+→ DolphinScheduler + 单节点 ZooKeeper
+→ Flink / Flink CDC
+```
+
+单节点 ZooKeeper 只服务 DolphinScheduler；Kafka 保持 KRaft。Doris FE HTTP 使用 `18030`，保留 YARN ResourceManager Scheduler 的 `8030`。
+
 ### 交付物
 
 - 主机和组件分布表。
@@ -167,7 +191,7 @@ docs/installation-troubleshooting.md
 - 三块系统盘和三块数据盘的设备、挂载点、文件系统、容量和读写权限已实测记录。
 - HDFS 写入/读取、YARN 最小任务、Hive 连接、Kafka 生产消费和 Spark on YARN 最小 SQL 通过。
 - DataX、Doris、DolphinScheduler、Flink 只在前置依赖通过后验证。
-- YARN ResourceManager 与 Doris FE 的 `8030` 端口冲突已解决。
+- YARN ResourceManager 与 Doris FE 的 `8030` 端口冲突已确定通过 Doris FE HTTP `18030` 解决；Doris 验收时还需证明端口未占用且配置生效。
 - 所有精确版本都能追溯到官方来源和真实测试。
 - 重启后关键配置仍有效。
 
@@ -182,7 +206,7 @@ docs/installation-troubleshooting.md
 
 ### 预设计例外
 
-`DR-004` 允许在 Milestone 1、2 均保持 `pending` 时维护 `docs/milestone-2-predesign-review.md`。允许内容仅限业务过程、概念关系、指标依赖、验收场景和 `DECISION_REQUIRED`；该活动不满足或替代下方进入条件，也不构成正式进入 Milestone 2 或将其标记为 `in progress`。
+`DR-004` 最初在 Milestone 1、2 均为 `pending` 时建立预设计例外；`DR-005` 确认 Milestone 1 进入 `in progress` 后该受限例外继续有效。允许内容仍仅限业务过程、概念关系、指标依赖、验收场景和 `DECISION_REQUIRED`；该活动不满足或替代下方进入条件，也不构成正式进入 Milestone 2 或将其标记为 `in progress`。
 
 预设计期间不得创建或修改正式 DDL、seed、数据生成器、测试程序、运行脚本、字段类型、状态枚举或可执行接口。`mysql/ddl/`、`mysql/seed/` 和 `mock/` 继续保持占位状态，不创建 `generator/` 或 `tests/`。只有 MySQL 通过 Milestone 1 的启动和连接验证，且相关业务规则经用户确认后，才能正式进入 Milestone 2。
 
@@ -651,11 +675,12 @@ scheduler/
 
 ## 15. 当前下一步
 
-Milestone 0 已完成，Milestone 1 的进入门禁已满足。正式实施主线仍从 Milestone 1“基础设施与兼容性”开始：
+Milestone 1 已开始。Ubuntu、节点、网络、磁盘、用户、Java 和 Hadoop 运行拓扑来自当前集群建设记录并作为确认事实。当前下一步：
 
-1. 实测并记录三节点身份、访问方式、主机名、网络、时区、磁盘和权限。
-2. 按主机与网络 → JDK → MySQL → HDFS → YARN → Hive → Kafka KRaft → Spark on YARN 的顺序验证核心环境。
-3. 前置依赖通过后，再验证 DataX、Doris、DolphinScheduler 和 Flink/Flink CDC。
-4. 精确版本只有取得官方依据和真实启动、连通、最小链路及重启证据后才能锁定。
+1. 使用 `scripts/m1/collect-hadoop-evidence.sh` 补齐 HDFS 固定文件和 MapReduce 完整结果。
+2. 评审非中断结果后，使用独立确认参数执行受控重启验证；不得格式化 NameNode。
+3. Hadoop 达到 `verified` 后，在 `hadoop201` 安装并验证 MySQL 8.0.46 和 Binlog。
+4. 依次验证 Hive、Kafka KRaft、Spark on YARN、DataX、Doris、DolphinScheduler 和 Flink/Flink CDC。
+5. 精确版本只有取得官方依据和真实启动、连通、最小链路及重启证据后才能锁定。
 
-在正式主线之外，当前只允许按 `DR-004` 维护 M2 预设计评审包并收集用户决策。Milestone 1、2 均保持 `pending`；本次预设计没有安装软件、创建 `infra/`、锁定版本、创建业务表或执行运行验证。
+在正式主线之外，当前仍只允许按 `DR-004`、`DR-005` 维护 M2 预设计评审包并收集用户决策。Milestone 2 保持 `pending`；M1 创建 `infra/` 和验证脚本不代表精确版本已锁定，也不允许创建正式业务表。

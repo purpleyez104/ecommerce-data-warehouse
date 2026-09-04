@@ -6,12 +6,12 @@
 
 | 项目 | 当前值 |
 | --- | --- |
-| 当前阶段 | Milestone 0：`completed`；Milestone 1：`pending`（进入门禁已满足） |
+| 当前阶段 | Milestone 0：`completed`；Milestone 1：`in progress` |
 | 规格版本 | `0.3-draft` |
-| 实现状态 | M0 文档基线已通过用户评审；M1、M2 均为 `pending`；已建立 M2 预设计评审包，但尚未创建正式业务模型、数据表或运行链路 |
-| 当前允许活动 | 按 `DR-004` 开展 M2 文档预设计；不构成正式进入 M2，不豁免 MySQL 运行门禁 |
-| 运行验证 | 未进行 |
-| 精确组件版本 | 未锁定 |
+| 实现状态 | M1 已采用当前 ECS 集群记录并进入 Hadoop 补证门禁；M2 为 `pending`，没有创建正式业务模型、数据表或运行链路 |
+| 当前允许活动 | 按 M1 门禁补齐 Hadoop 证据并依次验证后续组件；`DR-004` 的 M2 文档预设计例外继续有效 |
+| 运行验证 | Ubuntu、节点、磁盘和 Hadoop 拓扑已有确认事实；HDFS 固定文件、MapReduce 完整结果和重启证据待补 |
+| 精确组件版本 | Hadoop 3.4.1 已确认；其余精确版本为候选，尚未锁定 |
 | 运行平台 | 阿里云 ECS（三节点） |
 | 实时数仓 | 仅确定目标架构，详细设计待后续评审 |
 
@@ -94,8 +94,9 @@ MySQL Binlog
 
 | 路径 | 模块职责 | 首次投入阶段 | 当前状态 |
 | --- | --- | --- | --- |
-| `docs/` | 规格、计划、架构、指标口径和验证结论 | Milestone 0 | draft |
-| `env/` | 不含秘密值的环境变量示例 | Milestone 0-1 | placeholder |
+| `docs/` | 规格、计划、架构、集群基线、兼容矩阵、指标口径和验证结论 | Milestone 0 | in progress |
+| `infra/` | 主机、端口、组件配置、版本锁定和兼容性记录 | Milestone 1 | implemented |
+| `env/` | 不含秘密值的环境变量示例 | Milestone 0-1 | implemented |
 | `mock/` | 固定 seed 验收数据、边界场景和预期结果说明 | Milestone 2 | placeholder |
 | `mysql/ddl/` | OLTP DDL、约束、索引和状态字段 | Milestone 2 | placeholder |
 | `mysql/seed/` | 固定验收数据与初始化入口 | Milestone 2 | placeholder |
@@ -109,7 +110,7 @@ MySQL Binlog
 | `doris/ddl/` | 离线服务表；实时表在 Milestone 8 后确定 | Milestone 6 | placeholder |
 | `scheduler/dolphinscheduler/` | T+1 DAG、参数、重试、补数、阻断和对账 | Milestone 6 | placeholder |
 | `flink/jobs/` | CDC、实时清洗、聚合和恢复作业 | Milestone 9 | placeholder |
-| `scripts/` | 参数化执行、健康检查和阶段验证入口 | 按阶段 | unconfigured |
+| `scripts/` | 参数化执行、健康检查和阶段验证入口 | 按阶段 | implemented；M1 Hadoop 脚本待 ECS 运行验证 |
 
 `placeholder` 表示只存在目录或说明文件；`unconfigured` 表示入口明确返回未配置状态；二者都不代表实现可用。
 
@@ -119,7 +120,6 @@ MySQL Binlog
 
 | 计划路径 | 模块职责 | 创建条件 |
 | --- | --- | --- |
-| `infra/` | 主机、组件配置、版本锁定和兼容性记录 | Milestone 1 开始且版本验证方案通过 |
 | `generator/` | 历史数据和持续业务事件生成器 | Milestone 2 的业务模型确认 |
 | `hive/dim/` | 一致维度和待确认的历史变化策略 | Milestone 4 的维度设计确认 |
 | `reconciliation/` | 跨层及离实时对账任务 | Milestone 5 形成稳定结果结构 |
@@ -139,7 +139,7 @@ MySQL Binlog
 | Milestone | 名称 | 核心交付 | 当前状态 |
 | --- | --- | --- | --- |
 | 0 | 项目定义与文档基线 | README、规格、阶段计划、协作边界 | completed |
-| 1 | 基础设施与兼容性 | 三节点、版本矩阵、启动和最小连通验证 | pending |
+| 1 | 基础设施与兼容性 | 三节点、版本矩阵、启动和最小连通验证 | in progress |
 | 2 | 业务模型与数据生成 | OLTP、状态机、固定 seed、预期结果 | pending |
 | 3 | DataX 直写 Hive ODS | 全量/增量抽取、ODS ORC 分区、注册与对账 | pending |
 | 4 | 离线数仓 MVP | DIM/DWD、DWS、ADS 最小垂直链路 | pending |
@@ -154,21 +154,24 @@ MySQL Binlog
 
 ## 开发环境
 
-三个节点均运行于阿里云 ECS：
+三个节点均运行于阿里云 ECS；以下网络、资源、磁盘和 Hadoop 角色来自本项目当前集群记录，按 `DR-005` 作为确认事实：
 
-| ECS 节点 | 集群角色 | 计算资源 | 系统盘 | 数据盘 |
-| --- | --- | --- | --- | --- |
-| `hadoop201` | `master` | 4 vCPU / 16 GB | 50 GiB | 80 GiB |
-| `hadoop202` | `worker01` | 8 vCPU / 16 GB | 50 GiB | 120 GiB |
-| `hadoop203` | `worker02` | 8 vCPU / 16 GB | 50 GiB | 120 GiB |
+| ECS 节点 | 私网 IPv4 | 集群角色 | 计算资源 | 系统盘 | 数据盘 |
+| --- | --- | --- | --- | --- | --- |
+| `hadoop201` | `10.20.1.201` | `master` | 4 vCPU / 16 GB | 50 GiB | 80 GiB |
+| `hadoop202` | `10.20.1.202` | `worker01` | 8 vCPU / 16 GB | 50 GiB | 120 GiB |
+| `hadoop203` | `10.20.1.203` | `worker02` | 8 vCPU / 16 GB | 50 GiB | 120 GiB |
 
-这是成本受限的 ECS 开发环境，不代表生产拓扑。系统盘和数据盘的挂载点、文件系统、目录分配及实际可用容量尚未确认，必须在 Milestone 1 通过真实磁盘检查后记录。是否扩容必须依据磁盘空间不足、OOM、持续 Swap、频繁 Full GC、进程被杀或核心服务无法稳定共存等真实证据。Doris 配置前必须解决 YARN ResourceManager 与 Doris FE 默认 `8030` 端口冲突。
+这是成本受限的 ECS 开发环境，不代表生产拓扑。三台数据盘均为 `/dev/vdb`、ext4、挂载到 `/data`；组件由 `yee` 运行，默认 Java 为 17，Hadoop 3.4.1 单独使用 Java 11。HDFS 的 NameNode/SecondaryNameNode 位于 `hadoop201`，两个 worker 运行 DataNode；YARN 的 ResourceManager 和 JobHistoryServer 位于 `hadoop201`，两个 worker 运行 NodeManager。是否扩容必须依据磁盘空间不足、OOM、持续 Swap、频繁 Full GC、进程被杀或核心服务无法稳定共存等真实证据。Doris FE HTTP 已决定使用 `18030`，保留 YARN ResourceManager Scheduler 的 `8030`。
 
 ## 文档入口
 
 - [项目规格](docs/spec.md)：项目范围、架构、指标、接口和验收标准。
 - [阶段开发计划](docs/plan.md)：Milestone 顺序、模块、交付物、进入条件和阻断规则。
 - [架构说明](docs/architecture.md)：当前架构边界说明；后续需随实施阶段更新。
+- [集群事实基线](docs/cluster-baseline.md)：当前 ECS、网络、磁盘、用户、Java 和 Hadoop 的确认事实及证据缺口。
+- [组件兼容性矩阵](docs/compatibility-matrix.md)：精确版本候选、官方依据、项目状态和验证门禁。
+- [安装与排障记录](docs/installation-troubleshooting.md)：目标 ECS 上真实发生的问题、修复、复测和回滚。
 - [指标口径](docs/metrics.md)：指标定义和血缘入口；正式口径尚待后续阶段补充。
 - [Milestone 2 预设计评审包](docs/milestone-2-predesign-review.md)：业务过程、概念关系、指标依赖、验收场景和待确认决策；状态为 `draft`，不属于可执行模型。
 - [修改日志](CHANGELOG.md)：按“新增、变更、修复、移除”记录面向使用者和维护者的可交付变更。
@@ -186,4 +189,4 @@ MySQL Binlog
 7. 静态检查只能证明文件和契约一致，不能替代真实组件和数据链路验证。
 8. Agent 每次最终答复都总结核心操作和核心决策，并询问用户是否将其写入 `CHANGELOG.md`、`docs/decision-register.md` 或两者；未获确认时不自动落盘，当前请求已明确授权的记录除外。
 
-当前没有可宣称成功运行的安装、任务或指标结果。Milestone 0 已完成文档一致性检查并于 2026-09-04 通过用户评审；Milestone 1、2 均保持 `pending`。Milestone 1 的进入门禁已满足但尚未实际启动；当前只额外允许开展 M2 文档预设计，必须等待 MySQL 通过 M1 启动和连接验证并完成业务规则评审后，才能正式进入 M2。
+Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1 已开始：当前集群的 Ubuntu、节点、网络、磁盘、用户和 Hadoop 3.4.1 拓扑是确认事实，Hadoop 整体因缺少仓库要求的固定 HDFS 文件、完整 MapReduce 和重启证据暂为 `implemented`。当前门禁是执行 `scripts/m1/collect-hadoop-evidence.sh`；通过并完成受控重启验证后才进入 MySQL。Milestone 2 保持 `pending`，必须等待 MySQL 通过 M1 启动和连接验证并完成业务规则评审后，才能正式进入。
