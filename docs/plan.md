@@ -1,7 +1,7 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
-版本：`0.2-draft`  
-状态：Milestone 0 进行中  
+版本：`0.3-draft`
+状态：Milestone 0 文档修订和静态检查已完成，等待用户评审
 更新时间：2026-09-04
 
 ## 1. 使用方式
@@ -66,27 +66,33 @@
 ```text
 README.md
 AGENTS.md
+CHANGELOG.md
 docs/spec.md
 docs/plan.md
 docs/architecture.md
 docs/metrics.md
+docs/decision-register.md
+.gitattributes
 .gitignore
 ```
 
 ### 交付物
 
 - 项目总览、模块边界和当前状态。
-- `0.2-draft` 项目规格。
+- `0.3-draft` 项目规格。
 - Milestone 0-10 的阶段开发计划。
 - 30 项正式指标、10 项扩展指标和 5 项实时候选的范围。
 - Project 2 六个只读交接契约。
 - 明确的 `DECISION_REQUIRED` 清单。
+- 面向使用者和维护者的可交付变更日志，以及可追溯的正式决策记录。
+- Agent 答复后的核心操作、核心决策总结和用户确认后落盘规则。
 
 ### 验收
 
 - README、规格和计划对项目名称、离线链路、实时状态、资源和指标数量的描述一致。
 - 未把占位目录、静态检查或候选组件写成已实现。
 - 实时细节保持 `planned`，没有擅自补全 Topic、窗口、状态或 Doris 模型。
+- README、规格、计划和协作规则对 `CHANGELOG.md`、`docs/decision-register.md` 的路径、职责和确认门禁描述一致。
 - 文档使用 UTF-8、LF 和末尾换行。
 - 用户完成规格和阶段顺序评审。
 
@@ -219,13 +225,13 @@ tests/     # 首个可执行测试出现时创建
 
 - 不知道事实粒度、状态机、退单/退款关系或用户/访客标识时，不生成正式 DDL。
 
-## 6. Milestone 3：DataX landing 与 Hive ODS
+## 6. Milestone 3：DataX 直写 Hive ODS
 
 **状态：`pending`**
 
 ### 目标
 
-打通 MySQL 到 HDFS 物理落地区，再到 Hive ODS ORC 分区的可重跑链路。
+打通 MySQL 经 DataX 直接写入 Hive ODS 对应 HDFS ORC 分区的可重跑链路，不建设独立持久化的中间数据层。
 
 ### 进入条件
 
@@ -246,25 +252,24 @@ tests/
 
 ### 交付物
 
-- MySQL 到 HDFS landing 的全量抽取任务。
+- MySQL 到 Hive ODS 对应 HDFS 分区的全量抽取任务。
 - 基于 `update_time` 时间区间的增量抽取任务。
-- 按业务日期和批次隔离的 landing 路径。
-- landing Text/CSV 到 Hive ODS ORC + Snappy 的装载任务。
-- ODS 审计字段、分区、批次和源表标识。
-- landing 与 ODS 的行数、主键和分区到达检查。
+- Hive ODS ORC + Snappy 业务日期分区写入和显式分区注册。
+- `business_date`、`extract_time`、`batch_id`、`source_table` 审计字段，以及批次发布和失败隔离规则。
+- 源表与 ODS 的行数、主键和分区到达检查。
 
 ### 验收
 
-- 固定源数据能够真实写入 HDFS landing。
+- 固定源数据能够真实写入 Hive ODS 对应的 HDFS ORC + Snappy 业务日期分区。
 - DataX 失败返回非零退出状态。
-- Hive/Spark 能读取 landing 并生成正确的 ODS ORC 分区。
+- Hive 能注册并读取 ODS 分区，源字段语义、审计字段和批次标识符合已确认设计。
 - 首次运行、同日重跑和连续日期回补结果可解释且无不可控重复。
 - DataX 不直接负责正式金额和状态类型建模。
 - 异常批次不会覆盖已验证分区。
 
 ### 阻断
 
-- DataX HDFS Writer 的类型、依赖或文件行为未验证时，不允许直接写正式 ODS。
+- DataX HDFS Writer 的 ORC/Snappy、依赖、Hive 分区可见性、审计字段、幂等发布或失败隔离未验证时，不得把直写 ODS 链路标记为 `verified`。
 - 硬删除无法被当前增量方案识别时，不宣称增量链路完整。
 
 ## 7. Milestone 4：离线数仓 MVP
@@ -392,7 +397,7 @@ docs/
 ### 目标 DAG
 
 ```text
-DataX landing
+DataX ODS Load
 → ODS Ready Check
 → DIM/DWD
 → DWS
@@ -634,11 +639,11 @@ scheduler/
 
 ## 15. 当前下一步
 
-当前只完成 Milestone 0：
+当前只推进 Milestone 0：
 
-1. 评审 `README.md`、`docs/spec.md` 和 `docs/plan.md` 是否一致。
-2. 确认 Milestone 0 的范围和阶段顺序。
+1. 完成 `README.md`、`docs/spec.md` 和 `docs/plan.md` 的离线链路修订与静态一致性检查。
+2. 用户评审修订结果，并确认 Milestone 0 的范围和阶段顺序。
 3. 保留业务口径、版本和实时细节为待决策项。
-4. 用户确认后，再进入 Milestone 1 的基础设施与兼容性工作。
+4. 用户确认后，将 Milestone 0 标记为 `completed`，Milestone 1 保持 `pending` 但解除进入门禁。
 
 在 Milestone 0 完成前，不安装软件、不锁定精确版本、不创建业务表，也不生成离线或实时业务代码。

@@ -7,8 +7,8 @@
 | 项目 | 当前值 |
 | --- | --- |
 | 当前阶段 | Milestone 0：项目定义与文档基线 |
-| 规格版本 | `0.2-draft` |
-| 实现状态 | 尚未创建正式业务模型、数据表或运行链路 |
+| 规格版本 | `0.3-draft` |
+| 实现状态 | M0 文档修订和静态检查已完成，等待用户评审；尚未创建正式业务模型、数据表或运行链路 |
 | 运行验证 | 未进行 |
 | 精确组件版本 | 未锁定 |
 | 运行平台 | 阿里云 ECS（三节点） |
@@ -19,7 +19,7 @@
 ## 项目目标
 
 - 建立用户、流量、商品、交易和营销五个主题的业务模型。
-- 打通 MySQL 到 HDFS landing、Hive ODS、DIM/DWD、DWS、ADS 和 Doris 的离线链路。
+- 打通 MySQL 经 DataX 直写 Hive ODS，再到 DIM/DWD、DWS、ADS 和 Doris 的离线链路。
 - 建设 30 项 V1 正式离线指标，并为 10 项扩展指标保留稳定编号。
 - 提供固定 seed 数据、逐层预期结果、数据质量、幂等重跑和连续回补能力。
 - 使用 Spark SQL/PySpark 完成分层加工，并真实开展数据倾斜、Join 和分区裁剪实验。
@@ -47,7 +47,6 @@ V1 不建设库存域，不建设生产级 Hadoop HA，不引入阿里云专有�
 ```text
 MySQL ecommerce_oltp
   → DataX
-  → HDFS landing/staging（Text/CSV）
   → Hive ODS（ORC + Snappy）
   → Spark SQL：DIM/DWD
   → Spark SQL：DWS
@@ -57,7 +56,7 @@ MySQL ecommerce_oltp
   → Doris 离线服务表
 ```
 
-`landing/staging` 是物理缓冲区，不属于正式 ODS。DataX 只负责可靠抽取和落地；正式类型转换、金额精度、状态标准化和 ORC 建模由 Spark/Hive 负责。
+DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，输出格式为 ORC + Snappy，不建设独立持久化的中间数据层。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储；分区注册、审计字段、幂等发布和失败隔离属于 ODS 装载责任。该路径的兼容性和运行行为必须在 Milestone 1、3 真实验证。
 
 ### 实时目标链路
 
@@ -99,8 +98,8 @@ MySQL Binlog
 | `mock/` | 固定 seed 验收数据、边界场景和预期结果说明 | Milestone 2 | placeholder |
 | `mysql/ddl/` | OLTP DDL、约束、索引和状态字段 | Milestone 2 | placeholder |
 | `mysql/seed/` | 固定验收数据与初始化入口 | Milestone 2 | placeholder |
-| `datax/jobs/` | MySQL 到 HDFS landing 的全量和增量抽取任务 | Milestone 3 | placeholder |
-| `hive/ods/` | ODS 表及 landing 到 ODS 的装载逻辑 | Milestone 3 | placeholder |
+| `datax/jobs/` | MySQL 到 Hive ODS 对应 HDFS 分区的全量和增量抽取任务 | Milestone 3 | placeholder |
+| `hive/ods/` | ODS 表、分区注册、审计字段和发布规则 | Milestone 3 | placeholder |
 | `hive/dwd/` | 原子事实、去重、状态和字段标准化 | Milestone 4 | placeholder |
 | `hive/dws/` | 可复用主题汇总、比率分子和分母 | Milestone 4-5 | placeholder |
 | `hive/ads/` | 30 项正式指标和面向查询的结果表 | Milestone 5 | placeholder |
@@ -141,7 +140,7 @@ MySQL Binlog
 | 0 | 项目定义与文档基线 | README、规格、阶段计划、协作边界 | in progress |
 | 1 | 基础设施与兼容性 | 三节点、版本矩阵、启动和最小连通验证 | pending |
 | 2 | 业务模型与数据生成 | OLTP、状态机、固定 seed、预期结果 | pending |
-| 3 | DataX landing 与 ODS | 全量/增量抽取、HDFS landing、Hive ODS | pending |
+| 3 | DataX 直写 Hive ODS | 全量/增量抽取、ODS ORC 分区、注册与对账 | pending |
 | 4 | 离线数仓 MVP | DIM/DWD、DWS、ADS 最小垂直链路 | pending |
 | 5 | 正式指标与数据质量 | 30 项指标、质量结果、幂等和回补 | pending |
 | 6 | Doris 服务与调度 | 离线服务表、T+1 DAG、失败阻断和对账 | pending |
@@ -170,6 +169,8 @@ MySQL Binlog
 - [阶段开发计划](docs/plan.md)：Milestone 顺序、模块、交付物、进入条件和阻断规则。
 - [架构说明](docs/architecture.md)：当前架构边界说明；后续需随实施阶段更新。
 - [指标口径](docs/metrics.md)：指标定义和血缘入口；正式口径尚待后续阶段补充。
+- [修改日志](CHANGELOG.md)：按“新增、变更、修复、移除”记录面向使用者和维护者的可交付变更。
+- [项目决策记录](docs/decision-register.md)：记录影响项目范围、业务口径、架构、版本、模型、接口、安全或验收方式的正式决策及其状态。
 - [协作规则](AGENTS.md)：Codex 和贡献者修改仓库时必须遵循的规则。
 
 ## 工作规则
@@ -181,5 +182,6 @@ MySQL Binlog
 5. 旧仓库只作为外部参考；迁入内容必须记录来源、理由、改造、验证和回滚方式。
 6. 不提交密码、密钥、Token、`.env`、真实生产地址、个人数据或原始运行日志。
 7. 静态检查只能证明文件和契约一致，不能替代真实组件和数据链路验证。
+8. Agent 每次最终答复都总结核心操作和核心决策，并询问用户是否将其写入 `CHANGELOG.md`、`docs/decision-register.md` 或两者；未获确认时不自动落盘，当前请求已明确授权的记录除外。
 
-当前没有可宣称成功运行的安装、任务或指标结果。下一步由 Milestone 0 的规格评审结果决定是否进入 Milestone 1。
+当前没有可宣称成功运行的安装、任务或指标结果。本轮完成文档修订和静态检查后，Milestone 0 仍需用户评审；用户确认前不得进入 Milestone 1。

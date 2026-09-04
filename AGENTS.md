@@ -25,7 +25,7 @@
 
 这是从零搭建的 Project 1 最终仓库，目标是形成真实运行、可验证、可复现、可解释的电商离实时一体化数据仓库。Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。
 
-实施顺序必须保持为：文档基线 → 基础设施与兼容性 → OLTP 模型与固定数据 → DataX landing 与 Hive ODS → 离线数仓 MVP → 30 项正式指标与质量 → Doris 离线服务与 DolphinScheduler → Spark 性能实验 → 实时设计评审 → 实时链路 → Project 1 发布。
+实施顺序必须保持为：文档基线 → 基础设施与兼容性 → OLTP 模型与固定数据 → DataX 直写 Hive ODS → 离线数仓 MVP → 30 项正式指标与质量 → Doris 离线服务与 DolphinScheduler → Spark 性能实验 → 实时设计评审 → 实时链路 → Project 1 发布。
 
 优先完成稳定的最小离线闭环。实时链路当前仅为 `planned`；在 Milestone 8 评审前，不得自行确定 Topic、Partition、Schema、窗口、Watermark、迟到、去重、状态 TTL、实时维度、Checkpoint 或 Doris 实时表模型，也不得生成正式 Flink 业务作业。
 
@@ -50,7 +50,6 @@ V1 不建设库存域、生产级 Hadoop HA、Project 2 应用、DataOps、AI �
 ```text
 MySQL ecommerce_oltp
   → DataX
-  → HDFS landing/staging（Text/CSV）
   → Hive ODS（ORC + Snappy）
   → Spark SQL：DIM/DWD → DWS → ADS
   → 数据质量与逐层对账
@@ -58,7 +57,7 @@ MySQL ecommerce_oltp
   → Doris 离线服务表
 ```
 
-`landing/staging` 只是物理缓冲区，不是正式 ODS。DataX 只负责可靠抽取和落地，不负责正式金额精度、状态枚举和 Hive 类型建模。ODS 保留源语义，DWD 保存原子事实，DIM 保存一致维度，DWS 保存可复用度量以及比率的分子和分母，ADS 负责最终指标表达。DolphinScheduler 只能在任务独立运行通过后接入，负责参数、依赖、重试、回补、质量阻断、装载和对账，不承载业务计算逻辑。
+DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，输出格式为 ORC + Snappy；不建设独立持久化的中间数据层。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储，ODS 装载负责分区注册、审计字段、幂等发布和失败隔离。DataX 不负责决定正式金额精度、状态枚举和最终字段类型。ODS 保留源语义，DWD 保存原子事实，DIM 保存一致维度，DWS 保存可复用度量以及比率的分子和分母，ADS 负责最终指标表达。DolphinScheduler 只能在任务独立运行通过后接入，负责参数、依赖、重试、回补、质量阻断、装载和对账，不承载业务计算逻辑。
 
 仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 只是已规划的模块边界。仅在对应阶段产生可维护内容时加入源码、配置或测试。`infra/`、`generator/`、`hive/dim/`、`reconciliation/`、`tests/` 和 `kafka/` 等后续目录必须满足 `README.md` 与 `docs/plan.md` 中的创建条件后再建立。
 
@@ -97,7 +96,7 @@ MySQL ecommerce_oltp
 - 首次运行、同日重跑、连续业务日期回补和上游重复输入。
 - 空分区、迟到输入、非法状态、空值和主外键缺失。
 - 业务键唯一性、引用完整性、状态合法性和分区按期到达。
-- 源表、landing、ODS 及后续各层行数可解释。
+- 源表、ODS 及后续各层行数可解释。
 - 订单、明细、支付、退款之间的金额或数量守恒。
 - 比率指标的分子、分母、精度、舍入和零分母边界。
 - 配置缺失、依赖不可用和任务失败时返回非零状态，并阻断下游。
@@ -109,6 +108,18 @@ MySQL ecommerce_oltp
 正式文档只记录已采用设计、最终配置、可复现命令、验证结果、已知限制和排障结论。学习笔记、临时实验、个人决策过程、未采用方案和安装草稿放入不提交 Git 的 `.local-notes/`；项目运行不得依赖该目录。
 
 每次变更应小而聚焦，只完成用户指定且属于当前阶段的内容。实现发生变化时，同步检查并更新相关 README、规格、计划、架构、指标、运行说明和测试；不得一次性生成整个项目或擅自引入新框架。修改前说明计划，修改后列出变更文件、验证结果、未决事项和验证边界。
+
+`CHANGELOG.md` 记录面向使用者和维护者的可交付变更，包括新增、变更、修复和移除；不得把仅讨论、未采纳方案或未完成的运行验证写成已交付事实。`docs/decision-register.md` 记录已经提出或确认、且会影响项目范围、业务口径、架构、组件版本、数据模型、接口、安全约束或验收方式的正式决策；不得用它代替一般变更日志。
+
+## 答复收尾与记录确认
+
+Agent 每次最终答复都必须包含以下内容：
+
+1. 用简短条目总结本轮核心操作和核心决策；没有文件修改或没有形成决策时也应明确说明。
+2. 明确询问用户，是否需要把本轮总结写入 `CHANGELOG.md`、`docs/decision-register.md`，或两者都写入。
+3. 在用户明确确认前，不得仅因完成了答复就自动写入这两个文件；用户在当前请求中已经明确要求记录的内容除外。
+4. 获得确认后，按文件职责筛选内容：可交付变更写入 `CHANGELOG.md`；正式决策写入 `docs/decision-register.md`。同一事项同时属于两类时可以分别记录，但内容必须各自符合对应文件的用途。
+5. 写入后在答复中列出新增或更新的条目；决策记录必须使用下一个连续编号，并保留状态、依据、影响、验证方法和回滚方式。
 
 ## 编码、命名与配置
 

@@ -1,7 +1,7 @@
 # 电商离实时一体化数据仓库项目规格
 
-版本：`0.2-draft`  
-状态：待评审，尚未实施  
+版本：`0.3-draft`
+状态：离线链路修订待评审，尚未实施
 更新时间：2026-09-04  
 Repository：`ecommerce-data-warehouse`
 
@@ -37,6 +37,13 @@ Repository：`ecommerce-data-warehouse`
 ### 0.2 本地辅助资料
 
 学习笔记、面试问答、临时实验、个人决策过程、未采用方案、组件对比和安装草稿不属于运行时规范，应放在不提交 Git 的 `.local-notes/` 中。正式项目不得依赖该目录中的文件才能运行。
+
+### 0.3 变更与决策记录
+
+- `CHANGELOG.md` 是项目可交付变更的统一入口，按新增、变更、修复和移除分类记录，不承载未采纳讨论或未经验证的运行结论。
+- `docs/decision-register.md` 是正式决策的统一入口，记录会影响项目范围、业务口径、架构、组件版本、数据模型、接口、安全约束或验收方式的提议与结论，并保留状态、依据、影响、验证和回滚信息。
+- 两个文件职责不同；同一事项只有同时构成可交付变更和正式决策时才分别记录。
+- Agent 每次最终答复必须总结本轮核心操作和核心决策，并询问用户是否写入上述一个或两个文件。除非用户已在当前请求中明确授权，否则必须在得到确认后再写入。
 
 ## 1. 项目定位与目标
 
@@ -74,7 +81,7 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 | 项目名称、文档使用范围框架 | 采用，并调整为仅适用于 Project 1 |
 | 两项目关系及 65% / 35% 比例 | 作为交接约束保留 |
 | MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris、DolphinScheduler 技术方向 | 作为目标技术栈保留 |
-| DataX 直接写正式 ODS ORC | 不采用；改为先写 HDFS 物理落地区，再由 Spark/Hive 生成正式 ODS |
+| DataX 直接写正式 ODS ORC | 采用；使用 HDFS Writer 写入 Hive ODS 对应 HDFS 分区，分区注册、审计字段、幂等发布和失败隔离由 ODS 装载负责，真实行为在 Milestone 1、3 验证 |
 | 参考文件中的候选版本 | 不直接锁定；必须重新完成兼容性和启动验证 |
 | 实时 Topic、窗口、迟到处理、维度和 Doris 表模型 | 暂不采用具体设计，保留为实时阶段待决策项 |
 | Project 2 业务和应用实现 | 不迁入，只保留六个只读契约 |
@@ -108,7 +115,7 @@ V1 覆盖五个主题：
 
 ## 4. 技术栈与开发方式
 
-选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本，也不构成版本兼容、资源充足或链路已经运行的证明。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，但通过 HDFS landing 边界隔离其类型和依赖限制。
+选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本，也不构成版本兼容、资源充足或链路已经运行的证明。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，并通过 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 分区；格式、依赖、分区发布和失败行为仍需真实验证。
 
 | 职责 | 技术 | 当前状态 |
 | --- | --- | --- |
@@ -151,13 +158,8 @@ MySQL ecommerce_oltp
         │
         │ DataX 全量或基于 update_time 的增量抽取
         ▼
-HDFS landing/staging
-原始 Text/CSV 数据
-        │
-        │ Spark SQL / Hive 解析、类型转换、审计字段补充
-        ▼
 Hive ODS
-ORC + Snappy
+HDFS 业务日期分区，ORC + Snappy
         │
         │ Spark SQL
         ▼
@@ -180,10 +182,11 @@ ADS
 
 约束：
 
-- `landing/staging` 是物理缓冲区，不是正式 ODS 逻辑层。
-- DataX 不负责决定金额精度、状态枚举或正式 Hive 字段类型。
-- DataX HDFS Writer 对数据类型和所带 Hadoop/Hive 依赖存在限制，因此只负责把源数据可靠落入 HDFS 缓冲区。
-- Hive ODS 保留源字段语义，并增加 `business_date`、`extract_time`、`batch_id` 和 `source_table` 等审计字段；最终字段以源模型评审结果为准。
+- DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，不建设独立持久化的中间数据层。
+- Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储；ODS 装载负责分区注册、审计字段、幂等发布和失败隔离。
+- DataX 不负责决定正式金额精度、状态枚举或最终 Hive 字段类型；这些内容必须随源模型和 ODS 设计确认。
+- Hive ODS 保留源字段语义，并包含 `business_date`、`extract_time`、`batch_id` 和 `source_table` 等审计字段；最终字段以源模型评审结果为准。
+- DataX HDFS Writer 的 ORC/Snappy、Hive 分区可见性、审计字段写入和失败行为必须在 Milestone 1、3 真实验证，当前仅为已采用架构。
 - 正式 ODS、DIM、DWD、DWS、ADS 使用 ORC + Snappy。
 - ODS 保留源语义；DWD 保存原子事实；DIM 保存一致维度；DWS 保存可复用的可加度量和比率分子/分母；ADS 负责最终指标表达。
 - 离线 ADS 默认通过 Spark Doris Connector 写入 Doris，具体 Connector 版本必须经过 Spark、Scala、Java 和 Doris 兼容性验证。
@@ -216,7 +219,6 @@ Flink 实时清洗与计算
 | 逻辑层或区域 | 主要物理位置 | 责任 |
 | --- | --- | --- |
 | 源系统层 | MySQL `ecommerce_oltp` | 业务交易和状态维护 |
-| landing/staging | HDFS Text/CSV | DataX 临时落地、批次隔离和失败恢复 |
 | 离线 ODS | Hive/HDFS ORC + Snappy | 保留源语义和审计字段 |
 | 离线 DWD | Hive/HDFS ORC + Snappy | 原子事实、标准字段、去重和状态统一 |
 | 离线 DIM | Hive/HDFS ORC + Snappy | 一致维度及待确认的历史变化策略 |
@@ -411,7 +413,7 @@ P1_METRIC_026  订单数
 - 主外键及维度引用完整。
 - 状态值和状态迁移合法。
 - 分区按期到达。
-- 源表、landing、ODS 和后续各层行数可解释。
+- 源表、ODS 和后续各层行数可解释。
 - 订单头、订单明细、支付、退款之间金额或数量守恒。
 - 比率指标保留分子和分母，避免只保存最终比率。
 - 质量失败返回失败状态并能够阻断后续调度。
@@ -455,7 +457,7 @@ Project 2 不得：
 
 1. **规格、环境和兼容性基线**：规格通过评审；阻断决策有记录；核心组件具备最小验证方案。
 2. **OLTP 模型与数据生成器**：确认业务过程、字段、状态机、事实粒度和固定验收数据。
-3. **离线抽取**：DataX 将固定数据真实写入 HDFS landing，失败返回非零状态。
+3. **离线抽取与 ODS**：DataX 将固定数据真实写入 Hive ODS 对应的 HDFS ORC 分区，Hive 分区可见且失败返回非零状态。
 4. **离线数仓 MVP**：Hive ODS 与 Spark DIM/DWD、DWS、ADS 在真实引擎执行并完成逐层对账。
 5. **正式指标与质量**：30 项正式指标具有口径、血缘、固定样例和质量规则。
 6. **服务与调度**：Doris 离线服务表和 DolphinScheduler T+1 DAG 通过重跑、补数和失败测试。
@@ -474,8 +476,8 @@ Project 2 不得：
 只有同时满足以下条件，离线闭环才能标记为 `verified`：
 
 1. 固定 seed 数据能够重复生成相同业务输入。
-2. DataX 将 MySQL 数据真实写入 HDFS landing。
-3. Hive 能够读取落地数据并生成正式 ODS ORC 分区。
+2. DataX 将 MySQL 数据真实写入 Hive ODS 对应的 HDFS ORC + Snappy 业务日期分区。
+3. Hive 能够注册并读取 ODS 分区，审计字段、源字段语义和批次发布结果符合已确认设计。
 4. Spark on YARN 能够读取 Hive、完成 DIM/DWD、DWS 和 ADS 加工并写回 Hive。
 5. 首次运行、同日重跑和连续业务日期回补没有不可解释的重复。
 6. DataX、Spark 或质量任务失败时返回非零状态，调度不得误报成功。
