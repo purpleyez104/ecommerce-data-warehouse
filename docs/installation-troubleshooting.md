@@ -2,7 +2,7 @@
 
 版本：`0.1-draft`
 状态：`in progress`
-更新时间：2026-09-04
+更新时间：2026-09-05
 
 ## 使用范围
 
@@ -41,7 +41,61 @@
 
 ## 排障记录
 
-当前暂无来自本仓库 M1 执行的真实故障记录。
+## M1-ISSUE-001：Hadoop 服务未启动导致非中断验证失败
+
+- 日期：2026-09-05
+- 组件与版本：Hadoop 3.4.1
+- 节点：`hadoop201`、`hadoop202`、`hadoop203`
+- 状态：resolved
+- 日志位置：ECS `/data/logs/ecommerce-data-warehouse/m1/m1-hadoop-20260905-01/`；原始副本位于本地忽略目录
+
+### 触发与现象
+
+执行 `scripts/m1/collect-hadoop-evidence.sh`，预期退出状态为 0，实际退出状态为 255。三节点 SSH 采集成功，但三节点 `jps -lv` 均只有 `Jps`；`hdfs dfsadmin -report` 连接 `hadoop201:8020` 被拒绝，脚本未进入 HDFS 固定文件和 MapReduce 验证。
+
+### 根因证据
+
+用户确认执行前尚未启动 Hadoop 进程。`hadoop201-remote.txt`、`hadoop202-remote.txt` 和 `hadoop203-remote.txt` 均包含正确节点、用户和时间，排除本次失败由 SSH 不通导致；`hdfs-report.txt` 明确记录 NameNode RPC 连接拒绝。
+
+### 修复与复测
+
+由 `yee@hadoop201` 按既有方式启动 HDFS、YARN 和 JobHistoryServer。使用新运行编号 `m1-hadoop-20260905-02` 复测，脚本退出状态为 0 且 `summary.env` 为 `PASS`：HDFS 固定文件上传前后 SHA-256 一致，2 个 DataNode 为 Live，2 个 NodeManager 为 RUNNING，MapReduce WordCount application `application_1788593194299_0001` 最终状态为 `SUCCEEDED`，聚合日志状态为 `SUCCEEDED`，固定结果为 `alpha=2`、`beta=2`、`gamma=1`。
+
+### 影响与限制
+
+第一次失败不否定已确认的 Hadoop 版本和拓扑，但说明验证脚本要求服务处于运行状态。第二次通过只满足非中断门禁；在受控重启及哨兵读取完成前，Hadoop 整体仍不得标记为 `verified`。
+
+### 回滚
+
+本次恢复只启动既有服务，没有修改配置或格式化 NameNode。若服务启动后状态异常，应停止后续门禁并保留日志；不得通过删除 Hadoop 元数据恢复验证。
+
+## M1-ISSUE-002：受控重启脚本误判 hadoop201 进程缺失
+
+- 日期：2026-09-05
+- 组件与版本：Hadoop 3.4.1；`scripts/m1/restart-hadoop-and-verify.sh`
+- 节点：`hadoop201`、`hadoop202`、`hadoop203`
+- 状态：open
+- 日志位置：ECS `/data/logs/ecommerce-data-warehouse/m1/m1-hadoop-restart-20260905-01/`；原始副本位于本地忽略目录
+
+### 触发与现象
+
+执行受控重启脚本，预期退出状态为 0，实际退出状态为 8，日志报告 `Expected process is missing on hadoop201: NameNode`。脚本已完成停止和启动动作，并生成重启前后的拓扑文件，但没有生成 `restart-sentinel.env`。
+
+### 根因证据
+
+`after-restart.txt` 实际包含 `org.apache.hadoop.hdfs.server.namenode.NameNode`、`SecondaryNameNode`、`ResourceManager` 和 `JobHistoryServer`，同时包含 2 个 Live DataNode 和 2 个 RUNNING NodeManager。原脚本使用的表达式要求进程短名称前必须为空白，而 `jps -lv` 输出中短名称前是 Java 包名分隔符 `.`，因此产生假失败。该失败发生在哨兵 SHA-256 核对之前，所以不能仅凭拓扑恢复把本轮提升为通过。
+
+### 修复与复测
+
+进程断言已调整为同时接受行首、Java 包名分隔符或空白作为进程短名称边界，并继续要求名称后为空白或行尾。当前只完成仓库静态修复；需要将修复后的脚本拉取到 `hadoop201`，使用新的运行编号重新执行完整受控重启，确认脚本退出状态为 0、`summary.env` 为 `PASS`、`restart-sentinel.env` 两个 SHA-256 一致且临时 HDFS 路径已清理后，才能将状态改为 resolved。
+
+### 影响与限制
+
+现有证据证明集群在本轮操作后恢复了既定进程和节点拓扑，但没有证明脚本完成哨兵文件读取与比较。Hadoop 继续保持 `implemented`，MySQL 门禁继续等待。
+
+### 回滚
+
+若新表达式在目标 ECS 上仍误判，恢复本次单行匹配修改，保留两次运行证据并改用从 `jps` 第二列提取短类名的显式检查。回滚脚本不得停止服务、删除既有 HDFS 数据或格式化 NameNode。
 
 ## 记录模板
 

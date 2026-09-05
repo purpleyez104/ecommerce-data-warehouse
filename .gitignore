@@ -27,6 +27,7 @@ checkpoints/
 savepoints/
 data/local/
 tests/**/evidence/
+.local-notes/
 
 # Editor and operating system files
 .idea/

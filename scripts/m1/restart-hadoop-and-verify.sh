@@ -200,7 +200,8 @@ done
 } > "$output_dir/after-restart.txt" 2>&1
 
 for expected_process in NameNode SecondaryNameNode ResourceManager JobHistoryServer; do
-  grep -Eq "[[:space:]]$expected_process([[:space:]]|$)" "$output_dir/after-restart.txt" || {
+  grep -Eq "(^|[.[:space:]])$expected_process([[:space:]]|$)" \
+    "$output_dir/after-restart.txt" || {
     printf 'Expected process is missing on hadoop201: %s\n' "$expected_process" >&2
     exit 8
   }

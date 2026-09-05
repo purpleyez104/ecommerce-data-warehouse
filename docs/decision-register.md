@@ -21,6 +21,7 @@
 | `DR-004` | Milestone 2 受限预设计例外 | `accepted` | 2026-09-04 | 阶段门禁、业务模型预设计、Milestone 1-2 |
 | `DR-005` | 采用当前 ECS 集群记录作为 Milestone 1 确认事实基线 | `accepted` | 2026-09-04 | 事实来源、证据状态、集群配置、Milestone 1-2 |
 | `DR-006` | Milestone 1 扩展组件顺序、Doris 端口与调度注册中心 | `accepted` | 2026-09-04 | 组件顺序、端口、Kafka、Doris、DolphinScheduler |
+| `DR-007` | Milestone 1 ECS 只读拉取与证据回传边界 | `accepted` | 2026-09-05 | Git 权限、ECS 执行边界、证据流转、Milestone 1 |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -232,6 +233,44 @@ Doris 安装前在三节点检查 `18030` 未被占用，安装后验证 FE 实�
 ### 回滚方式
 
 如果 `18030` 被实际占用或组件验证失败，保存端口与启动证据，停止 Doris 门禁并由用户选择新端口；不得改动 YARN `8030`。如果 DolphinScheduler 的 ZooKeeper 方案不可用，保存日志并新增替代决策后再调整注册中心；不得让 Kafka 退回 ZooKeeper 模式。
+
+## DR-007：Milestone 1 ECS 只读拉取与证据回传边界
+
+- 状态：`accepted`
+- 决策日期：2026-09-05
+- 决策人：用户
+- 影响范围：Git 权限、ECS 执行边界、证据流转、Milestone 1
+- 替代决策：无
+
+### 背景
+
+`hadoop201` 已具备连接 Git 远程仓库并拉取文件的条件。Milestone 1 还需要在真实 ECS 集群执行 Hadoop 验证脚本，并把完整输出交回本地工作区审查。仓库禁止提交密码、密钥、Token、现场 Secret 和原始运行日志，因此需要固定仓库副本位置、Git 操作权限、ECS 输出位置和本地接收位置，避免把运行节点误当成提交端，或把原始证据直接推入 Git。
+
+### 决策
+
+只在 `hadoop201` 维护仓库执行副本，固定路径为 `/data/projects/ecommerce-data-warehouse`，使用分支 `codex/m1-infrastructure-compatibility`。当前阶段不要求 `hadoop202`、`hadoop203` 克隆仓库；跨节点操作由 `hadoop201` 上的受控脚本通过既有免密 SSH 执行。
+
+ECS 仓库副本只作为拉取和执行端：允许 `git clone`、`git fetch`、`git pull --ff-only`、`git switch`、`git status`、`git log` 和 `git diff`；禁止在 ECS 执行 `git add`、`git commit`、`git push`、`git tag`、`git merge` 和 `git rebase`。`hadoop201` 应将 `origin` 的 push URL 设置为 `DISABLED`；私有仓库需要认证时应使用只读 Deploy Key，不配置具有写权限的 Token。该配置必须经现场输出核对后才能描述为已生效。
+
+M1 原始证据固定写入 `/data/logs/ecommerce-data-warehouse/m1/<run-id>`，由用户通过 MobaXterm 下载到 Windows 工作区的 `.local-notes/m1-evidence/inbox/<run-id>`。`.local-notes/` 整体由 Git 忽略；审查完成的原始材料可移动到本地 `reviewed/`，但正式项目不得依赖这些本地目录运行。只有经过审查、去敏并符合仓库证据边界的摘要、配置或排障结论，才允许从 Windows 工作区进入 Git。
+
+### 理由
+
+把 ECS 限定为执行端可以减少现场日志、Secret 和机器特有值被误提交的风险，也避免服务器直接改写项目事实来源。MobaXterm 回传保留完整证据供审查，而本地隔离目录让原始材料与可发布内容分开。未采用在会话中逐个上传文件作为默认方式，因为目录型证据包含多个相互关联的输出，保持原目录结构更便于核对；会话上传只作为本地回传不可用时的备用方式。
+
+### 验证方法
+
+在 `hadoop201` 核对仓库路径、当前分支和远程配置：`pwd` 应为 `/data/projects/ecommerce-data-warehouse`，`git branch --show-current` 应为 `codex/m1-infrastructure-compatibility`，`git remote -v` 的 fetch 地址应指向项目仓库且 push 地址应显示 `DISABLED`。执行 `git status --short` 确认拉取后的执行副本没有预期外改动；该检查不证明后续运行期间不会生成文件。
+
+在 Windows 工作区执行 `git check-ignore -v .local-notes/m1-evidence/inbox/<run-id>`，预期命中 `.local-notes/` 忽略规则。每次准备提交去敏摘要前检查 `git status --short` 和 `git diff --check`，确认原始日志、凭据、真实 UUID 和未审查现场值未进入变更。Hadoop 的证据结论仍以脚本退出状态、`summary.env`、固定 HDFS 校验和 MapReduce 结果为准，本决策本身不提高 Hadoop 的证据状态。
+
+### 影响与风险
+
+`.local-notes/` 被忽略且不会随 Git clone 自动创建，新工作区需要单独建立接收目录。把 push URL 设为 `DISABLED` 是防误操作措施，不替代 GitHub 侧只读凭据控制，拥有写权限的人仍可能手工恢复 push 地址。原始证据只保存在 ECS 和本地时还存在磁盘损坏或人工删除风险；在形成去敏摘要前不得删除唯一副本。
+
+### 回滚方式
+
+如果后续确需由 ECS 提交内容，必须先由用户确认新的写入边界，并新增决策替代本记录；不得仅恢复 push URL 就绕过审查。若不再使用本地隔离目录，可在确认其中材料已妥善处置后移除 `.gitignore` 中的 `.local-notes/` 规则。文档或 Git 边界回滚不得删除 ECS 原始证据、修改 Hadoop 数据、格式化 NameNode 或改变现有集群服务。
 
 ## 记录模板
 
