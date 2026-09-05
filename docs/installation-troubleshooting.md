@@ -74,8 +74,8 @@
 - 日期：2026-09-05
 - 组件与版本：Hadoop 3.4.1；`scripts/m1/restart-hadoop-and-verify.sh`
 - 节点：`hadoop201`、`hadoop202`、`hadoop203`
-- 状态：open
-- 日志位置：ECS `/data/logs/ecommerce-data-warehouse/m1/m1-hadoop-restart-20260905-01/`；原始副本位于本地忽略目录
+- 状态：resolved
+- 日志位置：ECS `/data/logs/ecommerce-data-warehouse/m1/m1-hadoop-restart-20260905-01/`、`m1-hadoop-restart-20260905-02/`；原始副本位于本地忽略目录
 
 ### 触发与现象
 
@@ -87,11 +87,11 @@
 
 ### 修复与复测
 
-进程断言已调整为同时接受行首、Java 包名分隔符或空白作为进程短名称边界，并继续要求名称后为空白或行尾。当前只完成仓库静态修复；需要将修复后的脚本拉取到 `hadoop201`，使用新的运行编号重新执行完整受控重启，确认脚本退出状态为 0、`summary.env` 为 `PASS`、`restart-sentinel.env` 两个 SHA-256 一致且临时 HDFS 路径已清理后，才能将状态改为 resolved。
+进程断言已调整为同时接受行首、Java 包名分隔符或空白作为进程短名称边界，并继续要求名称后为空白或行尾。修复提交拉取到 `hadoop201` 后，使用运行编号 `m1-hadoop-restart-20260905-02` 完整复测：脚本退出状态为 0，`summary.env` 为 `PASS`，`restart-sentinel.env` 中预期与实际 SHA-256 一致，重启前后均为 2 个 Live DataNode、2 个 RUNNING NodeManager 和 `hadoop201` 四个控制进程，临时 HDFS 路径已删除。
 
 ### 影响与限制
 
-现有证据证明集群在本轮操作后恢复了既定进程和节点拓扑，但没有证明脚本完成哨兵文件读取与比较。Hadoop 继续保持 `implemented`，MySQL 门禁继续等待。
+复测证明集群恢复既定进程和节点拓扑，并完成哨兵文件读取与比较。启动日志仍提示旧的 `HADOOP_NAMENODE_OPTS`、`HADOOP_DATANODE_OPTS` 和 `HADOOP_SECONDARYNAMENODE_OPTS` 已由对应 `HDFS_*` 名称替代；该警告未影响本次验证结果，但后续配置维护不得把它描述为已消除。Hadoop 状态提升为 `verified`，当前进入 MySQL 门禁。
 
 ### 回滚
 

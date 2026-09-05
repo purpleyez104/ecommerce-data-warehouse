@@ -2,7 +2,7 @@
 
 版本：`0.3-draft`
 状态：Milestone 0 `completed`；Milestone 1 `in progress`
-更新时间：2026-09-04  
+更新时间：2026-09-05
 Repository：`ecommerce-data-warehouse`
 
 ## 0. 文档使用范围
@@ -127,7 +127,7 @@ V1 覆盖五个主题：
 | --- | --- | --- |
 | 业务数据源 | MySQL | candidate；尚未安装验证 |
 | 离线抽取 | DataX | candidate；尚未安装验证 |
-| 分布式存储与资源管理 | Hadoop HDFS、YARN | implemented；版本和运行拓扑已确认，完整 M1 功能证据待补 |
+| 分布式存储与资源管理 | Hadoop HDFS、YARN | verified；固定 HDFS 文件、MapReduce、聚合日志和受控重启已通过 |
 | 数仓元数据与 SQL | Hive | candidate；尚未安装验证 |
 | 离线计算 | Spark SQL、PySpark，运行于 YARN | candidate；尚未安装验证 |
 | 消息传输 | Kafka KRaft | candidate；尚未安装验证 |
@@ -254,7 +254,7 @@ Flink 实时清洗与计算
 - 这是成本受限的阿里云 ECS 开发环境，不代表生产拓扑。
 - 三台数据盘已确认为 `/dev/vdb`、ext4、挂载到 `/data`；各节点实际 UUID 属于现场值，不进入 Git。
 - 组件统一由 `yee` 运行；默认 Java 为 OpenJDK 17，Hadoop 3.4.1 通过 `hadoop-env.sh` 单独使用 OpenJDK 11。
-- Hadoop 使用单 NameNode 和双 DataNode，HDFS 候选副本数为 2；是否正式采用必须在 HDFS 验证时记录。
+- Hadoop 使用单 NameNode 和双 DataNode，HDFS 副本数为 2；固定文件和受控重启验证均已确认两个 DataNode 为 Live。
 - Kafka 三节点 Broker/Controller 混合角色只用于开发环境，不能描述为生产最佳实践。
 - 只有 `hadoop201` 需要公网 SSH 管理入口；集群组件端口只允许私网访问，本地 Web UI 优先使用 SSH 端口转发。
 - 是否扩容必须依据磁盘空间不足、OOM、持续 Swap、频繁 Full GC、进程被杀或核心组件无法稳定共存等实测证据。
@@ -263,7 +263,7 @@ Flink 实时清洗与计算
 
 ## 8. 版本与兼容性门禁
 
-Hadoop 3.4.1 已在当前集群运行并确认版本和拓扑，但仍需补齐 HDFS 固定文件、完整 MapReduce 和重启证据才能达到本项目的 `verified`。其余精确版本仍为候选。候选组件只有依次完成以下检查，才能写入 `infra/versions.env`：
+Hadoop 3.4.1 已于 2026-09-05 在当前集群完成版本、三节点守护进程 Java、HDFS 固定文件 SHA-256、MapReduce WordCount、YARN application 与聚合日志、临时对象清理和受控重启验证，项目状态为 `verified`。其余精确版本仍为候选。候选组件只有依次完成以下检查，才能写入 `infra/versions.env`：
 
 ```text
 官方版本和兼容依据

@@ -1,7 +1,7 @@
 # 架构说明
 
 版本：`0.3-draft`
-状态：Milestone 1 实施中；Hadoop 运行拓扑已确认，后续组件待验证
+状态：Milestone 1 实施中；Hadoop 3.4.1 已验证，当前进入 MySQL 门禁
 
 ## 当前基础设施
 
@@ -20,7 +20,7 @@
 - 数据盘均挂载到 `/data`，组件由 `yee` 运行。
 - 默认 Java 为 OpenJDK 17；Hadoop 3.4.1 单独使用 OpenJDK 11。
 - HDFS 为单 NameNode、双 DataNode，副本数 2；YARN 为单 ResourceManager、双 NodeManager。
-- 当前 Hadoop 版本、进程和节点拓扑是确认事实；固定 HDFS 文件、完整 MapReduce 结果和重启证据仍待补齐。
+- Hadoop 3.4.1 已完成固定 HDFS 文件、MapReduce WordCount、YARN application、聚合日志和受控重启验证；当前状态为 `verified`。
 
 完整状态、来源和配置见 [集群事实基线](cluster-baseline.md)。
 

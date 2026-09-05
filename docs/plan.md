@@ -2,7 +2,7 @@
 
 版本：`0.3-draft`
 状态：Milestone 0 已完成；Milestone 1 实施中
-更新时间：2026-09-04
+更新时间：2026-09-05
 
 ## 1. 使用方式
 
@@ -127,8 +127,8 @@ docs/decision-register.md
 
 - 用户确认 2026-09-04 的外部 ECS 集群记录是本项目实际搭建记录，其中 `CONFIRMED` 可作为当前事实。
 - Ubuntu 24.04、三节点网络与磁盘、`yee` 用户、OpenJDK 17 默认环境以及 Hadoop 3.4.1 的 HDFS/YARN 运行拓扑已经确认。
-- Hadoop 整体暂为 `implemented`：版本、进程和节点拓扑已确认，但 HDFS 固定文件、完整 MapReduce 输出和重启证据尚未满足本项目验收。
-- NameNode 已存在，禁止再次格式化；当前工作从 Hadoop 补证继续，不重新初始化主机或 Hadoop。
+- Hadoop 3.4.1 已于 2026-09-05 完成固定 HDFS 文件 SHA-256、MapReduce WordCount、YARN application 与聚合日志、临时对象清理和受控重启验证，整体状态为 `verified`。
+- NameNode 已存在并通过受控重启验证，禁止再次格式化；当前工作进入 MySQL 8.0.46 门禁，不重新初始化主机或 Hadoop。
 
 ### 涉及模块
 
@@ -160,9 +160,9 @@ docs/installation-troubleshooting.md
 当前集群已完成标准顺序中的主机、JDK、HDFS 和 YARN 建设。继续实施顺序为：
 
 ```text
-迁入确认事实
-→ 补齐 Hadoop HDFS / MapReduce / 重启证据
-→ MySQL
+迁入确认事实（已完成）
+→ 补齐 Hadoop HDFS / MapReduce / 重启证据（已完成）
+→ MySQL（当前门禁）
 → Hive
 → Kafka KRaft
 → Spark on YARN
@@ -675,12 +675,10 @@ scheduler/
 
 ## 15. 当前下一步
 
-Milestone 1 已开始。Ubuntu、节点、网络、磁盘、用户、Java 和 Hadoop 运行拓扑来自当前集群建设记录并作为确认事实。当前下一步：
+Milestone 1 已开始。Ubuntu、节点、网络、磁盘和用户来自当前集群建设记录并作为确认事实；Hadoop 3.4.1 已于 2026-09-05 达到 `verified`。当前下一步：
 
-1. 使用 `scripts/m1/collect-hadoop-evidence.sh` 补齐 HDFS 固定文件和 MapReduce 完整结果。
-2. 评审非中断结果后，使用独立确认参数执行受控重启验证；不得格式化 NameNode。
-3. Hadoop 达到 `verified` 后，在 `hadoop201` 安装并验证 MySQL 8.0.46 和 Binlog。
-4. 依次验证 Hive、Kafka KRaft、Spark on YARN、DataX、Doris、DolphinScheduler 和 Flink/Flink CDC。
-5. 精确版本只有取得官方依据和真实启动、连通、最小链路及重启证据后才能锁定。
+1. 在 `hadoop201` 安装并验证 MySQL 8.0.46 和 Binlog；只创建 M1 临时对象及计划内空逻辑库。
+2. MySQL 通过版本、启动、私网连接、Binlog 增删改和重启验证后，依次验证 Hive、Kafka KRaft、Spark on YARN、DataX、Doris、DolphinScheduler 和 Flink/Flink CDC。
+3. 精确版本只有取得官方依据和真实启动、连通、最小链路及重启证据后才能锁定。
 
 在正式主线之外，当前仍只允许按 `DR-004`、`DR-005` 维护 M2 预设计评审包并收集用户决策。Milestone 2 保持 `pending`；M1 创建 `infra/` 和验证脚本不代表精确版本已锁定，也不允许创建正式业务表。

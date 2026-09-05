@@ -2,7 +2,7 @@
 
 版本：`0.1-draft`
 状态：`in progress`
-更新时间：2026-09-04
+更新时间：2026-09-05
 
 ## 使用规则
 
@@ -17,9 +17,9 @@
 | 对象 | 精确版本或配置 | 来源状态 | 项目状态 | 还需完成 |
 | --- | --- | --- | --- | --- |
 | Ubuntu | 24.04 LTS，x86_64 | `CONFIRMED` | `verified` | 记录补丁与内核版本只用于环境快照 |
-| 默认 JDK | OpenJDK 17，补丁未知 | `CONFIRMED` | `implemented` | 记录三节点实际补丁版本和重启后环境 |
-| Hadoop JDK | OpenJDK 11，补丁未知 | `CONFIRMED` | `implemented` | 保存三节点守护进程使用 JDK 11 的证据 |
-| Hadoop | 3.4.1 | `CONFIRMED` | `implemented` | HDFS SHA-256、MapReduce 结果、聚合日志和重启验证 |
+| 默认 JDK | OpenJDK 17.0.20 | `CONFIRMED` | `verified` | 三节点 `java -version` 已采集；后续组件仍需分别验证所用 Java |
+| Hadoop JDK | OpenJDK 11，补丁未知 | `CONFIRMED` | `verified` | 三节点守护进程均已确认使用 JDK 11；补丁版本仍需后续环境快照 |
+| Hadoop | 3.4.1 | `CONFIRMED` | `verified` | HDFS SHA-256、MapReduce、聚合日志、清理和受控重启均已通过 |
 | MySQL | 8.0.46 | `PLANNED` | `candidate` | 安装、Binlog、私网连接、增删改和重启 |
 | Connector/J | 8.0.33 | `PLANNED` | `candidate` | Hive Metastore JDBC 连接 |
 | Hive | 4.1.0 | `PLANNED` | `candidate` | Metastore、HiveServer2、Beeline、外部表和重启 |
@@ -38,7 +38,7 @@
 
 | 组合 | 官方入口 | 当前结论边界 |
 | --- | --- | --- |
-| Hadoop 3.4.1 | <https://hadoop.apache.org/docs/r3.4.1/> | 版本文档存在；本项目运行事实来自当前集群记录 |
+| Hadoop 3.4.1 | <https://hadoop.apache.org/docs/r3.4.1/> | 版本文档存在；本项目运行事实来自当前集群记录和 2026-09-05 的功能及重启验证 |
 | Hive 4.1.0 / Hadoop 3.4.1 | <https://hive.apache.org/general/downloads/> | 官方发布说明可作为组合候选依据，仍需目标集群验证 |
 | Spark 3.5 / Java 17 / YARN | <https://spark.apache.org/docs/3.5.9/> | 支持范围不替代本项目的 Hadoop、Hive 和 YARN 实测 |
 | Kafka 3.9 KRaft | <https://kafka.apache.org/39/documentation.html#kraft> | 只采用 KRaft，不因 DolphinScheduler 引入的 ZooKeeper 改变 Kafka 模式 |
@@ -51,9 +51,9 @@
 ## 强制顺序
 
 ```text
-已有事实迁入
-→ Hadoop 缺失证据补齐
-→ MySQL
+已有事实迁入（已完成）
+→ Hadoop 缺失证据补齐（已完成）
+→ MySQL（当前门禁）
 → Hive
 → Kafka KRaft
 → Spark on YARN

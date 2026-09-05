@@ -24,10 +24,11 @@
 - Milestone 1 更新为 `in progress`；把当前 ECS 集群记录中的 `CONFIRMED` 作为确认事实，并将当前门禁调整为补齐 Hadoop HDFS、MapReduce 和重启证据。
 - M1 统一沿用 `yee`、`/data` 和 Hadoop 独立 JDK 11 基线；Doris FE HTTP 使用 `18030`，DolphinScheduler 使用仅服务自身的单节点 ZooKeeper。
 - 统一 M1 仓库与证据流转方式：`hadoop201` 仅拉取仓库并执行脚本，原始证据通过 MobaXterm 下载到 Windows 本地隔离区，仓库只接收经审查和去敏后的摘要或配置。
+- Hadoop 3.4.1 已完成固定 HDFS 文件、MapReduce WordCount、YARN application、聚合日志、临时对象清理和受控重启验证，项目状态提升为 `verified`；M1 当前技术门禁切换到 MySQL 8.0.46。
 
 ### 修复
 
-- 修复 Hadoop 受控重启验证对 `jps -lv` 完整 Java 类名的匹配错误，避免在 NameNode 等进程实际存在时误报缺失；保留真实失败与待复测边界。
+- 修复 Hadoop 受控重启验证对 `jps -lv` 完整 Java 类名的匹配错误，避免在 NameNode 等进程实际存在时误报缺失；修复后已在目标 ECS 完成复测。
 
 ### 移除
 

@@ -8,10 +8,10 @@
 | --- | --- |
 | 当前阶段 | Milestone 0：`completed`；Milestone 1：`in progress` |
 | 规格版本 | `0.3-draft` |
-| 实现状态 | M1 已采用当前 ECS 集群记录并进入 Hadoop 补证门禁；M2 为 `pending`，没有创建正式业务模型、数据表或运行链路 |
-| 当前允许活动 | 按 M1 门禁补齐 Hadoop 证据并依次验证后续组件；`DR-004` 的 M2 文档预设计例外继续有效 |
-| 运行验证 | Ubuntu、节点、磁盘和 Hadoop 拓扑已有确认事实；HDFS 固定文件、MapReduce 完整结果和重启证据待补 |
-| 精确组件版本 | Hadoop 3.4.1 已确认；其余精确版本为候选，尚未锁定 |
+| 实现状态 | Hadoop 3.4.1 已完成 M1 功能与受控重启验证；当前进入 MySQL 8.0.46 门禁；M2 为 `pending` |
+| 当前允许活动 | 按 M1 顺序安装并验证 MySQL 8.0.46；`DR-004` 的 M2 文档预设计例外继续有效 |
+| 运行验证 | HDFS 固定文件、MapReduce WordCount、YARN application、聚合日志和 Hadoop 受控重启已于 2026-09-05 通过 |
+| 精确组件版本 | Hadoop 3.4.1 为 `verified`；其余精确版本为候选，尚未锁定 |
 | 运行平台 | 阿里云 ECS（三节点） |
 | 实时数仓 | 仅确定目标架构，详细设计待后续评审 |
 
@@ -110,7 +110,7 @@ MySQL Binlog
 | `doris/ddl/` | 离线服务表；实时表在 Milestone 8 后确定 | Milestone 6 | placeholder |
 | `scheduler/dolphinscheduler/` | T+1 DAG、参数、重试、补数、阻断和对账 | Milestone 6 | placeholder |
 | `flink/jobs/` | CDC、实时清洗、聚合和恢复作业 | Milestone 9 | placeholder |
-| `scripts/` | 参数化执行、健康检查和阶段验证入口 | 按阶段 | implemented；M1 Hadoop 脚本待 ECS 运行验证 |
+| `scripts/` | 参数化执行、健康检查和阶段验证入口 | 按阶段 | implemented；M1 Hadoop 验证脚本已在 ECS 通过 |
 
 `placeholder` 表示只存在目录或说明文件；`unconfigured` 表示入口明确返回未配置状态；二者都不代表实现可用。
 
@@ -169,7 +169,7 @@ MySQL Binlog
 - [项目规格](docs/spec.md)：项目范围、架构、指标、接口和验收标准。
 - [阶段开发计划](docs/plan.md)：Milestone 顺序、模块、交付物、进入条件和阻断规则。
 - [架构说明](docs/architecture.md)：当前架构边界说明；后续需随实施阶段更新。
-- [集群事实基线](docs/cluster-baseline.md)：当前 ECS、网络、磁盘、用户、Java 和 Hadoop 的确认事实及证据缺口。
+- [集群事实基线](docs/cluster-baseline.md)：当前 ECS、网络、磁盘、用户、Java 和 Hadoop 的确认事实及验证结论。
 - [组件兼容性矩阵](docs/compatibility-matrix.md)：精确版本候选、官方依据、项目状态和验证门禁。
 - [安装与排障记录](docs/installation-troubleshooting.md)：目标 ECS 上真实发生的问题、修复、复测和回滚。
 - [指标口径](docs/metrics.md)：指标定义和血缘入口；正式口径尚待后续阶段补充。
@@ -189,4 +189,4 @@ MySQL Binlog
 7. 静态检查只能证明文件和契约一致，不能替代真实组件和数据链路验证。
 8. Agent 每次最终答复都总结核心操作和核心决策，并询问用户是否将其写入 `CHANGELOG.md`、`docs/decision-register.md` 或两者；未获确认时不自动落盘，当前请求已明确授权的记录除外。
 
-Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1 已开始：当前集群的 Ubuntu、节点、网络、磁盘、用户和 Hadoop 3.4.1 拓扑是确认事实，Hadoop 整体因缺少仓库要求的固定 HDFS 文件、完整 MapReduce 和重启证据暂为 `implemented`。当前门禁是执行 `scripts/m1/collect-hadoop-evidence.sh`；通过并完成受控重启验证后才进入 MySQL。Milestone 2 保持 `pending`，必须等待 MySQL 通过 M1 启动和连接验证并完成业务规则评审后，才能正式进入。
+Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1 已开始：当前集群的 Ubuntu、节点、网络、磁盘和用户来自确认事实；Hadoop 3.4.1 已于 2026-09-05 完成固定 HDFS 文件、MapReduce WordCount、YARN application、聚合日志和受控重启验证，状态为 `verified`。当前技术门禁是安装并验证 MySQL 8.0.46。Milestone 2 保持 `pending`，必须等待 MySQL 通过 M1 启动和连接验证并完成业务规则评审后，才能正式进入。
