@@ -18,6 +18,7 @@
 
 ### 变更
 
+- 建立 Trellis Data Engineering 工作流基线：移除默认 Fullstack spec，明确 `AGENTS.md`、项目 docs、Trellis Task 的事实优先级，转换 bootstrap Task，并关闭 Trellis 自动 Commit 与 Codex Hook 注册；该变更不改变任何业务模型、Milestone 门禁或运行验证结论。
 - 离线主线调整为 DataX 直接写入 Hive ODS 对应的 HDFS ORC + Snappy 分区，并明确分区注册、审计字段、幂等发布和失败隔离责任。
 - Milestone 0 已通过用户评审并标记为 `completed`；Milestone 1 保持 `pending`，进入门禁已满足但尚未开始实施。
 - 在 Milestone 1、2 均保持 `pending` 的前提下，允许开展受限的 M2 文档预设计；该活动不豁免 MySQL 运行门禁，也不产生 DDL、seed 或其他可执行产物。

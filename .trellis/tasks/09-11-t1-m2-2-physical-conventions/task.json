@@ -1,0 +1,31 @@
+{
+  "id": "t1-m2-2-physical-conventions",
+  "name": "t1-m2-2-physical-conventions",
+  "title": "T1 M2.2 物理规范收口",
+  "description": "统一 19 张源表的约束与索引名称、生成列物理形式及建表顺序。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": "docs-and-schema-design",
+  "package": null,
+  "priority": "P0",
+  "creator": "Z40003",
+  "assignee": "Z40003",
+  "createdAt": "2026-09-11",
+  "completedAt": null,
+  "branch": "codex/m1-infrastructure-compatibility",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "Acceptance Result: passed. Completion Note: T1 Scope 与四项 Acceptance Criteria 均已满足，未改变 DR-013 至 DR-018 已确认的字段、关系或业务语义。 Verification Note: 已静态核对 183 项命名台账（19 PK、30 UQ、42 CHECK、32 FK、60 Index）、两个 VIRTUAL GENERATED ALWAYS 生成列、31 个跨表 FK、1 个自引用、19 表创建顺序及精确反向回滚顺序；过期描述搜索无结果，git diff --check 通过。 Remaining Follow-up: 保持 in_progress，待聚焦 Git Commit 获得确认并完成后再归档。",
+  "meta": {
+    "original_id": "T1",
+    "depends_on": "C0",
+    "parallel": "with-independent-work-only",
+    "worktree": "no"
+  }
+}

@@ -6,7 +6,7 @@
 
 更新时间：2026-09-11
 
-适用决策：`DR-008` 至 `DR-018`
+适用决策：`DR-008` 至 `DR-020`
 
 ## 1. 文档定位与证据边界
 
@@ -99,7 +99,7 @@ flowchart LR
 | `M2-DEC-011` | 时间语义 | `accepted` | `Asia/Shanghai`、毫秒精度、过程事件时间与跨日独立归属；审计时间和到达时间不替代业务时间 | 已解除该项阻断，公共物理类型已由 `DR-013` 确认 |
 | `M2-DEC-012` | 金额与数量 | `accepted` | V1 仅 CNY、金额两位小数、`HALF_UP`、含税且运费为零；订单优惠分摊和累计退款规则已确认 | 已解除该项阻断，公共物理类型已由 `DR-013` 确认 |
 | `M2-DEC-013` | 优惠券补贴率 | `accepted` | 固定金额券、一单一券、领取实例状态机；`P1_METRIC_030` 按支付日计算毛补贴率，零分母输出 0 | 已解除该项阻断，来源字段已由 `DR-018` 确认，运行血缘留待后续阶段 |
-| `M2-DEC-014` | 数据库约束与异常注入 | `accepted` | MySQL 负责结构与单行约束，Python 写入层负责跨行和流程规则；不使用 Trigger/Stored Procedure；异常用独立事务和失败用例隔离 | 已解除该项阻断，具体约束名称与字段映射留到 M2.2 |
+| `M2-DEC-014` | 数据库约束与异常注入 | `accepted` | MySQL 负责结构与单行约束，Python 写入层负责跨行和流程规则；不使用 Trigger/Stored Procedure；异常用独立事务和失败用例隔离 | 已解除该项阻断；字段映射见 8.4 至 8.8，物理命名见 8.9.1 |
 | `M2-DEC-015` | 验收数据集规模 | `DECISION_REQUIRED` | 固定数据覆盖多少对象、业务日期和边界组合 | seed 规模、预期结果和人工核对成本 |
 
 ### 4.1 已确认结论的实施解释
@@ -206,7 +206,7 @@ flowchart LR
 
 ### 8.1 MySQL 源表清单
 
-以下 19 张表属于 MySQL 数据库 `ecommerce_oltp` 的 OLTP 业务源表，不是 Hive ODS、DIM/DWD、DWS 或 ADS 表。表名、职责、基础关系及全部 230 个字段已确认；完整索引与约束名称、生成列物理形式、建表顺序和候选 DDL 继续在 M2.2 完成。
+以下 19 张表属于 MySQL 数据库 `ecommerce_oltp` 的 OLTP 业务源表，不是 Hive ODS、DIM/DWD、DWS 或 ADS 表。表名、职责、基础关系及全部 230 个字段已确认；完整可命名约束/索引台账、生成列物理形式及建表顺序已按 `DR-020` 收口，候选 DDL 继续在 M2.2 完成。
 
 | 主题 | 源表 | 一行代表什么 |
 | --- | --- | --- |
@@ -253,7 +253,7 @@ flowchart LR
 - 主数据使用 `is_deleted` 和可空 `deleted_at` 表达软删除；交易表和事件表禁止业务硬删除。
 - `request_id` 在对应业务过程内唯一，不要求跨全部源表全局唯一。
 - MySQL 直接负责 `PRIMARY KEY`、`UNIQUE`、`NOT NULL`、核心 `FOREIGN KEY`、状态集合及金额/数量范围等单行 `CHECK`。
-- 同一订单最多一笔成功支付使用生成列与唯一索引约束；具体生成列、索引名称和表达式随候选 DDL 一并评审。
+- 同一订单最多一笔成功支付使用生成列与唯一索引约束；两个生成列均采用 8.9.2 已确认的 `VIRTUAL GENERATED ALWAYS` 形式，并使用 8.9.1 的显式唯一索引名称。
 - 状态迁移、累计退货/退款上限、优惠券锁定与释放、金额分摊和重复请求返回原对象等跨行或流程规则由 Python 写入层负责。V1 不使用 Trigger 或 Stored Procedure。
 - 正常 seed 只包含合法数据。违反数据库约束的用例使用独立事务执行并在预期失败后 `ROLLBACK`；跨行或流程异常由 Python 写入层拒绝并返回非零状态。不得通过关闭外键或修改正式 DDL 注入异常。
 
@@ -330,7 +330,7 @@ flowchart LR
 - `user_address.user_pk → user_account.user_account_pk`。
 - `visit_session.visitor_pk → visitor.visitor_pk`，`visit_session.first_channel_pk → traffic_channel.traffic_channel_pk`。
 - `login_event` 分别关联 `visitor`、`visit_session` 和 `user_account`；该表只记录成功登录事件并保持 append-only。
-- `page_view_event` 分别关联 `visitor`、`visit_session`、`traffic_channel`，可选关联 `user_account` 和 `sku`；`sku_pk` 的外键目标已确认，约束名称随候选 DDL 统一确定。
+- `page_view_event` 分别关联 `visitor`、`visit_session`、`traffic_channel`，可选关联 `user_account` 和 `sku`；`sku_pk` 的外键目标及全部显式约束名称已按 8.9.1 确认。
 - 所有外键使用 `RESTRICT` 语义，不设置级联删除。`user_account`、`user_address`、`visitor`、`traffic_channel` 使用软删除；`visit_session`、`login_event`、`page_view_event` 禁止业务删除。
 - 未知或直接访问不使用空渠道，通过 `traffic_channel.channel_code = 'DIRECT'` 的固定字典记录表达。
 
@@ -341,7 +341,7 @@ MySQL 单行约束方向如下：
 - `visit_session.last_event_at >= visit_session.started_at`；`ended_at` 非空时不得早于 `last_event_at`。
 - `page_view_event.page_type` 只允许 `HOME`、`PRODUCT_DETAIL`、`OTHER`。`PRODUCT_DETAIL` 必须关联 `sku_pk`，其余页面的 `sku_pk` 必须为空。
 
-索引方向如下；名称和完整 DDL 留到 M2.2 候选 DDL 批次统一确定：
+索引方向如下；对应显式名称见 8.9.1，完整 DDL 留到 T2 Candidate DDL 批次生成：
 
 | 源表 | 唯一索引 | 查询与增量索引方向 |
 | --- | --- | --- |
@@ -408,7 +408,7 @@ MySQL 单行约束方向如下：
 - 商品归属和价格变化必须更新 `update_time`；订单明细后续保存 Brand、Category、SPU、SKU 和价格快照，商品主数据变化不改写历史订单。
 - V1 不增加库存、商家、仓库、复杂规格 JSON、图片或搜索字段；如未来确有业务需要，必须新增设计决策。
 
-索引方向如下；名称和完整 DDL 留到 M2.2 候选 DDL 批次统一确定：
+索引方向如下；对应显式名称见 8.9.1，完整 DDL 留到 T2 Candidate DDL 批次生成：
 
 | 源表 | 唯一索引 | 查询与增量索引方向 |
 | --- | --- | --- |
@@ -484,7 +484,7 @@ MySQL 单行约束方向如下：
 关系和删除规则如下：
 
 - `cart_event` 分别关联 `visitor`、`visit_session` 和 `sku`，可选关联 `user_account`；主体和会话必须与事件发生时身份一致。
-- `sales_order.user_pk → user_account.user_account_pk`，`sales_order.user_address_pk → user_address.user_address_pk`，可选的 `sales_order.user_coupon_pk` 后续关联 `user_coupon.user_coupon_pk`；该外键目标字段和完整约束名称须等待营销表字段确认。
+- `sales_order.user_pk → user_account.user_account_pk`，`sales_order.user_address_pk → user_address.user_address_pk`，可选的 `sales_order.user_coupon_pk → user_coupon.user_coupon_pk`；目标字段与显式约束名称均已按 `DR-018`、`DR-020` 确认。
 - `sales_order_item.order_pk → sales_order.sales_order_pk`，`sales_order_item.sku_pk → sku.sku_pk`。同一订单内一种 SKU 只允许一条明细，使用 `(order_pk, sku_pk)` 唯一约束。
 - 所有外键均使用 `RESTRICT`，不设置级联删除。三张表禁止业务硬删除；`cart_event`、`sales_order_item` 保持 append-only，`sales_order` 只允许合法状态及对应字段变化。
 
@@ -497,7 +497,7 @@ MySQL 单行约束方向如下：
 
 跨行和流程规则由 Python 写入层负责：相同加购或下单 `request_id` 返回原对象；访客、会话和可空用户身份一致；下单用户拥有所选地址和优惠券；订单头金额分别等于明细对应金额合计；商品优惠和优惠券优惠按已确认的确定性规则分摊；订单状态迁移、取消时点和商品快照取值合法。MySQL 字段及单行 `CHECK` 不能替代这些流程测试。
 
-索引方向如下；名称和完整 DDL 留到 M2.2 候选 DDL 批次统一确定：
+索引方向如下；对应显式名称见 8.9.1，完整 DDL 留到 T2 Candidate DDL 批次生成：
 
 | 源表 | 唯一索引 | 查询与增量索引方向 |
 | --- | --- | --- |
@@ -573,14 +573,14 @@ MySQL 单行约束方向如下：
 - `payment_status` 和 `refund_status` 只允许 `CREATED`、`SUCCESS`、`FAILED`。`CREATED` 的成功/失败时间、回调键和失败原因均为空；`SUCCESS` 必须有回调键及对应成功时间，失败时间和原因为空；`FAILED` 必须有回调键、失败时间和失败原因，成功时间为空。
 - `return_status` 只允许 `APPLIED`、`APPROVED`、`REJECTED`、`COMPLETED`。`APPLIED` 只保留申请时间；`APPROVED` 必须有批准时间和非空应退金额；`REJECTED` 必须有拒绝时间及原因且应退金额为空；`COMPLETED` 必须同时有批准时间、非空应退金额和完成时间。互斥状态不允许携带其他终态时间或拒绝原因。
 - 支付和退款金额不得为负，币种只允许 `CNY`。`return_quantity > 0`；`return_order.refund_amount` 非空时不得为负。
-- `successful_order_pk` 的生成语义为支付成功时取 `order_pk`、其他状态为空；`successful_return_order_pk` 的生成语义为退款成功时取 `return_order_pk`、其他状态为空。生成列表达式、`VIRTUAL` 或 `STORED` 形式及约束名称随候选 DDL 统一确定。
+- `successful_order_pk` 的生成语义为支付成功时取 `order_pk`、其他状态为空；`successful_return_order_pk` 的生成语义为退款成功时取 `return_order_pk`、其他状态为空。两者均使用 8.9.2 已确认的 `VIRTUAL GENERATED ALWAYS` 表达式及 8.9.1 的显式唯一索引名称。
 - `payment_no`、`return_no`、`refund_no` 和各表 `request_id` 在对应表内唯一；支付与退款的非空 `callback_request_id` 在对应表内唯一，重复回调不得重复改变状态或首次成功时间。
 
 跨行和流程规则由 Python 写入层负责：支付成功金额必须等于订单应付金额；支付或退款只允许从 `CREATED` 进入一个终态；退单只允许 `APPLIED → APPROVED → COMPLETED` 或 `APPLIED → REJECTED`；同一明细处于 `APPLIED`、`APPROVED`、`COMPLETED` 的退单数量合计不得超过购买数量；退单批准金额按“此前已完成退单数量 + 本次批准数量”的累计可退金额减去此前成功退款金额确定；退款必须关联同一订单、已批准退单和原成功支付，金额等于退单的 `refund_amount`，全部成功退款累计不得超过原成功支付金额。
 
 退款成功后，Python 写入层在同一业务事务内把对应退单更新为 `COMPLETED`，并根据订单累计成功退款金额把订单更新为 `PARTIALLY_REFUNDED` 或 `REFUNDED`。即使退单应退金额为 `0.00`，也创建一笔 `SUCCESS` 的零金额退款尝试后再完成退单，以保持统一状态路径。失败重试必须创建新的支付或退款尝试；相同 `request_id` 返回原尝试，重复 `callback_request_id` 不改变首次终态结果。
 
-索引方向如下；名称和完整 DDL 留到 M2.2 候选 DDL 批次统一确定：
+索引方向如下；对应显式名称见 8.9.1，完整 DDL 留到 T2 Candidate DDL 批次生成：
 
 | 源表 | 唯一索引 | 查询与增量索引方向 |
 | --- | --- | --- |
@@ -644,16 +644,99 @@ MySQL 单行约束方向如下：
 
 V1 只支持固定金额券，不增加发行额度、库存、抢券、每用户领取上限或折扣比例券。
 
-索引方向如下；名称和完整 DDL 留到 M2.2 候选 DDL 批次统一确定：
+索引方向如下；对应显式名称见 8.9.1，完整 DDL 留到 T2 Candidate DDL 批次生成：
 
 | 源表 | 唯一索引 | 查询与增量索引方向 |
 | --- | --- | --- |
 | `coupon` | `coupon_id` | `(valid_from, valid_to, is_deleted, coupon_pk)`、`(update_time, coupon_pk)` |
 | `user_coupon` | `user_coupon_no`、`request_id` | `(user_pk, coupon_status, valid_to, user_coupon_pk)`、`(coupon_pk, coupon_status, user_coupon_pk)`、`(coupon_status, valid_to, user_coupon_pk)`、`(update_time, user_coupon_pk)` |
 
-### 8.9 M2.2 剩余工作
+### 8.9 Schema 级物理规范
 
-本批确认不表示 M2.2 已完成。全部 19 张源表的 230 个字段、可空性、关系、单行约束和索引方向已经确认；下一批仍需统一约束与索引名称、生成列物理形式和建表顺序，并生成 19 张表的候选 DDL、执行静态检查。候选 DDL 未在真实 MySQL 执行前最多标记为 `implemented`，不得标记为 `verified`。
+本节收口 M2.2 的 Schema 级物理规则；它是后续候选 DDL 的唯一命名与依赖输入，但本身不是 DDL，也不表示任何表、索引或约束已在 MySQL 创建或验证。第 8.4 至 8.8 节已经确认的字段、关系、单行约束语义和索引方向保持不变。
+
+#### 8.9.1 命名规则与完整台账
+
+除主键外，所有名称使用小写 `snake_case`，在 `ecommerce_oltp` 的 19 张表范围内唯一，且不依赖 MySQL 自动生成名称。候选 DDL 必须逐字采用下表；不得因实现便利重命名、合并或省略其中项目。
+
+- 主键：台账使用逻辑标识 `pk_<table>`，候选 DDL 使用 MySQL 的 `PRIMARY KEY`。MySQL 的实际 Primary Key 索引名固定为 `PRIMARY`，不能改为逻辑标识。
+- 唯一约束或唯一索引：`uq_<table>_<business_or_rule>`。业务键、`request_id`、可空回调幂等键和成功生成列均使用该前缀。
+- 外键：`fk_<child_table>_<parent_table>_<child_column>`。所有外键都声明 `ON UPDATE RESTRICT ON DELETE RESTRICT`。
+- `CHECK`：`ck_<table>_<rule>`。一个 `CHECK` 可承载同一行内不可拆分的状态/时间组合；不把 Python 负责的跨行或流程规则伪装成数据库 `CHECK`。
+- 非唯一二级索引：`idx_<table>_<purpose>`。`purpose` 表示已确认的查询或增量抽取方向，而非性能已验证结论。
+
+| 源表 | 主键与唯一名称 | `CHECK` 名称 | 外键名称 | 非唯一二级索引名称 |
+| --- | --- | --- | --- | --- |
+| `user_account` | `pk_user_account`；`uq_user_account_user_id` | `ck_user_account_soft_delete` | 无 | `idx_user_account_registered`；`idx_user_account_incremental` |
+| `user_address` | `pk_user_address`；`uq_user_address_address_id` | `ck_user_address_soft_delete` | `fk_user_address_user_account_user_pk` | `idx_user_address_user_active`；`idx_user_address_incremental` |
+| `visitor` | `pk_visitor`；`uq_visitor_visitor_id` | `ck_visitor_soft_delete`；`ck_visitor_seen_range` | 无 | `idx_visitor_first_seen`；`idx_visitor_incremental` |
+| `traffic_channel` | `pk_traffic_channel`；`uq_traffic_channel_channel_code` | `ck_traffic_channel_soft_delete` | 无 | `idx_traffic_channel_incremental` |
+| `visit_session` | `pk_visit_session`；`uq_visit_session_session_id` | `ck_visit_session_event_range`；`ck_visit_session_end_range` | `fk_visit_session_visitor_visitor_pk`；`fk_visit_session_traffic_channel_first_channel_pk` | `idx_visit_session_visitor_started`；`idx_visit_session_channel_started`；`idx_visit_session_incremental` |
+| `login_event` | `pk_login_event`；`uq_login_event_login_event_id` | 无 | `fk_login_event_visitor_visitor_pk`；`fk_login_event_visit_session_session_pk`；`fk_login_event_user_account_user_pk` | `idx_login_event_user_login`；`idx_login_event_visitor_login`；`idx_login_event_session_login`；`idx_login_event_incremental` |
+| `page_view_event` | `pk_page_view_event`；`uq_page_view_event_page_view_id` | `ck_page_view_event_page_sku` | `fk_page_view_event_visitor_visitor_pk`；`fk_page_view_event_visit_session_session_pk`；`fk_page_view_event_user_account_user_pk`；`fk_page_view_event_traffic_channel_channel_pk`；`fk_page_view_event_sku_sku_pk` | `idx_page_view_event_session_event`；`idx_page_view_event_visitor_event`；`idx_page_view_event_user_event`；`idx_page_view_event_channel_event`；`idx_page_view_event_type_event`；`idx_page_view_event_sku_event`；`idx_page_view_event_incremental` |
+| `brand` | `pk_brand`；`uq_brand_brand_id` | `ck_brand_soft_delete` | 无 | `idx_brand_incremental` |
+| `category` | `pk_category`；`uq_category_category_id` | `ck_category_level_parent`；`ck_category_soft_delete` | `fk_category_category_parent_category_pk` | `idx_category_parent_level_active`；`idx_category_incremental` |
+| `spu` | `pk_spu`；`uq_spu_spu_id` | `ck_spu_soft_delete` | `fk_spu_brand_brand_pk`；`fk_spu_category_category_pk` | `idx_spu_brand_active`；`idx_spu_category_active`；`idx_spu_incremental` |
+| `sku` | `pk_sku`；`uq_sku_sku_id` | `ck_sku_sale_price`；`ck_sku_currency`；`ck_sku_soft_delete` | `fk_sku_spu_spu_pk` | `idx_sku_spu_active`；`idx_sku_incremental` |
+| `cart_event` | `pk_cart_event`；`uq_cart_event_cart_event_id`；`uq_cart_event_request_id` | `ck_cart_event_action_validity` | `fk_cart_event_visitor_visitor_pk`；`fk_cart_event_visit_session_session_pk`；`fk_cart_event_user_account_user_pk`；`fk_cart_event_sku_sku_pk` | `idx_cart_event_visitor_action`；`idx_cart_event_user_action`；`idx_cart_event_session_action`；`idx_cart_event_sku_action`；`idx_cart_event_incremental` |
+| `sales_order` | `pk_sales_order`；`uq_sales_order_order_no`；`uq_sales_order_request_id` | `ck_sales_order_status_cancel`；`ck_sales_order_amount_formula`；`ck_sales_order_currency`；`ck_sales_order_coupon_absence` | `fk_sales_order_user_account_user_pk`；`fk_sales_order_user_address_user_address_pk`；`fk_sales_order_user_coupon_user_coupon_pk` | `idx_sales_order_user_ordered`；`idx_sales_order_status_ordered`；`idx_sales_order_coupon_status`；`idx_sales_order_incremental` |
+| `sales_order_item` | `pk_sales_order_item`；`uq_sales_order_item_order_item_no`；`uq_sales_order_item_order_sku` | `ck_sales_order_item_quantity`；`ck_sales_order_item_original_amount`；`ck_sales_order_item_amount_formula`；`ck_sales_order_item_currency` | `fk_sales_order_item_sales_order_order_pk`；`fk_sales_order_item_sku_sku_pk` | `idx_sales_order_item_sku`；`idx_sales_order_item_incremental` |
+| `payment_attempt` | `pk_payment_attempt`；`uq_payment_attempt_payment_no`；`uq_payment_attempt_request_id`；`uq_payment_attempt_callback_request_id`；`uq_payment_attempt_successful_order` | `ck_payment_attempt_status_terminal`；`ck_payment_attempt_amount`；`ck_payment_attempt_currency` | `fk_payment_attempt_sales_order_order_pk` | `idx_payment_attempt_order_attempted`；`idx_payment_attempt_status_attempted`；`idx_payment_attempt_paid`；`idx_payment_attempt_incremental` |
+| `return_order` | `pk_return_order`；`uq_return_order_return_no`；`uq_return_order_request_id` | `ck_return_order_status_terminal`；`ck_return_order_quantity`；`ck_return_order_refund_amount`；`ck_return_order_currency` | `fk_return_order_sales_order_order_pk`；`fk_return_order_sales_order_item_order_item_pk` | `idx_return_order_item_applied`；`idx_return_order_order_applied`；`idx_return_order_status_completed`；`idx_return_order_completed`；`idx_return_order_incremental` |
+| `refund_attempt` | `pk_refund_attempt`；`uq_refund_attempt_refund_no`；`uq_refund_attempt_request_id`；`uq_refund_attempt_callback_request_id`；`uq_refund_attempt_successful_return_order` | `ck_refund_attempt_status_terminal`；`ck_refund_attempt_amount`；`ck_refund_attempt_currency` | `fk_refund_attempt_return_order_return_order_pk`；`fk_refund_attempt_sales_order_order_pk`；`fk_refund_attempt_payment_attempt_payment_attempt_pk` | `idx_refund_attempt_return_attempted`；`idx_refund_attempt_order_refunded`；`idx_refund_attempt_payment_refunded`；`idx_refund_attempt_status_attempted`；`idx_refund_attempt_incremental` |
+| `coupon` | `pk_coupon`；`uq_coupon_coupon_id` | `ck_coupon_discount_amount`；`ck_coupon_minimum_amount`；`ck_coupon_validity`；`ck_coupon_soft_delete` | 无 | `idx_coupon_validity_active`；`idx_coupon_incremental` |
+| `user_coupon` | `pk_user_coupon`；`uq_user_coupon_user_coupon_no`；`uq_user_coupon_request_id` | `ck_user_coupon_status_times`；`ck_user_coupon_discount_amount`；`ck_user_coupon_minimum_amount`；`ck_user_coupon_validity` | `fk_user_coupon_coupon_coupon_pk`；`fk_user_coupon_user_account_user_pk` | `idx_user_coupon_user_status_valid`；`idx_user_coupon_coupon_status`；`idx_user_coupon_status_valid`；`idx_user_coupon_incremental` |
+
+`DR-020` 已确认：`pk_<table>` 仅作为文档台账中的逻辑标识；候选 DDL 使用 MySQL 固定的 `PRIMARY KEY`，其实际索引名统一为 `PRIMARY`。除这一 MySQL 固有限制外，所有可命名的 `UNIQUE`、`CHECK`、`FOREIGN KEY` 与非唯一二级索引均在 19 张表范围内唯一。
+
+其中 `uq_payment_attempt_callback_request_id` 与 `uq_refund_attempt_callback_request_id` 依赖 MySQL 对 `NULL` 的唯一索引语义：多个尚未回调的 `NULL` 允许并存，非空回调值在各自表内唯一。它们不需要额外生成列，也不改变已确认的回调幂等语义。
+
+#### 8.9.2 生成列物理形式
+
+候选 DDL 将两个仅用于唯一成功保护的派生键定义为 `VIRTUAL GENERATED ALWAYS` 列，而不是 `STORED`：它们完全由同一行的状态和外键派生，没有业务读取或审计保留需求；`InnoDB` 的唯一二级索引仍会保存用于索引判重的键值。这样避免冗余聚簇数据，同时保持 `DR-017` 已确认的并发唯一语义。该选择是 MySQL 8.0.46 候选 DDL 的静态设计，尚未完成目标环境的语法或行为验证。
+
+| 源表 | 生成列候选定义 | 唯一保护 | 采用理由 |
+| --- | --- | --- | --- |
+| `payment_attempt` | `successful_order_pk BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN payment_status = 'SUCCESS' THEN order_pk ELSE NULL END) VIRTUAL` | `uq_payment_attempt_successful_order (successful_order_pk)` | 只表达“成功时的订单键”；失败与创建态为 `NULL`，允许多次重试。 |
+| `refund_attempt` | `successful_return_order_pk BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN refund_status = 'SUCCESS' THEN return_order_pk ELSE NULL END) VIRTUAL` | `uq_refund_attempt_successful_return_order (successful_return_order_pk)` | 只表达“成功时的退单键”；失败与创建态为 `NULL`，允许多次重试和零金额成功退款。 |
+
+不得在 DDL 或写入层直接给这两个生成列赋值；状态从 `CREATED` 进入终态时由表达式重算。若 M2.5 的 MySQL 8.0.46 语法或并发行为验证失败，保留 `DR-017` 的语义并将物理实现标为 `DECISION_REQUIRED`，不得静默切换为 Trigger、Stored Procedure 或放弃唯一保护。
+
+#### 8.9.3 FK 拓扑、建表与回滚顺序
+
+跨表 FK 图是有向无环图。`category.parent_category_pk → category.category_pk` 是唯一的同表自引用：它在 `CREATE TABLE category` 内声明，表级创建不依赖另一张表；seed 写入仍必须先插入父级再插入子级。`sales_order` 单向引用 `user_coupon`，而 `user_coupon` 不引用订单，因此营销与订单之间不存在循环依赖。
+
+候选 DDL 必须按以下顺序创建，以保证每个跨表 FK 的目标表已存在：
+
+1. `user_account`
+2. `visitor`
+3. `traffic_channel`
+4. `brand`
+5. `category`
+6. `coupon`
+7. `user_address`
+8. `visit_session`
+9. `spu`
+10. `sku`
+11. `user_coupon`
+12. `login_event`
+13. `page_view_event`
+14. `cart_event`
+15. `sales_order`
+16. `sales_order_item`
+17. `payment_attempt`
+18. `return_order`
+19. `refund_attempt`
+
+隔离测试库或 M2.5 验收失败后的 Schema 回滚只能按反向顺序删除本批创建的候选表：`refund_attempt` → `return_order` → `payment_attempt` → `sales_order_item` → `sales_order` → `cart_event` → `page_view_event` → `login_event` → `user_coupon` → `sku` → `spu` → `visit_session` → `user_address` → `coupon` → `category` → `brand` → `traffic_channel` → `visitor` → `user_account`。该顺序不授权对任何既有 MySQL 实例执行 `DROP TABLE`；真实执行仍受 M1 MySQL 门禁和 M2.5 隔离测试库约束。
+
+#### 8.9.4 后续静态检查边界
+
+T2 生成候选 DDL 时至少要静态核对：19 个 `PRIMARY KEY`、本节台账中的每一条 `UNIQUE`/`CHECK`/`FOREIGN KEY`/二级索引名称均出现且仅出现一次；外键的子列、父表和父列与第 8.4 至 8.8 节一致；两个生成列表达式与唯一索引成对出现；建表顺序符合 8.9.3。静态检查只能证明候选文本与本设计一致，不能证明 MySQL 兼容性、索引性能或运行约束行为。
+
+### 8.10 M2.2 剩余工作
+
+本批完成 Schema 级物理规范收口，但不表示 M2.2 已完成。下一步按本节生成 19 张表的候选 DDL，并执行静态检查；候选 DDL 未在真实 MySQL 执行前最多标记为 `implemented`，不得标记为 `verified`。
 
 ## 9. 进入 M2.5 与完成 Milestone 2 的检查表
 
@@ -672,7 +755,7 @@ Milestone 2 已进入 `in progress`。只有以下项目全部满足，才能按
 - [x] 正向交易 3 张源表的 57 个字段、可空性、关系、金额规则、单行约束和索引方向已确认。
 - [x] 支付与逆向交易 3 张源表的 49 个字段、可空性、关系、状态组合、生成列语义和索引方向已确认。
 - [x] 营销 2 张源表的 28 个字段、可空性、关系、状态组合、快照规则和索引方向已确认。
-- [x] 19 张 OLTP 源表的逐表字段、外键方向、业务键长度和索引方向已确认；最终约束与索引名称及候选 DDL 仍待完成。
+- [x] 19 张 OLTP 源表的逐表字段、外键方向、业务键长度、索引方向、可命名约束/索引台账、生成列物理形式和建表顺序已确认；候选 DDL 仍待完成。
 - [x] 订单、支付、取消、退单和退款状态机已确认。
 - [x] 优惠券状态机已确认。
 - [x] 核心业务对象删除策略已确认。

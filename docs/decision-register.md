@@ -33,6 +33,8 @@
 | `DR-016` | M2.2 正向交易源表字段设计 | `accepted` | 2026-09-10 | 加购、订单、订单明细、金额约束、增量抽取、M2.2-M2.5 |
 | `DR-017` | M2.2 支付与逆向交易源表字段设计 | `accepted` | 2026-09-11 | 支付、退单、退款、状态组合、生成列、增量抽取、M2.2-M2.5 |
 | `DR-018` | M2.2 营销源表字段设计 | `accepted` | 2026-09-11 | 优惠券、领取实例、快照、状态组合、订单关联、增量抽取、M2.2-M2.5 |
+| `DR-019` | Trellis Data Engineering 协作治理基线 | `accepted` | 2026-09-11 | 协作规则、Task 管理、Git 记录边界、Codex 自动化 |
+| `DR-020` | M2.2 Schema 物理规范收口 | `accepted` | 2026-09-11 | Candidate DDL、命名台账、生成列、FK 拓扑、静态检查、M2.2 |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -798,6 +800,81 @@ M2.2 当前已确认用户与流量 7 张、商品 4 张、正向交易 3 张、
 ### 回滚方式
 
 若候选 DDL 静态检查、固定数据设计或 MySQL 运行验收证明字段、快照、状态时间组合、订单单向引用或索引方向不可行，由用户确认后新增决策替代本记录，并同步更新业务设计、规格、计划、DDL、seed、生成器和测试。不得直接改写本历史记录，也不得通过循环外键、删除领取实例、改写历史快照或自动截断优惠金额掩盖失败。
+
+## DR-019：Trellis Data Engineering 协作治理基线
+
+- 状态：`accepted`
+- 决策日期：2026-09-11
+- 决策人：用户
+- 影响范围：协作规则、Task 管理、Git 记录边界、Codex 自动化
+- 替代决策：无
+
+### 背景
+
+Trellis 初始化生成了默认 Fullstack spec、自动 Commit 默认值和 Codex Hook 注册；这些默认内容不能作为当前 Data Engineering 项目的事实，也不符合项目对用户确认、Git 变更和 Sub-agent 使用边界的要求。
+
+### 决策
+
+Trellis 使用项目本地的 Data Engineering spec，默认 Codex inline。项目事实优先级固定为 `AGENTS.md`、项目 docs、Trellis Task；Trellis Task 只记录当前工作范围、计划、执行和验证证据，不复制、覆盖或替代 `docs/plan.md`、业务模型、DDL、ECS 配置或指标口径。
+
+自动 Git Commit 已关闭，Codex Hook 注册为空。自动生成的 `00-bootstrap-guidelines` 转换为 Data Engineering 项目规范 Task。上述协作治理配置不改变业务模型、Milestone 门禁、组件配置或运行验证结论。
+
+### 理由
+
+项目以 `AGENTS.md` 和已确认 docs 作为协作与项目事实来源，能够避免默认 Web/Fullstack 约定、自动化写入或 Task 内容误导 Data Engineering 实施。Codex inline 与显式用户授权的 Sub-agent 边界保持一致。
+
+### 验证方法
+
+检查 Git Commit `145a64c` 与 `b00be53`；运行 `trellis platforms`、`E:\Software\Python\3.12.10\python.exe ./.trellis/scripts/get_context.py --mode packages`、`E:\Software\Python\3.12.10\python.exe ./.trellis/scripts/task.py validate 09-11-c0-trellis-project-baseline` 和 `git diff --check`。预期仅配置 Codex、spec layer 为 `data-engineering`、C0 context 通过、`session_auto_commit=false`、Codex Hook 注册数为 0，且静态检查无格式错误。
+
+这些检查只证明协作配置和静态一致性，不证明任何组件安装、数据链路、业务任务或运行验收。
+
+### 影响与风险
+
+后续 Task 必须遵循该事实优先级；需要 Sub-agent、hooks、channel workflow 或自动 Git 操作时，仍须按 `AGENTS.md` 获得明确授权。Trellis 生成脚本中的本机 Python 路径仍可能产生 `invalid escape sequence '\\S'` Warning，当前不影响命令退出状态，但会影响未来可移植性治理。
+
+### 回滚方式
+
+若后续协作实践证明该治理基线不适用，由用户确认后新增决策记录替代本记录，并同步调整 `AGENTS.md`、README、Trellis 配置和相关 Task 文档；不得把 Task 内容直接提升为项目事实，也不得静默重新启用自动 Commit 或 Hook。
+
+## DR-020：M2.2 Schema 物理规范收口
+
+- 状态：`accepted`
+- 决策日期：2026-09-11
+- 决策人：用户
+- 影响范围：Candidate DDL、Schema 命名台账、生成列、FK 拓扑、静态检查、M2.2
+- 替代决策：无
+
+### 背景
+
+T1 已为 19 张 MySQL 源表建立完整物理规范候选，包括命名台账、生成列物理形式、建表顺序和回滚顺序。其验收既需要保证所有可命名约束与索引可追踪，也需要处理 MySQL 的实际 Primary Key 索引名固定为 `PRIMARY`、不能物理命名为 `pk_<table>` 的边界。
+
+### 决策
+
+接受 T1 的完整物理规范：
+
+- 命名台账共 183 项，包括 19 个逻辑 PK、30 个 UQ、42 个 CHECK、32 个 FK 和 60 个非唯一二级索引。`pk_<table>` 仅作为 Schema 设计文档和静态检查中的逻辑标识；Candidate DDL 对每张表使用 MySQL 的 `PRIMARY KEY`，实际 Primary Key 索引名统一为 `PRIMARY`。除该 MySQL 固有限制外，所有 `UNIQUE`、`CHECK`、`FOREIGN KEY` 与非唯一二级索引必须使用 T1 台账中的显式名称，并在 19 张表范围内唯一。
+- `payment_attempt.successful_order_pk` 与 `refund_attempt.successful_return_order_pk` 均使用 `VIRTUAL GENERATED ALWAYS`。它们分别配合 `uq_payment_attempt_successful_order` 和 `uq_refund_attempt_successful_return_order`，保持 `DR-017` 已确认的一单最多一笔成功支付、一张退单最多一笔成功退款语义。
+- 19 表创建顺序固定为：`user_account` → `visitor` → `traffic_channel` → `brand` → `category` → `coupon` → `user_address` → `visit_session` → `spu` → `sku` → `user_coupon` → `login_event` → `page_view_event` → `cart_event` → `sales_order` → `sales_order_item` → `payment_attempt` → `return_order` → `refund_attempt`。Schema 回滚顺序必须是该顺序的精确反向。
+- `category.parent_category_pk → category.category_pk` 是唯一同表自引用，不构成表级创建循环；seed 写入仍须先父级后子级。
+
+本记录承接并解除 `DR-017`、`DR-018` 等既有记录中留待 M2.2 的物理名称、生成列形式与依赖顺序事项，但不改写这些历史记录，也不改变其已确认字段、关系或业务语义。
+
+### 理由
+
+该方案与 MySQL 的实际 Primary Key 行为一致，并为 T2 提供唯一、可追踪且可自动检查的完整物理输入。两个派生键没有独立读取或审计保留需求，采用 `VIRTUAL` 避免冗余聚簇数据，其唯一二级索引仍保存判重键。父表先建、子表先删的固定顺序可以在不关闭外键的前提下创建和回滚隔离测试 Schema。
+
+### 验证方法
+
+T2 生成 Candidate DDL 后静态检查每张表包含一个 `PRIMARY KEY`，并映射到对应的 `pk_<table>` 逻辑标识；检查其余 164 个可命名对象均出现且仅出现一次，两个 `VIRTUAL GENERATED ALWAYS` 表达式与唯一索引成对出现，31 个跨表 FK 的目标表先于子表创建，回滚顺序与创建顺序精确相反。M2.5 在 MySQL 8.0.46 门禁通过后，再通过 `SHOW INDEX`、`information_schema` 和约束行为测试验证实际物理结果。静态检查不能替代 MySQL 运行验证。
+
+### 影响与风险
+
+自动化检查不得把 19 个实际 `PRIMARY` 名称误判为重复；外键继续按表/列引用，不依赖 Primary Key 索引名。当前 `VIRTUAL` 选择和建表顺序尚未在目标 MySQL 执行，证据状态仍是静态设计。若未来迁移数据库、目标版本不支持该实现或迁移工具不能保持顺序，必须新增决策，不得改写本记录。
+
+### 回滚方式
+
+若目标 MySQL 版本或迁移工具证明任一物理选择不可用，由用户确认后新增替代决策，并同步更新 M2.2 业务设计、Candidate DDL 和静态检查。必须保留 `DR-017` 的业务唯一语义，不得伪造或尝试重命名 MySQL 的实际 `PRIMARY` 索引，也不得静默切换 Trigger、Stored Procedure 或取消唯一保护。
 
 ## 记录模板
 
