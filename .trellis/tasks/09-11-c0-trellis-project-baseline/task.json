@@ -1,0 +1,31 @@
+{
+  "id": "c0-trellis-project-baseline",
+  "name": "c0-trellis-project-baseline",
+  "title": "C0 Trellis 项目基线确认",
+  "description": "确认 Trellis 项目规范、默认 Fullstack 模板和现有 bootstrap task 的处理边界。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": "trellis-governance",
+  "package": null,
+  "priority": "P0",
+  "creator": "Z40003",
+  "assignee": "Z40003",
+  "createdAt": "2026-09-11",
+  "completedAt": null,
+  "branch": "codex/m1-infrastructure-compatibility",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "original_id": "C0",
+    "depends_on": "none",
+    "parallel": "no",
+    "worktree": "no"
+  }
+}

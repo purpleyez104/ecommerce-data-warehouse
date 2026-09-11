@@ -1,0 +1,35 @@
+{
+  "id": "00-bootstrap-guidelines",
+  "name": "00-bootstrap-guidelines",
+  "title": "Data Engineering 项目规范",
+  "description": "维护基于 AGENTS.md 和项目 docs 的 Trellis Data Engineering 规范入口。",
+  "status": "planning",
+  "dev_type": "docs",
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "Z40003",
+  "assignee": "Z40003",
+  "createdAt": "2026-09-11",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": null,
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "AGENTS.md",
+    "README.md",
+    "docs/spec.md",
+    "docs/plan.md",
+    ".trellis/spec/data-engineering/"
+  ],
+  "notes": "由 Trellis 初始 Fullstack bootstrap 转换；项目事实不在此任务中复制。",
+  "meta": {
+    "converted_from": "00-bootstrap-guidelines fullstack template",
+    "conversion_date": "2026-09-11"
+  }
+}
