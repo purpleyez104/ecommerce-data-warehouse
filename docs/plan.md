@@ -1,16 +1,16 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
 版本：`0.3-draft`
-状态：Milestone 0 已完成；Milestone 1 实施中
-更新时间：2026-09-05
+状态：Milestone 0 已完成；Milestone 1、2 并行实施中
+更新时间：2026-09-11
 
 ## 1. 使用方式
 
-本计划把 [项目规格](spec.md) 拆分为可独立验收的 Milestone。Milestone 编号表示强制顺序，不表示对应组件或目录已经实现。
+本计划把 [项目规格](spec.md) 拆分为可独立验收的 Milestone。Milestone 编号表示交付和运行依赖，不表示所有规划活动必须串行，也不表示对应组件或目录已经实现。`DR-008` 只允许 Milestone 1 与 Milestone 2 按本计划的分轨门禁并行，Milestone 3 及后续阶段的进入条件不变。
 
 每个 Milestone 都必须满足：
 
-- 进入条件全部成立后才能开始。
+- 进入条件全部成立后才能开始；存在明确拆分的设计门禁和运行门禁时，必须按对应小计划分别判断。
 - 只创建本阶段确实需要维护的文件和目录。
 - 实现同时提供执行命令、固定输入、预期结果和失败行为。
 - 完成后更新 README、规格、计划和相关运行文档。
@@ -202,13 +202,13 @@ docs/installation-troubleshooting.md
 
 ## 5. Milestone 2：业务模型与数据生成
 
-**状态：`pending`**
+**状态：`in progress`**
 
-### 预设计例外
+### 与 Milestone 1 的并行规则
 
-`DR-004` 最初在 Milestone 1、2 均为 `pending` 时建立预设计例外；`DR-005` 确认 Milestone 1 进入 `in progress` 后该受限例外继续有效。允许内容仍仅限业务过程、概念关系、指标依赖、验收场景和 `DECISION_REQUIRED`；该活动不满足或替代下方进入条件，也不构成正式进入 Milestone 2 或将其标记为 `in progress`。
+`DR-008` 将 Milestone 2 从受限预设计调整为正式 `in progress`，与 Milestone 1 同时推进。M2.1 至 M2.4 属于本地设计和实现准备，不等待整个 M1 集群完成；M2.5 属于 MySQL 运行验收，只等待 M1 的 MySQL 直接门禁。M1 后续 Hive、Kafka、Spark、DataX、Doris、DolphinScheduler 和 Flink/Flink CDC 可以与 M2 继续并行。
 
-预设计期间不得创建或修改正式 DDL、seed、数据生成器、测试程序、运行脚本、字段类型、状态枚举或可执行接口。`mysql/ddl/`、`mysql/seed/` 和 `mock/` 继续保持占位状态，不创建 `generator/` 或 `tests/`。只有 MySQL 通过 Milestone 1 的启动和连接验证，且相关业务规则经用户确认后，才能正式进入 Milestone 2。
+并行不降低证据要求：未经用户确认不得确定业务语义；未在 MySQL 真实执行的 DDL、seed、生成器和测试最多标记为 `implemented`；M2 本地工作不得修改 ECS 服务或 M1 配置。Milestone 3 仍须同时满足其 M1 组件门禁和 M2 交付门禁。
 
 ### 目标
 
@@ -216,9 +216,34 @@ docs/installation-troubleshooting.md
 
 ### 进入条件
 
-- MySQL 已通过 Milestone 1 的启动和连接验证。
-- 用户确认 OLTP 表、字段、主外键、状态机和硬删除策略。
-- 30 项正式指标所需业务过程已识别，但指标公式可以继续保持 draft。
+- Milestone 0 已完成，Milestone 1 已进入 `in progress`。
+- 用户已确认 M1 与 M2 并行推进。
+- 五个业务主题和 30 项正式指标范围已经建立，具体业务规则继续按 `DECISION_REQUIRED` 评审。
+
+### 运行实现门禁
+
+- M2.5 开始前，MySQL 必须通过 Milestone 1 的版本、启动、私网连接、Binlog 增删改和受控重启验证。
+- 候选 DDL 转为正式执行输入前，用户必须确认 OLTP 表、字段、主外键、状态机、硬删除、时间和金额策略。
+- 未满足运行门禁不阻止 M2.1 至 M2.4 的本地工作，但不得执行 MySQL 验收或提高证据状态。
+
+### M2 小计划
+
+```text
+M2.1 业务语义与状态机
+  → M2.2 OLTP 逻辑与物理模型
+      ├── M2.3 固定验收数据与预期结果
+      └── M2.4 参数化数据生成器
+             ↓
+      M2.5 MySQL 运行验收与 M2 收尾
+```
+
+| 小计划 | 当前状态 | 进入条件 | 核心交付 | 验收与退出条件 |
+| --- | --- | --- | --- | --- |
+| M2.1 业务语义与状态机 | `completed`；`M2-DEC-001` 至 `013` 已确认 | M2 总体进入条件成立 | 在正式业务设计文档 `docs/milestone-2-business-design.md` 逐项确认身份、会话、商品层级、加购、订单、支付、取消、退单/退款、硬删除、时间、金额和优惠券语义 | 已通过；13 项决策均有用户确认结论，状态机、时间、金额和优惠券语义已形成正式设计 |
+| M2.2 OLTP 逻辑与物理模型 | `in progress`；19 张源表、公共规范及全部 230 个字段已确认，候选 DDL 待完成 | M2.1 通过 | 业务过程矩阵、实体关系、表与字段字典、事实粒度、业务键、主外键、状态字段、索引、硬删除设计和候选 DDL | 每个表和字段可追溯到已确认业务过程；DDL 静态检查通过；未在 MySQL 执行前最多为 `implemented` |
+| M2.3 固定验收数据与预期结果 | `pending` | M2.2 通过；`M2-DEC-014` 已确认，`M2-DEC-015` 待确认 | 固定 seed、正常与异常数据入口、逐表预期结果、跨日和重复输入样例 | 相同 seed 的预期数据完全确定；正常与异常数据隔离；静态检查不能替代 MySQL 结果 |
+| M2.4 参数化数据生成器 | `pending` | M2.2 通过；`M2-DEC-015` 已确认，可与 M2.3 并行 | Python 生成器、固定随机种子、业务日期/规模参数、使用说明和 Targeted Test | 相同参数生成相同结果；非法参数返回非零；不预设未经资源验证的默认规模 |
+| M2.5 MySQL 运行验收与 M2 收尾 | `pending` | M1 MySQL 门禁通过；M2.2-M2.4 已完成 | 在真实 MySQL 执行 DDL、seed 和生成器，保存去敏的命令、退出状态、结果摘要与回滚方法 | 验证首次运行、同日重跑、确定性、主外键、状态、金额、`update_time`、硬删除和失败行为；全部通过后才结束 M2 |
 
 ### 涉及模块
 
@@ -675,10 +700,10 @@ scheduler/
 
 ## 15. 当前下一步
 
-Milestone 1 已开始。Ubuntu、节点、网络、磁盘和用户来自当前集群建设记录并作为确认事实；Hadoop 3.4.1 已于 2026-09-05 达到 `verified`。当前下一步：
+Milestone 1、2 已按 `DR-008` 并行开始。Ubuntu、节点、网络、磁盘和用户来自当前集群建设记录并作为确认事实；Hadoop 3.4.1 已于 2026-09-05 达到 `verified`。当前分为两条并行工作流：
 
-1. 在 `hadoop201` 安装并验证 MySQL 8.0.46 和 Binlog；只创建 M1 临时对象及计划内空逻辑库。
-2. MySQL 通过版本、启动、私网连接、Binlog 增删改和重启验证后，依次验证 Hive、Kafka KRaft、Spark on YARN、DataX、Doris、DolphinScheduler 和 Flink/Flink CDC。
-3. 精确版本只有取得官方依据和真实启动、连通、最小链路及重启证据后才能锁定。
+1. M1：在 `hadoop201` 安装并验证 MySQL 8.0.46 和 Binlog；通过后继续 Hive、Kafka KRaft、Spark on YARN、DataX、Doris、DolphinScheduler 和 Flink/Flink CDC。
+2. M2：`M2-DEC-001` 至 `014` 已按 `DR-009` 至 `DR-013` 确认，M2.1 已完成；M2.2 已按 `DR-014` 至 `DR-018` 确认全部 19 张 MySQL 源表共 230 个字段、可空性、关系、单行约束、生成列语义和索引方向。下一步统一约束与索引名称、生成列物理形式和建表顺序，并生成 19 张表的候选 DDL、执行静态检查。`M2-DEC-015` 继续作为 M2.3/M2.4 的数据规模门禁，与决策记录 `DR-015` 不同。
+3. 汇合点：M1 的 MySQL 门禁与 M2.2-M2.4 都通过后执行 M2.5；M2 不等待整个 M1 完成。
 
-在正式主线之外，当前仍只允许按 `DR-004`、`DR-005` 维护 M2 预设计评审包并收集用户决策。Milestone 2 保持 `pending`；M1 创建 `infra/` 和验证脚本不代表精确版本已锁定，也不允许创建正式业务表。
+M1 与 M2 的证据状态分别维护。M1 创建 `infra/` 和验证脚本不代表全部精确版本已锁定；M2 本地候选产物未在 MySQL 执行前不构成运行验证。Milestone 3 继续等待其既有进入条件，不参与本轮并行。

@@ -6,10 +6,10 @@
 
 | 项目 | 当前值 |
 | --- | --- |
-| 当前阶段 | Milestone 0：`completed`；Milestone 1：`in progress` |
+| 当前阶段 | Milestone 0：`completed`；Milestone 1、2：`in progress`（并行推进） |
 | 规格版本 | `0.3-draft` |
-| 实现状态 | Hadoop 3.4.1 已完成 M1 功能与受控重启验证；当前进入 MySQL 8.0.46 门禁；M2 为 `pending` |
-| 当前允许活动 | 按 M1 顺序安装并验证 MySQL 8.0.46；`DR-004` 的 M2 文档预设计例外继续有效 |
+| 实现状态 | Hadoop 3.4.1 已完成 M1 功能与受控重启验证；M1 当前进入 MySQL 8.0.46 门禁；M2.1 已完成，M2.2 已确认 19 张 MySQL 源表、公共规范及全部 230 个字段，候选 DDL 待完成 |
+| 当前允许活动 | M1 按组件门禁继续；M2 按 M2.1-M2.5 小计划推进，本地设计与代码准备不等待整个集群完成 |
 | 运行验证 | HDFS 固定文件、MapReduce WordCount、YARN application、聚合日志和 Hadoop 受控重启已于 2026-09-05 通过 |
 | 精确组件版本 | Hadoop 3.4.1 为 `verified`；其余精确版本为候选，尚未锁定 |
 | 运行平台 | 阿里云 ECS（三节点） |
@@ -140,7 +140,7 @@ MySQL Binlog
 | --- | --- | --- | --- |
 | 0 | 项目定义与文档基线 | README、规格、阶段计划、协作边界 | completed |
 | 1 | 基础设施与兼容性 | 三节点、版本矩阵、启动和最小连通验证 | in progress |
-| 2 | 业务模型与数据生成 | OLTP、状态机、固定 seed、预期结果 | pending |
+| 2 | 业务模型与数据生成 | OLTP、状态机、固定 seed、预期结果 | in progress |
 | 3 | DataX 直写 Hive ODS | 全量/增量抽取、ODS ORC 分区、注册与对账 | pending |
 | 4 | 离线数仓 MVP | DIM/DWD、DWS、ADS 最小垂直链路 | pending |
 | 5 | 正式指标与数据质量 | 30 项指标、质量结果、幂等和回补 | pending |
@@ -173,7 +173,7 @@ MySQL Binlog
 - [组件兼容性矩阵](docs/compatibility-matrix.md)：精确版本候选、官方依据、项目状态和验证门禁。
 - [安装与排障记录](docs/installation-troubleshooting.md)：目标 ECS 上真实发生的问题、修复、复测和回滚。
 - [指标口径](docs/metrics.md)：指标定义和血缘入口；正式口径尚待后续阶段补充。
-- [Milestone 2 预设计评审包](docs/milestone-2-predesign-review.md)：业务过程、概念关系、指标依赖、验收场景和待确认决策；状态为 `draft`，不属于可执行模型。
+- [Milestone 2 业务设计](docs/milestone-2-business-design.md)：M2 的正式业务设计文档，记录已确认的业务语义、19 张 `ecommerce_oltp` 源表、公共物理规范、约束分工及全部 230 个字段；M2.2 候选 DDL 尚未完成或运行验证。
 - [修改日志](CHANGELOG.md)：按“新增、变更、修复、移除”记录面向使用者和维护者的可交付变更。
 - [项目决策记录](docs/decision-register.md)：记录影响项目范围、业务口径、架构、版本、模型、接口、安全或验收方式的正式决策及其状态。
 - [协作规则](AGENTS.md)：Codex 和贡献者修改仓库时必须遵循的规则。
@@ -189,4 +189,4 @@ MySQL Binlog
 7. 静态检查只能证明文件和契约一致，不能替代真实组件和数据链路验证。
 8. Agent 每次最终答复都总结核心操作和核心决策，并询问用户是否将其写入 `CHANGELOG.md`、`docs/decision-register.md` 或两者；未获确认时不自动落盘，当前请求已明确授权的记录除外。
 
-Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1 已开始：当前集群的 Ubuntu、节点、网络、磁盘和用户来自确认事实；Hadoop 3.4.1 已于 2026-09-05 完成固定 HDFS 文件、MapReduce WordCount、YARN application、聚合日志和受控重启验证，状态为 `verified`。当前技术门禁是安装并验证 MySQL 8.0.46。Milestone 2 保持 `pending`，必须等待 MySQL 通过 M1 启动和连接验证并完成业务规则评审后，才能正式进入。
+Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1、2 现按 `DR-008` 并行推进：M1 中 Hadoop 3.4.1 已于 2026-09-05 完成固定 HDFS 文件、MapReduce WordCount、YARN application、聚合日志和受控重启验证，当前技术门禁是 MySQL 8.0.46；M2 的 `M2-DEC-001` 至 `014` 已分别按 `DR-009` 至 `DR-013` 确认，M2.1 已完成。M2.2 已按 `DR-014` 至 `DR-018` 确认全部 19 张源表共 230 个字段、可空性、关系、单行约束、生成列语义和索引方向；下一步统一约束与索引名称、生成列物理形式和建表顺序，再生成候选 DDL 并执行静态检查。`M2-DEC-015` 仍作为 M2.3/M2.4 的数据规模门禁，与决策记录 `DR-015` 不同。M2.5 的 MySQL 执行验收必须等待 M1 的 MySQL 门禁通过，M3 的前置条件保持不变。

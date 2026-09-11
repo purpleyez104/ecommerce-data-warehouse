@@ -12,19 +12,21 @@
 
 ## 当前阶段门禁
 
-Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。Milestone 1“基础设施与兼容性”状态为 `in progress`。当前 ECS 集群记录中的 `CONFIRMED` 已由用户确认为本项目事实；Ubuntu、网络、磁盘、`yee` 用户和 Hadoop 3.4.1 运行拓扑不重新初始化。Hadoop 整体暂为 `implemented`，当前门禁是补齐 HDFS 固定文件、完整 MapReduce 输出和受控重启证据。推进 Milestone 1 时：
+Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。Milestone 1“基础设施与兼容性”和 Milestone 2“业务模型与数据生成”状态均为 `in progress`。当前 ECS 集群记录中的 `CONFIRMED` 已由用户确认为本项目事实；Ubuntu、网络、磁盘、`yee` 用户和 Hadoop 3.4.1 运行拓扑不重新初始化。Hadoop 3.4.1 已完成真实验证，Milestone 1 当前门禁为 MySQL 8.0.46。推进 Milestone 1 时：
 
 - 严格按 `docs/plan.md` 的主机、网络、JDK 和组件前置顺序实施，不跳过兼容性与资源门禁。
-- 不创建正式业务表、数据模型、指标 SQL、离线任务或实时作业。
+- 不得以 Milestone 1 的名义创建业务表、数据模型、指标 SQL、离线任务或实时作业；Milestone 2 的本地产物只按 `DR-008` 和 M2 小计划门禁创建。
 - 不把预留目录、占位文件、候选组件或静态检查描述为已经实现或运行通过。
-- 只创建 Milestone 1 确实需要维护的环境、基础设施、兼容性、安装排障和验证内容。
+- Milestone 1 的变更只创建其确实需要维护的环境、基础设施、兼容性、安装排障和验证内容，不夹带 M2 实现。
 - 禁止格式化已存在的 NameNode；验证脚本只能删除自己创建且经过前缀和运行编号约束的临时对象。
 
-经用户确认的 `DR-004`、`DR-005` 允许在 Milestone 1 为 `in progress`、Milestone 2 为 `pending` 时继续开展受限的 Milestone 2 预设计活动。该活动只能维护 `docs/milestone-2-predesign-review.md` 及与门禁一致性直接相关的治理文档，用于整理业务过程、概念关系、指标依赖、验收场景和 `DECISION_REQUIRED`。它不构成正式进入 Milestone 2，不允许创建或修改正式 DDL、seed、数据生成器、测试程序、运行脚本、字段类型、状态枚举或可执行接口，也不得把预设计草案描述为业务模型已经实现。MySQL 通过 Milestone 1 的启动和连接验证且业务规则经用户确认后，才能正式进入 Milestone 2。
+经用户确认的 `DR-008` 允许 Milestone 1 与 Milestone 2 并行推进。M2 必须按 `docs/plan.md` 的 M2.1 至 M2.5 小计划执行：`M2-DEC-001` 至 `014` 已确认，M2.1 已完成；M2.2 已确认 19 张 MySQL 源表、公共物理规范和约束分工，全部 19 张表共 230 个字段的可空性、关系、单行约束、生成列语义和索引方向已按 `DR-014` 至 `DR-018` 确认，当前继续统一约束与索引名称、生成列物理形式和建表顺序并生成候选 DDL。后续可以按小计划门禁在本地创建候选 DDL、seed、数据生成器和对应测试，不需要等待 Hive、Kafka、Spark、DataX、Doris、DolphinScheduler 或 Flink 全部安装。MySQL 通过 Milestone 1 的启动和连接验证前，不得执行或宣称验证这些 M2 产物；未确认的约束名称、索引名称、生成列物理形式、验收规模及其他待决策项仍不得使用经验默认值补全。`DR-015` 是商品字段决策记录，不能与仍为 `DECISION_REQUIRED` 的验收规模决策 `M2-DEC-015` 混淆。
+
+M1 与 M2 的并行只解除“必须完成整个 M1 才能规划和准备 M2”的等待，不解除直接运行依赖。M2.5 MySQL 运行验收必须等待 M1 的 MySQL 门禁通过；Milestone 3 仍须同时满足其既有 M1 组件门禁和 M2 交付门禁。M2 本地改动不得修改 ECS 服务、覆盖 M1 配置或把静态检查描述为运行验证。
 
 `completed` 只表示对应 Milestone 的进入条件、交付物和验收项已满足，不替代 `draft`、`candidate`、`planned`、`implemented`、`verified` 等内容证据状态。M0 完成不证明任何组件已经安装或数据链路已经运行。
 
-除 `DR-004`、`DR-005` 明确限定的 M2 文档预设计外，所有后续 Milestone 必须满足 `docs/plan.md` 的进入条件后才能开始。上一阶段存在未解决阻断项时，不得提前开发下一阶段内容。
+除 `DR-008` 明确允许的 M1/M2 并行方式外，所有后续 Milestone 必须满足 `docs/plan.md` 的进入条件后才能开始。上一阶段存在未解决阻断项时，不得提前开发下一阶段内容。
 
 ## 项目范围与实施顺序
 
