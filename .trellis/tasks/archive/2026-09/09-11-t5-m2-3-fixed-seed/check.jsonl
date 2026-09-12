@@ -1,0 +1,2 @@
+{"file": "tests/m2/test_validate_fixed_seed_contract.ps1", "reason": "Targeted parser and mutation regression evidence for T5"}
+{"file": ".trellis/tasks/09-11-t5-m2-3-fixed-seed/prd.md", "reason": "Acceptance criteria and static-versus-MySQL verification boundary"}
