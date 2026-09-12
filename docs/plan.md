@@ -242,7 +242,7 @@ M2.1 业务语义与状态机
 | M2.1 业务语义与状态机 | `completed`；`M2-DEC-001` 至 `013` 已确认 | M2 总体进入条件成立 | 在正式业务设计文档 `docs/milestone-2-business-design.md` 逐项确认身份、会话、商品层级、加购、订单、支付、取消、退单/退款、硬删除、时间、金额和优惠券语义 | 已通过；13 项决策均有用户确认结论，状态机、时间、金额和优惠券语义已形成正式设计 |
 | M2.2 OLTP 逻辑与物理模型 | `completed`；19 张源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查，尚未在 MySQL 验证 | M2.1 通过 | 业务过程矩阵、实体关系、表与字段字典、事实粒度、业务键、主外键、状态字段、索引、硬删除设计和候选 DDL | 已通过；每个表和字段可追溯到已确认业务过程，DDL 静态检查通过；未在 MySQL 执行前最多为 `implemented` |
 | M2.3 固定验收数据与预期结果 | `implemented`；静态 Contract 已通过，尚未在 MySQL 验证 | M2.2 通过；`M2-DEC-014`、`M2-DEC-015` 已确认 | 19 表固定 seed、正常与异常数据入口、逐表预期结果、跨日和重复输入样例、幂等入口与静态 Contract | 静态检查已核对固定数据、正常与异常隔离、金额/引用关系和漂移失败边界；MySQL 结果仍由 M2.5 验证 |
-| M2.4 参数化数据生成器 | `pending` | M2.2 通过；`M2-DEC-015` 已确认，可与 M2.3 并行 | Python 生成器、固定随机种子、业务日期/规模参数、使用说明和 Targeted Test | 相同参数生成相同结果；非法参数返回非零；不预设未经资源验证的默认规模 |
+| M2.4 参数化数据生成器 | `implemented`；Targeted Test 已通过，尚未在 MySQL 验证 | M2.2 通过；`M2-DEC-015` 已确认，可与 M2.3 并行 | Python 生成器、固定随机种子、业务日期/规模参数、使用说明和 Targeted Test | 静态验收已确认确定性输出、非法参数/规则违约非零、跨表身份及金额/退单/退款/优惠券规则；MySQL 结果仍由 M2.5 验证 |
 | M2.5 MySQL 运行验收与 M2 收尾 | `pending` | M1 MySQL 门禁通过；M2.2-M2.4 已完成 | 在真实 MySQL 执行 DDL、seed 和生成器，保存去敏的命令、退出状态、结果摘要与回滚方法 | 验证首次运行、同日重跑、确定性、主外键、状态、金额、`update_time`、硬删除和失败行为；全部通过后才结束 M2 |
 
 ### 涉及模块
@@ -251,9 +251,9 @@ M2.1 业务语义与状态机
 mysql/ddl/
 mysql/seed/
 mock/
-generator/ # 业务模型确认后创建
+generator/
 docs/
-tests/     # 首个可执行测试出现时创建
+tests/
 ```
 
 ### 交付物
@@ -703,7 +703,7 @@ scheduler/
 Milestone 1、2 已按 `DR-008` 并行开始。Ubuntu、节点、网络、磁盘和用户来自当前集群建设记录并作为确认事实；Hadoop 3.4.1 已于 2026-09-05 达到 `verified`。当前分为两条并行工作流：
 
 1. M1：在 `hadoop201` 安装并验证 MySQL 8.0.46 和 Binlog；通过后继续 Hive、Kafka KRaft、Spark on YARN、DataX、Doris、DolphinScheduler 和 Flink/Flink CDC。
-2. M2：`M2-DEC-001` 至 `014` 已按 `DR-009` 至 `DR-013` 确认，`M2-DEC-015` 已按 `DR-021` 确认；M2.1、M2.2 已完成，19 张表 Candidate DDL 已通过静态 Contract 检查，证据状态为 `implemented`，尚未在 MySQL 验证。M2.3 已交付 19 表固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract，证据状态同为 `implemented`；M2.4 仍按固定验收规模准备 Generator/Targeted Test。`M2-DEC-015` 与决策记录 `DR-015` 不同。
+2. M2：`M2-DEC-001` 至 `014` 已按 `DR-009` 至 `DR-013` 确认，`M2-DEC-015` 已按 `DR-021` 确认；M2.1、M2.2 已完成，19 张表 Candidate DDL 已通过静态 Contract 检查，证据状态为 `implemented`，尚未在 MySQL 验证。M2.3 已交付 19 表固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract；M2.4 已交付确定性参数化 Generator、Python 跨行规则、使用说明和 Targeted Test，两者证据状态均为 `implemented`，MySQL 运行验收仍待 M2.5。`M2-DEC-015` 与决策记录 `DR-015` 不同。
 3. 汇合点：M1 的 MySQL 门禁与 M2.2-M2.4 都通过后执行 M2.5；M2 不等待整个 M1 完成。
 
 M1 与 M2 的证据状态分别维护。M1 创建 `infra/` 和验证脚本不代表全部精确版本已锁定；M2 本地候选产物未在 MySQL 执行前不构成运行验证。Milestone 3 继续等待其既有进入条件，不参与本轮并行。

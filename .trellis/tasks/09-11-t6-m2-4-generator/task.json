@@ -1,0 +1,31 @@
+{
+  "id": "t6-m2-4-generator",
+  "name": "t6-m2-4-generator",
+  "title": "T6 M2.4 参数化 Generator 与 Python 规则",
+  "description": "实现确定性参数化数据生成及 Python 写入层负责的业务规则。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": "generator-and-python-business-rules",
+  "package": null,
+  "priority": "P1",
+  "creator": "Z40003",
+  "assignee": "Z40003",
+  "createdAt": "2026-09-11",
+  "completedAt": null,
+  "branch": "codex/t6-m2-4-generator",
+  "base_branch": "codex/m1-infrastructure-compatibility",
+  "worktree_path": "D:\\DevData\\ToolData\\Codex\\worktrees\\7f1e\\ecommerce-data-warehouse",
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "original_id": "T6",
+    "depends_on": "T2,T4",
+    "parallel": "with-T5",
+    "worktree": "yes"
+  }
+}

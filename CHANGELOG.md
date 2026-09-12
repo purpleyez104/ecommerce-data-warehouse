@@ -8,6 +8,8 @@
 
 ### 新增
 
+- 新增 M2.4 确定性参数化 Generator：使用显式随机 seed、业务开始日期、日期数量与规模参数生成 19 表候选 SQL，并以 Python 落实金额分摊、支付、退单/退款、优惠券和事件身份跨行规则；Targeted Test 与 T5 静态 Contract 已通过，尚未连接或验证 MySQL。
+
 - 新增 M2.3 固定验收数据交付：19 表合法固定 Seed、逐表预期结果清单、5 个隔离 MySQL 约束失败用例、幂等入口、静态 Contract 与金额变异回归；产物为 `implemented`，静态检查通过，尚未连接或验证 MySQL。
 
 - 新增 M2.2 的 19 张 `ecommerce_oltp` 源表 Candidate DDL 与 PowerShell 静态 Contract 检查：覆盖 230 个字段、命名台账、FK 目标、关键 CHECK、唯一/二级索引列、生成列配对及建表/回滚顺序；产物为 `implemented`，尚未在 MySQL 执行或验证。
