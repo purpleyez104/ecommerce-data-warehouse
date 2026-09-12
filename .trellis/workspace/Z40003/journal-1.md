@@ -39,3 +39,29 @@ T1 acceptance passed and was archived after binding its implementation commit.
 ### Next Steps
 
 - After the current branch is merged to main, plan and activate T2 candidate DDL.
+
+
+## Session 2: Complete T2 M2.2 candidate DDL contract
+<!-- trellis-session: v=2 fp=88a0f3a4ddcbaa01 -->
+
+**Date**: 2026-09-12
+**Task**: Complete T2 M2.2 candidate DDL contract
+**Branch**: `codex/m1-infrastructure-compatibility`
+
+### Summary
+
+T2 acceptance passed; Candidate DDL and semantic mutation checks completed.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `98dd425` | feat(mysql): add M2.2 candidate DDL contract |
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- Confirm M2-DEC-015 before starting T4, T5, or T6.
