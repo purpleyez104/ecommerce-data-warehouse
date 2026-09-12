@@ -49,7 +49,7 @@
 
 | 项目 | 已确认口径 |
 | --- | --- |
-| 状态 | `draft`；业务公式已确认，来源字段、分层血缘、固定样例和真实引擎结果尚未完成 |
+| 状态 | `draft`；业务公式和 M2.2 来源字段已确认，分层血缘、固定样例和真实引擎结果尚未完成 |
 | 业务含义 | 成功支付订单在支付业务日期获得的优惠券毛补贴占商品原价金额的比例 |
 | 统计日期 | 首次成功支付 `paid_at` 对应的 `Asia/Shanghai` 业务日期 |
 | 分子 | 统计日期内成功支付订单的优惠券优惠金额之和 |
@@ -59,6 +59,7 @@
 | 零分母 | 输出 `0`，同时在 DWS 保留分子和分母 |
 | 精度与舍入 | 比率保留 4 位小数，百分比展示保留 2 位小数，使用 `HALF_UP` |
 | 优惠券范围 | 仅包含合法锁定并随订单成功支付转为 `USED` 的固定金额优惠券 |
-| 待补内容 | M2.2 来源字段，M2.3 固定样例，Milestone 4-5 分层血缘与 SQL，真实引擎验收 |
+| M2.2 来源字段 | 成功支付过滤与统计日期使用 `payment_attempt.payment_status = 'SUCCESS'`、`payment_attempt.paid_at`；分子使用关联订单 `sales_order.coupon_discount_amount`，分母使用同一订单 `sales_order.original_amount`；订单经 `payment_attempt.order_pk → sales_order.sales_order_pk` 关联，优惠券范围经 `sales_order.user_coupon_pk → user_coupon.user_coupon_pk` 与 `user_coupon.coupon_status = 'USED'` 核对。 |
+| 待补内容 | M2.3 固定样例，Milestone 4-5 分层血缘与 SQL，真实引擎验收 |
 
-身份关联、登录前事件不回写、跨日会话切分、金额分摊和优惠券状态机等完整规则以正式业务设计文档 `docs/milestone-2-business-design.md` 为准。`P1_METRIC_001` 至 `029` 的完整公式仍待后续指标评审；`P1_METRIC_030` 也必须在来源字段、固定样例、分层血缘和真实引擎核对完成前保持 `draft`。
+身份关联、登录前事件不回写、跨日会话切分、金额分摊和优惠券状态机等完整规则以正式业务设计文档 `docs/milestone-2-business-design.md` 为准。`P1_METRIC_001` 至 `029` 的完整公式仍待后续指标评审；`P1_METRIC_030` 必须在固定样例、分层血缘和真实引擎核对完成前保持 `draft`。

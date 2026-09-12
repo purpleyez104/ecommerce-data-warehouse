@@ -1,0 +1,2 @@
+{"file": "docs\\milestone-2-business-design.md", "reason": "Confirmed M2.2 field, object-name, generated-column, and creation-order contract."}
+{"file": "mysql\\ddl\\001_ecommerce_oltp_candidate.sql", "reason": "Candidate DDL implementation under T2."}

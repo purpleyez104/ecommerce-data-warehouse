@@ -1,0 +1,31 @@
+{
+  "id": "t2-m2-2-candidate-ddl",
+  "name": "t2-m2-2-candidate-ddl",
+  "title": "T2 M2.2 候选 DDL 与静态检查",
+  "description": "生成 19 张 MySQL 源表 Candidate DDL，并建立静态 Contract 检查。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": "mysql-ddl-static-contract",
+  "package": null,
+  "priority": "P0",
+  "creator": "Z40003",
+  "assignee": "Z40003",
+  "createdAt": "2026-09-11",
+  "completedAt": null,
+  "branch": "codex/m1-infrastructure-compatibility",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "Acceptance Result: passed. Completion Note: T2 Scope 与五项 Acceptance Criteria 均已满足；19 张表 Candidate DDL 和静态 Contract 已实现，未执行 MySQL。 Verification Note: 正向 Contract、mutation regression、Trellis validate 与 git diff --check 均通过；错误 FK、错误 CHECK、错误回滚顺序和缺失输入均返回非零。 Remaining Follow-up: 提交聚焦实现 Commit，绑定 Commit evidence 后归档 T2。",
+  "meta": {
+    "original_id": "T2",
+    "depends_on": "T1",
+    "parallel": "limited",
+    "worktree": "conditional"
+  }
+}

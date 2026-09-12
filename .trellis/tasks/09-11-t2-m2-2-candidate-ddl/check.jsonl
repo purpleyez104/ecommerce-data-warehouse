@@ -1,0 +1,2 @@
+{"file": "tests\\contracts\\validate_mysql_ddl_contract.ps1", "reason": "Static contract check and exit-code behavior."}
+{"file": "mysql\\ddl\\001_ecommerce_oltp_candidate.sql", "reason": "DDL input inspected by the static contract check."}
