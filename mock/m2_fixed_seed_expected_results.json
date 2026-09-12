@@ -1,0 +1,100 @@
+{
+  "status": "implemented-static-only",
+  "business_dates": [
+    "2025-01-29",
+    "2025-01-30",
+    "2025-01-31",
+    "2025-02-01"
+  ],
+  "table_counts": {
+    "user_account": 4,
+    "user_address": 4,
+    "visitor": 5,
+    "traffic_channel": 3,
+    "visit_session": 6,
+    "login_event": 4,
+    "page_view_event": 18,
+    "brand": 2,
+    "category": 6,
+    "spu": 4,
+    "sku": 6,
+    "cart_event": 8,
+    "sales_order": 8,
+    "sales_order_item": 12,
+    "payment_attempt": 10,
+    "return_order": 4,
+    "refund_attempt": 5,
+    "coupon": 3,
+    "user_coupon": 5
+  },
+  "table_business_keys": {
+    "user_account": ["USR-001", "USR-002", "USR-003", "USR-004"],
+    "user_address": ["ADDR-001", "ADDR-002", "ADDR-003", "ADDR-004"],
+    "visitor": ["VIS-001", "VIS-002", "VIS-003", "VIS-004", "VIS-005"],
+    "traffic_channel": ["DIRECT", "SEARCH", "SOCIAL"],
+    "visit_session": ["SES-001", "SES-002", "SES-003", "SES-004", "SES-005", "SES-006"],
+    "login_event": ["LOG-001", "LOG-002", "LOG-003", "LOG-004"],
+    "page_view_event": ["PV-001", "PV-002", "PV-003", "PV-004", "PV-005", "PV-006", "PV-007", "PV-008", "PV-009", "PV-010", "PV-011", "PV-012", "PV-013", "PV-014", "PV-015", "PV-016", "PV-017", "PV-018"],
+    "brand": ["BR-001", "BR-002"],
+    "category": ["CAT-1", "CAT-2", "CAT-3", "CAT-4", "CAT-5", "CAT-6"],
+    "spu": ["SPU-001", "SPU-002", "SPU-003", "SPU-004"],
+    "sku": ["SKU-001", "SKU-002", "SKU-003", "SKU-004", "SKU-005", "SKU-006"],
+    "cart_event": ["CART-001", "CART-002", "CART-003", "CART-004", "CART-005", "CART-006", "CART-007", "CART-008"],
+    "sales_order": ["ORD-001", "ORD-002", "ORD-003", "ORD-004", "ORD-005", "ORD-006", "ORD-007", "ORD-008"],
+    "sales_order_item": ["ITEM-001", "ITEM-002", "ITEM-003", "ITEM-004", "ITEM-005", "ITEM-006", "ITEM-007", "ITEM-008", "ITEM-009", "ITEM-010", "ITEM-011", "ITEM-012"],
+    "payment_attempt": ["PAY-001", "PAY-002", "PAY-003", "PAY-004", "PAY-005", "PAY-006", "PAY-007", "PAY-008", "PAY-009", "PAY-010"],
+    "return_order": ["RET-001", "RET-002", "RET-003", "RET-004"],
+    "refund_attempt": ["REF-001", "REF-002", "REF-003", "REF-004", "REF-005"],
+    "coupon": ["CP-001", "CP-002", "CP-003"],
+    "user_coupon": ["UC-001", "UC-002", "UC-003", "UC-004", "UC-005"]
+  },
+  "content_digest": {
+    "algorithm": "SHA-256",
+    "source": "mysql/seed/001_ecommerce_oltp_fixed_seed.sql",
+    "sha256": "c0cd729e95db1345972b9df37ed4b34cd988cbdaf50f581617eb6c48ec38d912"
+  },
+  "rerun_contract": "same-content-no-write; drift-nonzero",
+  "scenario_mappings": [
+    {"id": "M2-SC-001", "domains": ["user", "traffic", "product", "transaction", "marketing"], "evidence": ["user_account:USR-001", "visitor:VIS-001", "traffic_channel:DIRECT", "visit_session:SES-001", "login_event:LOG-001", "page_view_event:PV-002", "brand:BR-001", "category:CAT-3", "spu:SPU-001", "sku:SKU-001", "cart_event:CART-001", "sales_order:ORD-001", "sales_order_item:ITEM-001", "payment_attempt:PAY-001", "coupon:CP-001", "user_coupon:UC-001"]},
+    {"id": "M2-SC-002", "domains": ["transaction"], "evidence": ["sales_order:ORD-003", "payment_attempt:PAY-003"]},
+    {"id": "M2-SC-003", "domains": ["transaction"], "evidence": ["return_order:RET-001", "refund_attempt:REF-001", "return_order:RET-004", "refund_attempt:REF-004"]},
+    {"id": "M2-SC-004", "domains": ["user", "transaction"], "evidence": ["failure:mysql-unique-business-key", "contract:same-content-no-write", "contract:drift-nonzero"]},
+    {"id": "M2-SC-005", "domains": ["transaction"], "evidence": ["sales_order:ORD-001", "payment_attempt:PAY-001", "return_order:RET-001", "refund_attempt:REF-001"]},
+    {"id": "M2-SC-006", "domains": ["transaction"], "evidence": ["failure:python-illegal-state-transition"]},
+    {"id": "M2-SC-007", "domains": ["user", "transaction"], "evidence": ["failure:mysql-foreign-key"]},
+    {"id": "M2-SC-008", "domains": ["user", "traffic"], "evidence": ["page_view_event:PV-001", "cart_event:CART-008", "failure:mysql-not-null"]},
+    {"id": "M2-SC-009", "domains": ["transaction", "marketing"], "evidence": ["sales_order:ORD-001", "sales_order_item:ITEM-001", "sales_order_item:ITEM-002", "return_order:RET-001", "refund_attempt:REF-001", "failure:python-allocation-rounding-mismatch"]},
+    {"id": "M2-SC-010", "domains": ["product", "transaction"], "evidence": ["brand:BR-001", "sales_order_item:ITEM-001"]},
+    {"id": "M2-SC-011", "domains": ["transaction", "marketing"], "evidence": ["expected:zero-successful-payment-date:2025-02-01"]},
+    {"id": "M2-SC-012", "domains": ["transaction", "marketing"], "evidence": ["user_coupon:UC-003", "user_coupon:UC-004", "user_coupon:UC-005", "failure:python-coupon-reuse", "failure:python-coupon-expired-lock", "failure:python-coupon-missing-claim", "failure:python-coupon-cross-user"]}
+  ],
+  "expected_invariants": [
+    "unique-business-keys",
+    "referential-integrity",
+    "legal-status-combinations",
+    "order-item-amount-conservation",
+    "payment-order-amount-conservation",
+    "return-quantity-bound",
+    "refund-return-amount-conservation"
+  ],
+  "failure_cases": {
+    "mysql_constraints": [
+      {"id": "mysql-unique-business-key", "expected": "nonzero-rollback-no-baseline-change"},
+      {"id": "mysql-not-null", "expected": "nonzero-rollback-no-baseline-change"},
+      {"id": "mysql-check", "expected": "nonzero-rollback-no-baseline-change"},
+      {"id": "mysql-foreign-key", "expected": "nonzero-rollback-no-baseline-change"},
+      {"id": "mysql-generated-column-unique", "expected": "nonzero-rollback-no-baseline-change"}
+    ],
+    "python_write_layer": [
+      {"id": "python-illegal-state-transition", "expected": "nonzero-no-write"},
+      {"id": "python-payment-amount-mismatch", "expected": "nonzero-no-write"},
+      {"id": "python-return-quantity-overflow", "expected": "nonzero-no-write"},
+      {"id": "python-refund-amount-overflow", "expected": "nonzero-no-write"},
+      {"id": "python-allocation-rounding-mismatch", "expected": "nonzero-no-write"},
+      {"id": "python-coupon-reuse", "expected": "nonzero-no-write"},
+      {"id": "python-coupon-expired-lock", "expected": "nonzero-no-write"},
+      {"id": "python-coupon-missing-claim", "expected": "nonzero-no-write"},
+      {"id": "python-coupon-cross-user", "expected": "nonzero-no-write"}
+    ]
+  }
+}
