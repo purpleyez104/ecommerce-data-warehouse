@@ -8,7 +8,7 @@
 | --- | --- |
 | 当前阶段 | Milestone 0：`completed`；Milestone 1、2：`in progress`（并行推进） |
 | 规格版本 | `0.3-draft` |
-| 实现状态 | Hadoop 3.4.1 已完成 M1 功能与受控重启验证；M1 当前进入 MySQL 8.0.46 门禁；M2.1 已完成，M2.2 的 19 张 MySQL 源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查，尚未在 MySQL 验证 |
+| 实现状态 | Hadoop 3.4.1 已完成 M1 功能与受控重启验证；M1 当前进入 MySQL 8.0.46 门禁；M2.1、M2.2 已完成，19 张 MySQL 源表 Candidate DDL 为 `implemented` 并通过静态 Contract 检查，尚未在 MySQL 验证 |
 | 当前允许活动 | M1 按组件门禁继续；M2 按 M2.1-M2.5 小计划推进，本地设计与代码准备不等待整个集群完成 |
 | 运行验证 | HDFS 固定文件、MapReduce WordCount、YARN application、聚合日志和 Hadoop 受控重启已于 2026-09-05 通过 |
 | 精确组件版本 | Hadoop 3.4.1 为 `verified`；其余精确版本为候选，尚未锁定 |
@@ -190,4 +190,4 @@ MySQL Binlog
 8. Agent 每次最终答复都总结核心操作和核心决策，并询问用户是否将其写入 `CHANGELOG.md`、`docs/decision-register.md` 或两者；未获确认时不自动落盘，当前请求已明确授权的记录除外。
 9. Trellis 只管理 Task 状态、计划和执行证据；项目事实优先级为 `AGENTS.md`、项目 docs、Trellis Task。当前使用 Data Engineering spec、Codex inline，自动 Commit 与 Hook 注册均关闭。
 
-Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1、2 现按 `DR-008` 并行推进：M1 中 Hadoop 3.4.1 已于 2026-09-05 完成固定 HDFS 文件、MapReduce WordCount、YARN application、聚合日志和受控重启验证，当前技术门禁是 MySQL 8.0.46；M2 的 `M2-DEC-001` 至 `014` 已分别按 `DR-009` 至 `DR-013` 确认，M2.1 已完成。M2.2 已完成 19 张表 Candidate DDL 并通过静态 Contract 检查，证据状态为 `implemented`；MySQL 执行与行为验证仍待 T7。`M2-DEC-015` 仍作为 M2.3/M2.4 的数据规模门禁，与决策记录 `DR-015` 不同。M2.5 的 MySQL 执行验收必须等待 M1 的 MySQL 门禁通过，M3 的前置条件保持不变。
+Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1、2 现按 `DR-008` 并行推进：M1 中 Hadoop 3.4.1 已于 2026-09-05 完成固定 HDFS 文件、MapReduce WordCount、YARN application、聚合日志和受控重启验证，当前技术门禁是 MySQL 8.0.46；M2 的 `M2-DEC-001` 至 `015` 已分别按 `DR-009` 至 `DR-013`、`DR-021` 确认，M2.1、M2.2 已完成。M2.2 的 19 张表 Candidate DDL 已通过静态 Contract 检查，证据状态为 `implemented`；MySQL 执行与行为验证仍待 T7。`M2-DEC-015` 已解除 M2.3/M2.4 的数据规模门禁，下一步是按已确认的固定验收规模准备 Seed、预期结果、Generator 和 Targeted Test；其与决策记录 `DR-015` 不同。M2.5 的 MySQL 执行验收必须等待 M1 的 MySQL 门禁通过，M3 的前置条件保持不变。

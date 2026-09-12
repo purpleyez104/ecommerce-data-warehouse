@@ -20,6 +20,9 @@
 
 ### 变更
 
+- 确认 `M2-DEC-015` 的固定验收数据规模：以可人工核对的小型固定集覆盖 19 张源表和 `M2-SC-001` 至 `012`，业务日期固定为 `2025-01-29` 至 `2025-02-01`，正常 seed 首次运行与同日重跑各 1 次，并设置 14 个独立失败用例；该决策解除 M2.3/M2.4 的数据规模门禁，不表示 Seed、Generator 或 MySQL 验收已完成。
+- M2.2 OLTP 逻辑与物理模型已完成：T2 静态验收通过并归档；19 张表 Candidate DDL 保持 `implemented`，MySQL 执行与行为验证仍待 T7。
+
 - 建立 Trellis Data Engineering 工作流基线：移除默认 Fullstack spec，明确 `AGENTS.md`、项目 docs、Trellis Task 的事实优先级，转换 bootstrap Task，并关闭 Trellis 自动 Commit 与 Codex Hook 注册；该变更不改变任何业务模型、Milestone 门禁或运行验证结论。
 - 离线主线调整为 DataX 直接写入 Hive ODS 对应的 HDFS ORC + Snappy 分区，并明确分区注册、审计字段、幂等发布和失败隔离责任。
 - Milestone 0 已通过用户评审并标记为 `completed`；Milestone 1 保持 `pending`，进入门禁已满足但尚未开始实施。
