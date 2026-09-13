@@ -4,6 +4,7 @@ import unittest
 from generator.rules import (
     RuleViolation,
     allocate_discount,
+    assert_allocation_conservation,
     assert_coupon_use,
     assert_payment_amount,
     assert_refund_limit,
@@ -62,6 +63,15 @@ class GeneratorRulesTest(unittest.TestCase):
             assert_coupon_use("LOCKED", True, False, False, "20.00", "20.00", "5.00")
         with self.assertRaises(RuleViolation):
             assert_coupon_use("LOCKED", True, False, True, "19.99", "20.00", "5.00")
+
+    def test_allocation_conservation_rejects_row_count_amount_and_total_drift(self) -> None:
+        assert_allocation_conservation(["30.00", "25.00"], ["5.45", "4.55"], "10.00")
+        with self.assertRaises(RuleViolation):
+            assert_allocation_conservation(["30.00", "25.00"], ["10.00"], "10.00")
+        with self.assertRaises(RuleViolation):
+            assert_allocation_conservation(["30.00", "25.00"], ["30.01", "0.00"], "30.01")
+        with self.assertRaises(RuleViolation):
+            assert_allocation_conservation(["30.00", "25.00"], ["5.44", "4.55"], "10.00")
 
 
 if __name__ == "__main__":

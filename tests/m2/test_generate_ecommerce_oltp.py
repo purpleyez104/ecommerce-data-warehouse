@@ -11,7 +11,15 @@ import re
 from unittest.mock import patch
 from contextlib import redirect_stderr
 
-from generator.generate_ecommerce_oltp import TABLE_ORDER, build_sql, main, validate_coupon_rows, validate_payment_rows
+from generator.generate_ecommerce_oltp import (
+    TABLE_ORDER,
+    build_sql,
+    main,
+    validate_coupon_rows,
+    validate_payment_rows,
+    validate_return_refund_rows,
+    validate_session_event_rows,
+)
 from generator.rules import RuleViolation
 
 
@@ -26,6 +34,10 @@ def table_rows(sql: str, table: str) -> list[list[str]]:
 def unquote(value: str) -> str | None:
     value = value.strip()
     return None if value == "NULL" else value.strip("'")
+
+
+def decoded_table_rows(sql: str, table: str) -> list[tuple[str | None, ...]]:
+    return [tuple(unquote(value) for value in row) for row in table_rows(sql, table)]
 
 
 class GenerateEcommerceOltpTest(unittest.TestCase):
@@ -110,6 +122,7 @@ class GenerateEcommerceOltpTest(unittest.TestCase):
                 {"days": "0"}, {"days": "-1"}, {"days": "days"},
                 {"scale": "0"}, {"scale": "-1"}, {"scale": "scale"},
                 {"seed": "-1"}, {"seed": "seed"}, {"start_date": "2025-02-30"},
+                {"start_date": "20250129"}, {"start_date": "2025-W05-3"},
             ]
             for index, options in enumerate(invalid_cases):
                 result = self.run_generator(Path(directory) / f"invalid-{index}.sql", **options)
@@ -136,15 +149,25 @@ class GenerateEcommerceOltpTest(unittest.TestCase):
             if user_coupon_pk is not None:
                 self.assertEqual(Decimal(unquote(order[11])), coupons[int(user_coupon_pk)])
                 coupon = user_coupons[int(user_coupon_pk)]
-                self.assertEqual(unquote(coupon[5]), "USED")
+                if unquote(order[6]) == "CANCELLED":
+                    self.assertIn(unquote(coupon[5]), {"CLAIMED", "EXPIRED"})
+                    self.assertIsNotNone(unquote(coupon[12]))
+                else:
+                    self.assertEqual(unquote(coupon[5]), "USED")
                 self.assertEqual(unquote(coupon[4]), unquote(order[3]))
                 self.assertGreaterEqual(Decimal(unquote(order[9])), Decimal(unquote(coupon[7])))
 
         session_visitors = {int(row[0]): row[2] for row in table_rows(sql, "visit_session")}
         for row in table_rows(sql, "page_view_event"):
             self.assertEqual(row[2], session_visitors[int(row[3])])
+            session = next(item for item in table_rows(sql, "visit_session") if item[0] == row[3])
+            self.assertLessEqual(unquote(session[4]), unquote(row[9]))
+            self.assertLessEqual(unquote(row[9]), unquote(session[6]))
         for row in table_rows(sql, "cart_event"):
             self.assertEqual(row[3], session_visitors[int(row[4])])
+            session = next(item for item in table_rows(sql, "visit_session") if item[0] == row[4])
+            self.assertLessEqual(unquote(session[4]), unquote(row[12]))
+            self.assertLessEqual(unquote(row[12]), unquote(session[6]))
 
         scale_two_sql = build_sql(42, __import__("datetime").date(2025, 1, 29), 4, 2)
         session_users = {int(row[3]): row[4] for row in table_rows(scale_two_sql, "login_event")}
@@ -189,18 +212,97 @@ class GenerateEcommerceOltpTest(unittest.TestCase):
             if unquote(return_row[5]) != "REJECTED":
                 self.assertLessEqual(requested_quantities[item_pk], item_quantities[item_pk])
 
-    def test_actual_row_validators_reject_mutated_payment_and_coupon(self) -> None:
-        order = [None] * 13
-        order[0], order[3], order[5], order[9], order[11], order[12] = 1, 1, 1, Decimal("20.00"), Decimal("5.00"), Decimal("15.00")
-        payment = [None] * 6
-        payment[3], payment[4], payment[5] = 1, "SUCCESS", Decimal("14.99")
-        with self.assertRaises(RuleViolation):
-            validate_payment_rows([tuple(order)], [tuple(payment)])
+        for day_count in (1, 2, 3, 4):
+            candidate = build_sql(42, __import__("datetime").date(2025, 1, 29), day_count, 1)
+            candidate_orders = {int(row[0]): row for row in table_rows(candidate, "sales_order")}
+            candidate_returns = {int(row[0]): row for row in table_rows(candidate, "return_order")}
+            for returned in candidate_returns.values():
+                self.assertGreaterEqual(unquote(returned[10]), unquote(candidate_orders[int(returned[3])][14]))
+            for refund in table_rows(candidate, "refund_attempt"):
+                self.assertGreaterEqual(unquote(refund[9]), unquote(candidate_returns[int(refund[3])][10]))
 
-        coupon = (1, "CP-001", "Coupon", Decimal("5.00"), Decimal("20.00"), "2025-01-29 00:00:00.000", "2025-02-01 23:59:00.000")
-        user_coupon = (1, "UC-001", "REQ", 1, 2, "USED", Decimal("5.00"), Decimal("20.00"), "2025-01-29 00:00:00.000", "2025-02-01 23:59:00.000", "2025-01-29 08:00:00.000", "2025-01-29 08:30:00.000", None, "2025-01-29 09:00:00.000")
+    def test_scale_one_covers_t4_amount_payment_and_coupon_boundaries(self) -> None:
+        sql = build_sql(42, __import__("datetime").date(2025, 1, 29), 4, 1)
+        orders = table_rows(sql, "sales_order")
+        payments = table_rows(sql, "payment_attempt")
+        coupons = table_rows(sql, "user_coupon")
+        self.assertTrue(any(Decimal(unquote(row[12])) == Decimal("0.00") for row in orders))
+        self.assertFalse(any(unquote(row[4]) == "SUCCESS" and unquote(row[7]).startswith("2025-02-01") for row in payments))
+        self.assertEqual({unquote(row[5]) for row in coupons}, {"CLAIMED", "USED", "EXPIRED"})
+        released = next(row for row in coupons if row[0] == "3")
+        self.assertEqual(unquote(released[5]), "CLAIMED")
+        self.assertIsNotNone(unquote(released[11]))
+        self.assertIsNotNone(unquote(released[12]))
+        expired = next(row for row in coupons if row[0] == "4")
+        self.assertIsNotNone(unquote(expired[14]))
+
+    def test_actual_row_validators_reject_mutated_payment_and_coupon(self) -> None:
+        sql = build_sql(42, __import__("datetime").date(2025, 1, 29), 4, 1)
+        orders = decoded_table_rows(sql, "sales_order")
+        payments = [list(row) for row in decoded_table_rows(sql, "payment_attempt")]
+        successful_payment = next(row for row in payments if row[4] == "SUCCESS")
+        successful_payment[5] = str(Decimal(successful_payment[5]) + Decimal("0.01"))
         with self.assertRaises(RuleViolation):
-            validate_coupon_rows([coupon], [user_coupon], [tuple(order)])
+            validate_payment_rows(orders, [tuple(row) for row in payments])
+
+        coupon_rows = decoded_table_rows(sql, "coupon")
+        user_coupon_rows = decoded_table_rows(sql, "user_coupon")
+        bad_order = list(orders[0])
+        bad_order[3] = "999"
+        with self.assertRaises(RuleViolation):
+            validate_coupon_rows(coupon_rows, user_coupon_rows, [tuple(bad_order)] + orders[1:])
+
+    def test_actual_generated_rows_reject_identity_ownership_and_chronology_mutations(self) -> None:
+        sql = build_sql(42, __import__("datetime").date(2025, 1, 29), 4, 1)
+        sessions = decoded_table_rows(sql, "visit_session")
+        logins = decoded_table_rows(sql, "login_event")
+        pages = decoded_table_rows(sql, "page_view_event")
+        carts = decoded_table_rows(sql, "cart_event")
+        bad_page = list(pages[0])
+        bad_page[9] = "2025-01-30 08:15:00.000"
+        with self.assertRaises(RuleViolation):
+            validate_session_event_rows(sessions, logins, [tuple(bad_page)] + pages[1:], carts)
+        bad_login = list(logins[0])
+        bad_login[2] = "999"
+        with self.assertRaises(RuleViolation):
+            validate_session_event_rows(sessions, [tuple(bad_login)] + logins[1:], pages, carts)
+        bad_login_time = list(logins[0])
+        bad_login_time[5] = "2025-01-30 08:10:00.000"
+        with self.assertRaises(RuleViolation):
+            validate_session_event_rows(sessions, [tuple(bad_login_time)] + logins[1:], pages, carts)
+
+        orders = decoded_table_rows(sql, "sales_order")
+        items = decoded_table_rows(sql, "sales_order_item")
+        payments = decoded_table_rows(sql, "payment_attempt")
+        returns = decoded_table_rows(sql, "return_order")
+        refunds = decoded_table_rows(sql, "refund_attempt")
+        bad_return_time = list(returns[0])
+        bad_return_time[10] = "2025-01-28 10:00:00.000"
+        with self.assertRaises(RuleViolation):
+            validate_return_refund_rows(orders, items, payments, [tuple(bad_return_time)] + returns[1:], refunds)
+        bad_return_owner = list(returns[0])
+        bad_return_owner[3] = "2"
+        with self.assertRaises(RuleViolation):
+            validate_return_refund_rows(orders, items, payments, [tuple(bad_return_owner)] + returns[1:], refunds)
+        bad_payment = [list(row) for row in payments]
+        bad_payment[0][4], bad_payment[0][8] = "FAILED", None
+        with self.assertRaises(RuleViolation):
+            validate_return_refund_rows(orders, items, [tuple(row) for row in bad_payment], returns, refunds)
+
+    def test_released_coupon_can_be_relocked_once_but_not_used_twice(self) -> None:
+        sql = build_sql(42, __import__("datetime").date(2025, 1, 29), 4, 1)
+        coupon_rows = decoded_table_rows(sql, "coupon")
+        user_coupon_rows = [list(row) for row in decoded_table_rows(sql, "user_coupon")]
+        order_rows = [list(row) for row in decoded_table_rows(sql, "sales_order")]
+        released = user_coupon_rows[2]
+        released[5], released[11], released[12], released[13] = "USED", "2025-01-31 09:30:00.000", None, "2025-01-31 10:00:00.000"
+        reused_order = order_rows[2].copy()
+        reused_order[0], reused_order[1], reused_order[6], reused_order[14], reused_order[15], reused_order[16] = "99", "ORD-099", "PAID", "2025-01-31 09:30:00.000", None, None
+        validate_coupon_rows(coupon_rows, [tuple(row) for row in user_coupon_rows], [tuple(order_rows[2]), tuple(reused_order)])
+        duplicate_order = reused_order.copy()
+        duplicate_order[0], duplicate_order[1], duplicate_order[14] = "100", "ORD-100", "2025-01-31 10:30:00.000"
+        with self.assertRaises(RuleViolation):
+            validate_coupon_rows(coupon_rows, [tuple(row) for row in user_coupon_rows], [tuple(order_rows[2]), tuple(reused_order), tuple(duplicate_order)])
 
 
 if __name__ == "__main__":

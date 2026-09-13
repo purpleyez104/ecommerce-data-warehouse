@@ -173,7 +173,7 @@ Milestone 3 的进入条件保持不变：既要取得 M2 已确认的 OLTP DDL 
 - 优惠券：V1 只支持带最低订单原价门槛的固定金额券。仅注册用户可领取和使用，一个订单最多一张券，一个领取实例最多成功使用一次；状态使用 `CLAIMED`、`LOCKED`、`USED`、`EXPIRED`。未支付取消时按是否过期释放或失效，支付成功后不因退单或退款返还。
 - 补贴率：`P1_METRIC_030` 按 `paid_at` 业务日期统计毛补贴率，分子为成功支付订单的优惠券优惠金额，分母为同批订单商品原价金额；后续退款不追溯修改。分母为零输出 `0`，比率保留 4 位、百分比展示保留 2 位，均使用 `HALF_UP`。
 
-优惠券与领取实例的物理字段、金额及有效期快照、状态时间组合和索引方向已由 `DR-018` 确认。Candidate DDL 已 `implemented` 并通过静态 Contract 检查；写入层与指标 SQL 尚未实现，MySQL 运行验证仍须等待 M2.5 及其 M1 MySQL 门禁。
+优惠券与领取实例的物理字段、金额及有效期快照、状态时间组合和索引方向已由 `DR-018` 确认。Candidate DDL 已 `implemented` 并通过静态 Contract 检查；M2.4 Candidate Generator 已实现本地 Python 跨行规则和 Targeted Test，但正式 MySQL 写入层与指标 SQL 尚未实现，MySQL 运行验证仍须等待 M2.5 及其 M1 MySQL 门禁。
 
 ### 3.8 已确认的 OLTP 源表与约束基线
 

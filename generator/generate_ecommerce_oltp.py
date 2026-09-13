@@ -11,6 +11,7 @@ from pathlib import Path
 from generator.rules import (
     RuleViolation,
     allocate_discount,
+    assert_allocation_conservation,
     assert_coupon_use,
     assert_payment_amount,
     assert_refund_limit,
@@ -32,10 +33,15 @@ TABLE_ORDER = [
 
 
 def parse_date(value: str) -> date:
+    if len(value) != 10 or value[4] != "-" or value[7] != "-":
+        raise argparse.ArgumentTypeError("start-date must use yyyy-MM-dd")
     try:
-        return date.fromisoformat(value)
+        parsed = datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError as error:
         raise argparse.ArgumentTypeError("start-date must use yyyy-MM-dd") from error
+    if parsed.isoformat() != value:
+        raise argparse.ArgumentTypeError("start-date must use yyyy-MM-dd")
+    return parsed
 
 
 def positive_int(value: str) -> int:
@@ -89,8 +95,8 @@ def validate_coupon_rows(
 ) -> None:
     coupons = {row[0]: row for row in coupon_rows}
     user_coupons = {row[0]: row for row in user_coupon_rows}
-    used_by_order: set[int] = set()
-    for order in order_rows:
+    successfully_used: set[int] = set()
+    for order in sorted(order_rows, key=lambda row: row[14]):
         user_coupon_pk = order[5]
         if user_coupon_pk is None:
             continue
@@ -100,17 +106,81 @@ def validate_coupon_rows(
         assert_coupon_use(
             "LOCKED",
             lock_time is not None and coupon[8] <= lock_time <= coupon[9],
-            user_coupon_pk in used_by_order,
+            user_coupon_pk in successfully_used,
             coupon[4] == order[3],
             order[9],
             coupon[7],
             coupon[6],
         )
-        if coupon[5] != "USED" or coupon[13] is None or order[11] != coupon[6]:
-            raise RuleViolation("used coupon row does not match its order")
+        if order[6] == "CANCELLED":
+            if coupon[5] in {"CLAIMED", "EXPIRED"} and (coupon[12] is None or coupon[13] is not None):
+                raise RuleViolation("cancelled order coupon was not released or expired")
+            if coupon[5] not in {"CLAIMED", "EXPIRED", "USED"}:
+                raise RuleViolation("cancelled order coupon has an invalid current state")
+        elif coupon[5] != "USED" or coupon[13] is None:
+            raise RuleViolation("paid order coupon was not used")
+        else:
+            successfully_used.add(user_coupon_pk)
+        if order[11] != coupon[6]:
+            raise RuleViolation("order coupon discount does not match its snapshot")
         if coupon[6] != definition[3] or coupon[7] != definition[4] or coupon[8] != definition[5] or coupon[9] != definition[6]:
             raise RuleViolation("coupon snapshot does not match coupon definition")
-        used_by_order.add(user_coupon_pk)
+def validate_session_event_rows(
+    session_rows: list[tuple[object, ...]],
+    login_rows: list[tuple[object, ...]],
+    page_rows: list[tuple[object, ...]],
+    cart_rows: list[tuple[object, ...]],
+) -> None:
+    sessions = {row[0]: row for row in session_rows}
+    logins: dict[object, tuple[object, object]] = {}
+    for login in login_rows:
+        session = sessions[login[3]]
+        if login[2] != session[2] or not (session[4] <= login[5] <= session[6]):
+            raise RuleViolation("login identity or time is outside its session")
+        existing = logins.setdefault(login[3], (login[4], login[5]))
+        if existing[0] != login[4]:
+            raise RuleViolation("login user identity changes within a session")
+
+    def expected_user(session_pk: object, event_time: object) -> object | None:
+        login = logins.get(session_pk)
+        return login[0] if login is not None and event_time >= login[1] else None
+
+    for event in page_rows:
+        session = sessions[event[3]]
+        if event[2] != session[2] or event[4] != expected_user(event[3], event[9]) or not (session[4] <= event[9] <= session[6]):
+            raise RuleViolation("page event identity or time is outside its session")
+    for event in cart_rows:
+        session = sessions[event[4]]
+        if event[3] != session[2] or event[5] != expected_user(event[4], event[12]) or not (session[4] <= event[12] <= session[6]):
+            raise RuleViolation("cart event identity or time is outside its session")
+
+
+def validate_return_refund_rows(
+    order_rows: list[tuple[object, ...]],
+    item_rows: list[tuple[object, ...]],
+    payment_rows: list[tuple[object, ...]],
+    return_rows: list[tuple[object, ...]],
+    refund_rows: list[tuple[object, ...]],
+) -> None:
+    orders = {row[0]: row for row in order_rows}
+    items = {row[0]: row for row in item_rows}
+    payments = {row[0]: row for row in payment_rows}
+    returns = {row[0]: row for row in return_rows}
+    for returned in return_rows:
+        if items[returned[4]][2] != returned[3]:
+            raise RuleViolation("return item does not belong to its order")
+        if returned[10] < orders[returned[3]][14]:
+            raise RuleViolation("return is earlier than its order")
+    for refund in refund_rows:
+        returned = returns[refund[3]]
+        order = orders[refund[4]]
+        payment = payments[refund[5]]
+        if returned[3] != refund[4] or payment[3] != refund[4]:
+            raise RuleViolation("refund references inconsistent return, order or payment rows")
+        if payment[4] != "SUCCESS" or payment[8] is None:
+            raise RuleViolation("refund requires a successful payment")
+        if refund[9] < returned[10] or refund[9] < order[14] or refund[9] < payment[8]:
+            raise RuleViolation("refund is earlier than its prerequisite event")
 
 
 def build_sql(seed: int, start_date: date, days: int, scale: int) -> str:
@@ -143,47 +213,68 @@ def build_sql(seed: int, start_date: date, days: int, scale: int) -> str:
             (offset + 5, f"CAT-{offset + 5:03d}", f"Level 3B-{group + 1}", offset + 4, 3, 0, None, timestamp(business_days[0], 0), timestamp(business_days[0], 0)),
             (offset + 6, f"CAT-{offset + 6:03d}", f"Level 3C-{group + 1}", offset + 4, 3, 0, None, timestamp(business_days[0], 0), timestamp(business_days[0], 0)),
         ])
-    coupon_discounts = {index: money(5 + index) for index in range(1, 3 * scale + 1)}
-    coupon_rows = [(index, f"CP-{index:03d}", f"Coupon {index}", coupon_discounts[index], money(20), timestamp(business_days[0], 0), timestamp(start_date + timedelta(days=days - 1), 23, 59), 0, None, timestamp(business_days[0], 0), timestamp(business_days[0], 0)) for index in range(1, 3 * scale + 1)]
     address_rows = [(index, f"ADDR-{index:03d}", index, "110000", "Beijing", "110100", "Beijing", f"Road {index}", 0, None, timestamp(business_days[(index - 1) % len(business_days)], 8), timestamp(business_days[(index - 1) % len(business_days)], 8)) for index in range(1, users + 1)]
-    session_rows = [(index, f"SES-{index:03d}", ((index - 1) % visitors) + 1, ((index - 1) % channels) + 1, timestamp(business_days[(index - 1) % len(business_days)], 8), timestamp(business_days[(index - 1) % len(business_days)], 9), timestamp(business_days[(index - 1) % len(business_days)], 9), timestamp(business_days[(index - 1) % len(business_days)], 8), timestamp(business_days[(index - 1) % len(business_days)], 9)) for index in range(1, 6 * scale + 1)]
+    session_days = {
+        index: business_days[(index - 1) % len(business_days)]
+        for index in range(1, 6 * scale + 1)
+    }
+    session_rows = [(index, f"SES-{index:03d}", ((index - 1) % visitors) + 1, ((index - 1) % channels) + 1, timestamp(session_days[index], 8), timestamp(session_days[index], 9), timestamp(session_days[index], 9), timestamp(session_days[index], 8), timestamp(session_days[index], 9)) for index in range(1, 6 * scale + 1)]
     spu_rows = [(index, f"SPU-{index:03d}", f"SPU {index}", ((index - 1) % brands) + 1, ((index - 1) % scale) * 6 + (3 if index % 2 else 5), 0, None, timestamp(business_days[0], 0), timestamp(business_days[0], 0)) for index in range(1, spus + 1)]
     sku_prices = {
         index: money(10 + index * 5 + rng.randint(0, 4))
         for index in range(1, skus + 1)
     }
     sku_rows = [(index, f"SKU-{index:03d}", f"SKU {index}", ((index - 1) % spus) + 1, sku_prices[index], "CNY", 0, None, timestamp(business_days[0], 0), timestamp(business_days[0], 0)) for index in range(1, skus + 1)]
-    coupon_orders: dict[int, int] = {}
-    used_coupon_pks: set[int] = set()
-    for index in range(1, orders + 1):
-        user_coupon_pk = ((index - 1) % users) + 1
-        if index % 3 == 1 and index <= 4 * scale and user_coupon_pk not in used_coupon_pks:
-            coupon_orders[index] = user_coupon_pk
-            used_coupon_pks.add(user_coupon_pk)
+    first_order_original = money(sku_prices[1] + sku_prices[2])
+    coupon_discounts = {index: money(5 + index) for index in range(1, 3 * scale + 1)}
+    coupon_discounts[1] = first_order_original
+    coupon_rows = [(index, f"CP-{index:03d}", f"Coupon {index}", coupon_discounts[index], money(20), timestamp(business_days[0], 0), timestamp(start_date + timedelta(days=days - 1), 23, 59), 0, None, timestamp(business_days[0], 0), timestamp(business_days[0], 0)) for index in range(1, 3 * scale + 1)]
+    coupon_orders = {1: 1, 3: 3}
+    used_coupon_pks = {1}
+    released_coupon_pks = {3}
+    expired_coupon_pks = {4}
     user_coupon_discounts = {
         index: coupon_discounts[((index - 1) % (3 * scale)) + 1]
         for index in range(1, 5 * scale + 1)
     }
-    user_coupon_rows = [(index, f"UC-{index:03d}", f"REQ-UC-{index:03d}", ((index - 1) % (3 * scale)) + 1, ((index - 1) % users) + 1, "USED" if index in used_coupon_pks else "CLAIMED", user_coupon_discounts[index], money(20), timestamp(business_days[0], 0), timestamp(start_date + timedelta(days=days - 1), 23, 59), timestamp(business_days[(index - 1) % len(business_days)], 8), timestamp(business_days[(index - 1) % len(business_days)], 8, 30) if index in used_coupon_pks else None, None, timestamp(business_days[(index - 1) % len(business_days)], 9) if index in used_coupon_pks else None, None, timestamp(business_days[0], 0), timestamp(business_days[0], 0)) for index in range(1, 5 * scale + 1)]
+    user_coupon_rows = []
+    for index in range(1, 5 * scale + 1):
+        coupon_day = business_days[(index - 1) % len(business_days)]
+        if index in used_coupon_pks:
+            status, locked_at, released_at, used_at, expired_at = "USED", timestamp(coupon_day, 8, 30), None, timestamp(coupon_day, 9, 5), None
+        elif index in released_coupon_pks:
+            status, locked_at, released_at, used_at, expired_at = "CLAIMED", timestamp(coupon_day, 8, 30), timestamp(coupon_day, 9, 10), None, None
+        elif index in expired_coupon_pks:
+            status, locked_at, released_at, used_at, expired_at = "EXPIRED", None, None, None, timestamp(start_date + timedelta(days=days - 1), 23, 59)
+        else:
+            status, locked_at, released_at, used_at, expired_at = "CLAIMED", None, None, None, None
+        user_coupon_rows.append((index, f"UC-{index:03d}", f"REQ-UC-{index:03d}", ((index - 1) % (3 * scale)) + 1, ((index - 1) % users) + 1, status, user_coupon_discounts[index], money(20), timestamp(business_days[0], 0), timestamp(start_date + timedelta(days=days - 1), 23, 59), timestamp(coupon_day, 8), locked_at, released_at, used_at, expired_at, timestamp(business_days[0], 0), timestamp(business_days[0], 0)))
     session_visitors = {row[0]: row[2] for row in session_rows}
-    login_rows = [(index, f"LOG-{index:03d}", session_visitors[((index - 1) % (6 * scale)) + 1], ((index - 1) % (6 * scale)) + 1, ((index - 1) % users) + 1, timestamp(business_days[(index - 1) % len(business_days)], 8, 10), timestamp(business_days[(index - 1) % len(business_days)], 8, 10)) for index in range(1, 4 * scale + 1)]
+    login_rows = [(index, f"LOG-{index:03d}", session_visitors[((index - 1) % (6 * scale)) + 1], ((index - 1) % (6 * scale)) + 1, ((index - 1) % users) + 1, timestamp(session_days[((index - 1) % (6 * scale)) + 1], 8, 10), timestamp(session_days[((index - 1) % (6 * scale)) + 1], 8, 10)) for index in range(1, 4 * scale + 1)]
     session_users = {row[3]: row[4] for row in login_rows}
 
     page_rows = []
     for index in range(1, 18 * scale + 1):
-        day = business_days[(index - 1) % len(business_days)]
         is_product = index % 2 == 0
         session_pk = ((index - 1) % (6 * scale)) + 1
+        day = session_days[session_pk]
         page_rows.append((index, f"PV-{index:03d}", session_visitors[session_pk], session_pk, session_users.get(session_pk), ((index - 1) % channels) + 1, "PRODUCT_DETAIL" if is_product else "HOME", f"/product/SKU-{((index - 1) % skus) + 1:03d}" if is_product else "/", ((index - 1) % skus) + 1 if is_product else None, timestamp(day, 8, 15), timestamp(day, 8, 15)))
-    cart_rows = [(index, f"CART-{index:03d}", f"REQ-CART-{index:03d}", session_visitors[((index - 1) % (6 * scale)) + 1], ((index - 1) % (6 * scale)) + 1, session_users.get(((index - 1) % (6 * scale)) + 1), ((index - 1) % skus) + 1, "ADD", 0, 1, 1, None, timestamp(business_days[(index - 1) % len(business_days)], 8, 20), timestamp(business_days[(index - 1) % len(business_days)], 8, 20)) for index in range(1, 8 * scale + 1)]
+    cart_rows = []
+    for index in range(1, 8 * scale + 1):
+        session_pk = ((index - 1) % (6 * scale)) + 1
+        day = session_days[session_pk]
+        cart_rows.append((index, f"CART-{index:03d}", f"REQ-CART-{index:03d}", session_visitors[session_pk], session_pk, session_users.get(session_pk), ((index - 1) % skus) + 1, "ADD", 0, 1, 1, None, timestamp(day, 8, 20), timestamp(day, 8, 20)))
+    validate_session_event_rows(session_rows, login_rows, page_rows, cart_rows)
 
     order_rows = []
     item_rows = []
     payment_rows = []
+    order_days: dict[int, date] = {}
     successful_orders: set[str] = set()
     item_pk = 1
     for index in range(1, orders + 1):
         day = business_days[(index - 1) % len(business_days)]
+        order_days[index] = day
         order_id = f"ORD-{index:03d}"
         line_count = 2 if index <= 4 * scale else 1
         line_sku_ids = [((index + line - 1) % skus) + 1 for line in range(line_count)]
@@ -203,8 +294,9 @@ def build_sql(seed: int, start_date: date, days: int, scale: int) -> str:
                 coupon_discount,
             )
         allocations = allocate_discount(line_amounts, coupon_discount)
+        assert_allocation_conservation(line_amounts, allocations, coupon_discount)
         payable = money(original - coupon_discount)
-        status = "CANCELLED" if index % 8 == 3 else "PAID"
+        status = "CANCELLED" if index == 3 or (days >= 4 and day == start_date + timedelta(days=days - 1)) else "PAID"
         order_rows.append((index, order_id, f"REQ-ORD-{index:03d}", ((index - 1) % users) + 1, ((index - 1) % users) + 1, user_coupon_pk, status, "110000", "Beijing", original, money(0), coupon_discount, payable, "CNY", timestamp(day, 9), timestamp(day, 9, 10) if status == "CANCELLED" else None, "user_cancelled" if status == "CANCELLED" else None, timestamp(day, 9), timestamp(day, 9, 10) if status == "CANCELLED" else timestamp(day, 9, 5)))
         for line, amount in enumerate(line_amounts):
             sku_id = line_sku_ids[line]
@@ -236,7 +328,7 @@ def build_sql(seed: int, start_date: date, days: int, scale: int) -> str:
     for index in range(1, 4 * scale + 1):
         item = paid_item_rows[(index - 1) % len(paid_item_rows)]
         order_pk = item[2]
-        day = business_days[(index - 1) % len(business_days)]
+        day = order_days[order_pk]
         status = ("COMPLETED", "REJECTED", "COMPLETED", "APPROVED")[(index - 1) % 4]
         quantity = 1
         active_returns[item[0]] = next_active_return_quantity(status, quantity, active_returns.get(item[0], 0), item[4])
@@ -258,12 +350,13 @@ def build_sql(seed: int, start_date: date, days: int, scale: int) -> str:
             refund_rows.append((len(refund_rows) + 1, f"REF-{len(refund_rows) + 1:03d}", f"REQ-REF-{len(refund_rows) + 1:03d}", index, order_pk, order_pk, "SUCCESS", refund_amount, "CNY", timestamp(day, 10, 15), timestamp(day, 10, 20), None, f"CALLBACK-REF-{len(refund_rows) + 1:03d}", None, timestamp(day, 10, 15), timestamp(day, 10, 20)))
     while len(refund_rows) < 5 * scale:
         index = len(refund_rows) + 1
-        day = business_days[(index - 1) % len(business_days)]
+        day = order_days[1]
         refund_rows.append((index, f"REF-{index:03d}", f"REQ-REF-{index:03d}", 1, 1, 1, "FAILED", money(1), "CNY", timestamp(day, 11), None, timestamp(day, 11, 1), f"CALLBACK-REF-{index:03d}", "retry", timestamp(day, 11), timestamp(day, 11, 1)))
 
     transitions = {"PAID": {"PARTIALLY_REFUNDED", "REFUNDED"}}
     validate_payment_rows(order_rows, payment_rows)
     validate_coupon_rows(coupon_rows, user_coupon_rows, order_rows)
+    validate_return_refund_rows(order_rows, item_rows, payment_rows, return_rows, refund_rows)
     for order_pk, refunded_amount in successful_refunds_by_order.items():
         row = list(order_rows[order_pk - 1])
         refund_status = "REFUNDED" if refunded_amount == row[12] else "PARTIALLY_REFUNDED"

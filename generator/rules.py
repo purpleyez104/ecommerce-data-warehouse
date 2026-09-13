@@ -49,6 +49,22 @@ def allocate_discount(line_amounts: Iterable[Decimal | int | str], discount: Dec
     return allocations
 
 
+def assert_allocation_conservation(
+    line_amounts: Iterable[Decimal | int | str],
+    allocations: Iterable[Decimal | int | str],
+    discount: Decimal | int | str,
+) -> None:
+    amounts = [money(amount) for amount in line_amounts]
+    allocated = [money(amount) for amount in allocations]
+    discount_amount = money(discount)
+    if len(amounts) != len(allocated):
+        raise RuleViolation("discount allocation row count does not match")
+    if any(value < 0 or value > amounts[index] for index, value in enumerate(allocated)):
+        raise RuleViolation("discount allocation is outside its line amount")
+    if sum(allocated, Decimal("0.00")) != discount_amount:
+        raise RuleViolation("discount allocation does not conserve amount")
+
+
 def assert_transition(current: str, target: str, allowed: Mapping[str, set[str]]) -> None:
     if target not in allowed.get(current, set()):
         raise RuleViolation(f"illegal state transition: {current} -> {target}")
