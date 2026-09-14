@@ -763,5 +763,6 @@ Milestone 2 已进入 `in progress`。只有以下项目全部满足，才能按
 - [x] 30 项正式指标所需业务过程均有已确认的源模型语义支撑；除 `P1_METRIC_030` 的基础公式外，其余完整指标公式仍保持 `draft`。
 - [x] 固定验收数据的规模、业务日期和重跑次数已确认；异常注入采用独立事务或失败用例，且数据库与 Python 写入层分工已确认。
 - [x] M2.3 本地固定 Seed、预期结果、静态 Contract、失败退出边界和幂等入口已实现；MySQL 执行、回滚与重跑行为仍待 M2.5。
+- [x] M2.4 确定性参数化 Generator、使用说明、严格日期和失败退出边界、真实生成行跨表 Contract 与 Mutation Test 已实现；`scale=1` 覆盖零应付订单、零成功支付业务日以及优惠券释放、使用和过期场景，MySQL 执行仍待 M2.5。
 
-当前结论：Milestone 2 与 Milestone 1 并行处于 `in progress`。`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；19 张 MySQL 源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查。M2.3 的固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract，以及 M2.4 的确定性参数化 Generator、Python 跨行规则、使用说明和 Targeted Test 均已 `implemented` 并通过对应静态检查。M2.5 仍须等待 M1 MySQL 门禁，当前不得宣称 MySQL 约束行为或数据链路已验证。
+当前结论：Milestone 2 与 Milestone 1 并行处于 `in progress`。`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；19 张 MySQL 源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查。M2.3 的固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract，以及 M2.4 的确定性参数化 Generator、严格参数和失败边界、Python 跨行规则、固定边界场景、使用说明和 Targeted Test 均已 `implemented` 并通过对应静态检查。M2.5 仍须等待 M1 MySQL 门禁，当前不得宣称 MySQL 约束行为或数据链路已验证。

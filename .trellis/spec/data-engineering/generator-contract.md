@@ -25,10 +25,10 @@ main(argv: list[str] | None = None) -> int
 ## 3. Contracts
 
 - `seed` 必须为非负整数；相同的全部参数产生字节一致的 UTF-8、LF SQL。
-- `start-date`、`days` 显式决定业务日期范围，禁止读取执行机器当前日期。
+- `start-date` 必须严格匹配 `yyyy-MM-dd`，不接受紧凑日期、周日期或带时间部分的替代格式；`start-date`、`days` 显式决定业务日期范围，禁止读取执行机器当前日期。
 - `scale` 只控制候选数据规模；`scale=1` 是 T4 小型验收基线，不代表 Benchmark 规模。
 - 输出按已确认的 19 表父子依赖顺序生成，且不向两个 `VIRTUAL GENERATED` 列赋值。
-- SQL 写入前必须完成支付、退单/退款、优惠券、金额分摊及 Event/Session 身份等纯 Python 跨行校验。
+- SQL 写入前必须完成纯 Python 跨行校验：Login、Session、Event 的访客/用户归属及时间边界；Return Item 与 Order 的归属；Refund 与原成功 Payment 的关联及业务时间顺序；累计退货/退款上限；Coupon 取消释放、重新锁定、最多一次成功使用；订单与明细金额分摊和守恒。
 - 静态检查最多证明产物为 `implemented`；MySQL 语法、约束和运行结果由 M2.5 验证。
 
 ## 4. Validation & Error Matrix
@@ -45,13 +45,13 @@ main(argv: list[str] | None = None) -> int
 ## 5. Good / Base / Bad Cases
 
 - Good：相同 seed、日期和规模连续生成两次，SHA-256 一致。
-- Base：`--seed 42 --start-date 2025-01-29 --days 4 --scale 1` 生成 T4 小型规模的 19 表候选数据。
-- Bad：负 seed、非法日期、零规模、跨表身份不一致、支付金额不守恒、累计退单/退款超限或优惠券越权均必须在写文件前失败。
+- Base：`--seed 42 --start-date 2025-01-29 --days 4 --scale 1` 生成 T4 小型规模的 19 表候选数据，并覆盖零应付订单、零成功支付业务日以及 Coupon 的 `CLAIMED`、`USED`、`EXPIRED` 和取消释放场景。
+- Bad：负 seed、非严格 `yyyy-MM-dd` 日期、零规模、Login/Session/Event 身份或时间不一致、Return Item 归属错误、Refund 不关联原成功 Payment 或时间逆序、支付金额不守恒、累计退单/退款超限及 Coupon 越权或重复成功使用，均必须在写文件前失败。
 
 ## 6. Tests Required
 
-- `tests/m2/test_generate_ecommerce_oltp.py`：断言确定性 checksum、显式日期、19 表顺序与字段 Contract、完整非法参数矩阵、规则违约非零且不写文件、跨表身份及实际支付/优惠券行校验。
-- `tests/m2/test_generator_rules.py`：断言 `Decimal`/`HALF_UP`、正负尾差优先级、重复成功支付、退单状态数量、按明细累计退款和优惠券失败边界。
+- `tests/m2/test_generate_ecommerce_oltp.py`：断言确定性 checksum、严格显式日期、19 表顺序与字段 Contract、完整非法参数矩阵、规则违约非零且不写文件、T4 固定边界场景，以及对 `build_sql()` 真实生成行执行身份、时间、订单归属、支付/退款和 Coupon 校验；Mutation Test 必须证明篡改真实生成行会被拒绝。
+- `tests/m2/test_generator_rules.py`：断言 `Decimal`/`HALF_UP`、正负尾差优先级、重复成功支付、退单状态与数量、Return Item/Order 归属、按明细累计退款、Refund/Payment 关联与时间顺序，以及 Coupon 释放、重锁、一次成功使用和失败边界。
 - T5 Contract：运行 `tests/m2/validate_fixed_seed_contract.ps1` 和 `tests/m2/test_validate_fixed_seed_contract.ps1`。
 - 未经过 M2.5 时，不把上述测试描述为 MySQL Runtime Acceptance。
 

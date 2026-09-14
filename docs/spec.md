@@ -2,7 +2,7 @@
 
 版本：`0.3-draft`
 状态：Milestone 0 `completed`；Milestone 1、2 `in progress`
-更新时间：2026-09-11
+更新时间：2026-09-13
 Repository：`ecommerce-data-warehouse`
 
 ## 0. 文档使用范围
@@ -173,7 +173,7 @@ Milestone 3 的进入条件保持不变：既要取得 M2 已确认的 OLTP DDL 
 - 优惠券：V1 只支持带最低订单原价门槛的固定金额券。仅注册用户可领取和使用，一个订单最多一张券，一个领取实例最多成功使用一次；状态使用 `CLAIMED`、`LOCKED`、`USED`、`EXPIRED`。未支付取消时按是否过期释放或失效，支付成功后不因退单或退款返还。
 - 补贴率：`P1_METRIC_030` 按 `paid_at` 业务日期统计毛补贴率，分子为成功支付订单的优惠券优惠金额，分母为同批订单商品原价金额；后续退款不追溯修改。分母为零输出 `0`，比率保留 4 位、百分比展示保留 2 位，均使用 `HALF_UP`。
 
-优惠券与领取实例的物理字段、金额及有效期快照、状态时间组合和索引方向已由 `DR-018` 确认。Candidate DDL 已 `implemented` 并通过静态 Contract 检查；M2.4 Candidate Generator 已实现本地 Python 跨行规则和 Targeted Test，但正式 MySQL 写入层与指标 SQL 尚未实现，MySQL 运行验证仍须等待 M2.5 及其 M1 MySQL 门禁。
+优惠券与领取实例的物理字段、金额及有效期快照、状态时间组合和索引方向已由 `DR-018` 确认。Candidate DDL 已 `implemented` 并通过静态 Contract 检查；M2.4 Candidate Generator 已实现确定性 19 表候选 SQL、严格 `yyyy-MM-dd` 参数校验，以及身份与时间、订单与明细、支付与退款、优惠券释放/重锁/使用和金额守恒等本地 Python 跨行规则与 Targeted Test。该 Generator 只生成候选 SQL，不等于正式 MySQL 写入层或指标 SQL 已实现；MySQL 运行验证仍须等待 M2.5 及其 M1 MySQL 门禁。
 
 ### 3.8 已确认的 OLTP 源表与约束基线
 
@@ -262,7 +262,7 @@ MySQL 负责主键、唯一、非空、核心外键、状态集合及单行金�
 - MySQL 负责业务键唯一、软删除组合、金额范围、有效期和本行状态时间组合；所有权、状态迁移、一次成功使用、订单关联和快照正确性由 Python 写入层负责。
 - V1 不增加发行额度、库存、抢券、每用户领取上限或比例折扣券。查询索引覆盖定义有效期、用户持券状态、优惠券下实例状态、过期处理和 `update_time` 增量抽取。
 
-该确认使全部 19 张源表共 230 个字段完成评审，但不表示 Python 写入层或 MySQL 运行验证已经完成。`DR-020` 已统一可命名约束与索引名称、生成列物理形式和建表顺序；M2.2 Candidate DDL 已 `implemented` 并通过静态 Contract 检查。
+该确认使全部 19 张源表共 230 个字段完成评审。M2.4 Candidate Generator 已在本地实现并验证已生成行的跨行 Contract，但正式 MySQL 写入层及 MySQL 运行验证尚未完成。`DR-020` 已统一可命名约束与索引名称、生成列物理形式和建表顺序；M2.2 Candidate DDL 已 `implemented` 并通过静态 Contract 检查。
 
 ## 4. 技术栈与开发方式
 
