@@ -1,0 +1,51 @@
+{
+  "id": "m1-component-acceptance-scripts",
+  "name": "m1-component-acceptance-scripts",
+  "title": "M1 五组件功能验收脚本",
+  "description": "为 MySQL、Hive、Kafka KRaft、Spark on YARN 和 DataX 设计可复现、证据化且受控的独立验收脚本",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "Z40003",
+  "assignee": "Z40003",
+  "createdAt": "2026-09-13",
+  "completedAt": "2026-09-14",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-13-m1-cas-01",
+    "09-13-m1-cas-02",
+    "09-13-m1-cas-03",
+    "09-13-m1-cas-04",
+    "09-13-m1-cas-05",
+    "09-13-m1-cas-06",
+    "09-13-m1-cas-07"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "M1-CAS-01/02 delivered. M1-CAS-03-07 were not implemented and were administratively retired as superseded by DR-026/DR-027. DolphinScheduler is tracked separately.",
+  "meta": {
+    "disposition": "partially_delivered_then_superseded",
+    "delivered_children": [
+      "09-13-m1-cas-01",
+      "09-13-m1-cas-02"
+    ],
+    "superseded_children": [
+      "09-13-m1-cas-03",
+      "09-13-m1-cas-04",
+      "09-13-m1-cas-05",
+      "09-13-m1-cas-06",
+      "09-13-m1-cas-07"
+    ],
+    "superseded_by": [
+      "DR-026",
+      "DR-027"
+    ]
+  }
+}

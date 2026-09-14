@@ -1,0 +1,38 @@
+{
+  "id": "m1-dolphinscheduler-gate",
+  "name": "m1-dolphinscheduler-gate",
+  "title": "M1 DolphinScheduler 3.4.2 精简门禁",
+  "description": "按 DR-027 的风险分级口径规划 DolphinScheduler 3.4.2 最小 Runtime 验收，不立即实施",
+  "status": "planning",
+  "dev_type": null,
+  "scope": "dolphinscheduler-3.4.2-minimum-runtime-gate",
+  "package": null,
+  "priority": "P1",
+  "creator": "Z40003",
+  "assignee": "Z40003",
+  "createdAt": "2026-09-14",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "docs/compatibility-matrix.md",
+    "docs/cluster-baseline.md",
+    "docs/installation-troubleshooting.md",
+    "docs/plan.md",
+    "docs/spec.md",
+    "README.md"
+  ],
+  "notes": "Planning only. Do not implement or run services until the user separately confirms the execution scope and restart impact.",
+  "meta": {
+    "evidence_policy": "DR-027",
+    "implementation_authorized": false,
+    "parallel_with": "M2 local work",
+    "worktree": "not_required_while_planning"
+  }
+}
