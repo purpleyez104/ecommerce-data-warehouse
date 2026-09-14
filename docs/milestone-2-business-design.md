@@ -17,8 +17,8 @@
 按小计划执行时：
 
 - M2.1、M2.2 已完成；Candidate DDL 未执行 MySQL 前最多标记为 `implemented`。
-- `M2-DEC-015` 已确认；M2.3 已在本地实现固定 seed、预期结果、正常/异常入口、幂等入口和静态 Contract；M2.4 仍可并行准备数据生成器和 Targeted Test。
-- M1 的 MySQL 8.0.46 门禁已通过；M2.5 仍须等待当前 checkout 中 M2.2～M2.4 的交付前置完成，不得用 M1 的临时 CRUD 代替 19 张正式业务表验收。
+- `M2-DEC-015` 已确认；M2.3 已在本地实现固定 seed、预期结果、正常/异常入口、幂等入口和静态 Contract；M2.4 已实现确定性参数化 Generator、Python 跨行规则、使用说明和 Targeted Test。两者均未在 MySQL 运行验证。
+- M1 的 MySQL 8.0.46 门禁与 M2.2～M2.4 的交付前置均已满足，可以进入 M2.5；不得用 M1 的临时 CRUD、本地代码或静态检查代替 19 张正式业务表验收。
 - 不根据指标名称反推并采用业务规则；缺失内容统一标记 `DECISION_REQUIRED`。
 
 ## 2. 业务过程与正式指标需求矩阵
@@ -200,7 +200,7 @@ flowchart LR
 4. `P0` 时间与金额：`M2-DEC-011`、`012` 已确认。
 5. `P1` 营销：`M2-DEC-013` 已确认；M2.1 完成。
 6. `P1` OLTP 模型：M2.2 已完成，已形成逻辑对象、字段、关系、索引、约束和 Candidate DDL 的静态 Contract。
-7. `P1` 验收设计：`M2-DEC-014`、`M2-DEC-015` 已确认；M2.3 已为 `M2-SC-001` 至 `012` 提供固定输入和预期结果清单，并由静态 Contract 核对。
+7. `P1` 验收设计：`M2-DEC-014`、`M2-DEC-015` 已确认；M2.3 已为 `M2-SC-001` 至 `012` 提供固定输入和预期结果清单，并由静态 Contract 核对；M2.4 已提供显式 seed、业务日期与规模参数的 Generator，并通过确定性、失败退出和跨行规则 Targeted Test。
 
 ## 8. M2.2 OLTP 源表与约束基线
 
@@ -763,5 +763,6 @@ Milestone 2 已进入 `in progress`。只有以下项目全部满足，才能按
 - [x] 30 项正式指标所需业务过程均有已确认的源模型语义支撑；除 `P1_METRIC_030` 的基础公式外，其余完整指标公式仍保持 `draft`。
 - [x] 固定验收数据的规模、业务日期和重跑次数已确认；异常注入采用独立事务或失败用例，且数据库与 Python 写入层分工已确认。
 - [x] M2.3 本地固定 Seed、预期结果、静态 Contract、失败退出边界和幂等入口已实现；MySQL 执行、回滚与重跑行为仍待 M2.5。
+- [x] M2.4 确定性参数化 Generator、使用说明、严格日期和失败退出边界、真实生成行跨表 Contract 与 Mutation Test 已实现；`scale=1` 覆盖零应付订单、零成功支付业务日以及优惠券释放、使用和过期场景，MySQL 执行仍待 M2.5。
 
-当前结论：Milestone 2 与 Milestone 1 并行处于 `in progress`。`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；19 张 MySQL 源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查。M2.3 的固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract 已 `implemented` 并通过静态检查；M2.4 仍为 `pending`，尚未生成 Generator 或 Targeted Test。M1 MySQL 门禁已经满足，但 M2.5 仍需等待 M2.2～M2.4 的当前交付前置闭合；M1 临时数据库或静态文档评审不能提升 19 张正式业务表及数据行为的证据状态。
+当前结论：Milestone 2 与 Milestone 1 并行处于 `in progress`。`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；19 张 MySQL 源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查。M2.3 的固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract，以及 M2.4 的确定性参数化 Generator、严格参数和失败边界、Python 跨行规则、固定边界场景、使用说明和 Targeted Test 均已 `implemented` 并通过对应静态检查。M1 MySQL 门禁和 M2.2～M2.4 交付前置均已满足，可以进入 M2.5；在真实执行前不得宣称 MySQL 约束行为或数据链路已验证。

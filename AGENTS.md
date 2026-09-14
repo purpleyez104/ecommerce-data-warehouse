@@ -20,9 +20,9 @@ Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审
 - Milestone 1 的变更只创建其确实需要维护的环境、基础设施、兼容性、安装排障和验证内容，不夹带 M2 实现。
 - 禁止格式化已存在的 NameNode；验证脚本只能删除自己创建且经过前缀和运行编号约束的临时对象。
 
-经用户确认的 `DR-008` 允许 Milestone 1 与 Milestone 2 并行推进。M2 必须按 `docs/plan.md` 的 M2.1 至 M2.5 小计划执行：`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；M2.2 已确认 19 张 MySQL 源表、公共物理规范和约束分工，全部 19 张表共 230 个字段的可空性、关系、单行约束、生成列语义和索引方向已按 `DR-014` 至 `DR-018` 确认，Candidate DDL 已 `implemented` 并通过静态 Contract 检查。`M2-DEC-015` 已按 `DR-021` 确认，M2.3 与 M2.4 可以按小计划门禁在本地准备固定 seed、预期结果、数据生成器和对应测试，不需要等待整个 Milestone 1 完成。M1 MySQL 8.0.46 门禁已经通过；M2.5 仍须等待当前 checkout 中 M2.2～M2.4 的交付前置闭合，未在 M2.5 真实执行的产物不得提升为 `verified`。其余未确认事项仍不得使用经验默认值补全。`DR-015` 是商品字段决策记录，不能与已确认的验收规模决策 `M2-DEC-015` 混淆。
+经用户确认的 `DR-008` 允许 Milestone 1 与 Milestone 2 并行推进。M2 必须按 `docs/plan.md` 的 M2.1 至 M2.5 小计划执行：`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；M2.2 已确认 19 张 MySQL 源表、公共物理规范和约束分工，全部 19 张表共 230 个字段的可空性、关系、单行约束、生成列语义和索引方向已按 `DR-014` 至 `DR-018` 确认，Candidate DDL 已 `implemented` 并通过静态 Contract 检查。`M2-DEC-015` 已按 `DR-021` 确认；M2.3 固定 Seed 与 M2.4 确定性参数化 Generator 均已 `implemented` 并通过对应静态检查。M1 MySQL 8.0.46 门禁和 M2.2～M2.4 交付前置均已满足，可以进入 M2.5；未在 M2.5 真实执行的产物不得提升为 `verified`。其余未确认事项仍不得使用经验默认值补全。`DR-015` 是商品字段决策记录，不能与已确认的验收规模决策 `M2-DEC-015` 混淆。
 
-M1 与 M2 的并行只解除“必须完成整个 M1 才能规划和准备 M2”的等待，不解除直接运行依赖。M2.5 的 M1 MySQL 直接门禁已经满足，但仍须等待 M2.2～M2.4 的交付前置闭合；Milestone 3 仍须同时满足其既有 M1 组件门禁和 M2 交付门禁。M2 本地改动不得修改 ECS 服务、覆盖 M1 配置或把静态检查描述为运行验证。
+M1 与 M2 的并行只解除“必须完成整个 M1 才能规划和准备 M2”的等待，不解除直接运行依赖。M2.5 的 M1 MySQL 直接门禁和 M2.2～M2.4 交付前置均已满足，可以进入运行验收；Milestone 3 仍须同时满足其既有 M1 组件门禁和 M2 交付门禁。M2 本地改动不得修改 ECS 服务、覆盖 M1 配置或把静态检查描述为运行验证。
 
 `completed` 只表示对应 Milestone 的进入条件、交付物和验收项已满足，不替代 `draft`、`candidate`、`planned`、`implemented`、`verified` 等内容证据状态。M0 完成不证明任何组件已经安装或数据链路已经运行。
 
@@ -66,7 +66,7 @@ MySQL ecommerce_oltp
 
 DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，输出格式为 ORC + Snappy；不建设独立持久化的中间数据层。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储，ODS 装载负责分区注册、审计字段、幂等发布和失败隔离。DataX 不负责决定正式金额精度、状态枚举和最终字段类型。ODS 保留源语义，DWD 保存原子事实，DIM 保存一致维度，DWS 保存可复用度量以及比率的分子和分母，ADS 负责最终指标表达。DolphinScheduler 只能在任务独立运行通过后接入，负责参数、依赖、重试、回补、质量阻断、装载和对账，不承载业务计算逻辑。
 
-仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。`generator/`、`hive/dim/`、`reconciliation/`、`tests/` 和 `kafka/` 等后续目录仍须满足 `README.md` 与 `docs/plan.md` 中的创建条件后再建立。
+仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。`generator/` 已按 M2.4 创建，只承担确定性候选 SQL 生成和 Python 跨行规则校验，当前证据状态为 `implemented`，未在 MySQL 验证。`hive/dim/`、`reconciliation/` 和 `kafka/` 等后续目录仍须满足 `README.md` 与 `docs/plan.md` 中的创建条件后再建立；`tests/` 仅按已进入阶段的验证范围扩展。
 
 ## 业务语义与待决策项
 

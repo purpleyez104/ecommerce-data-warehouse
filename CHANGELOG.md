@@ -17,6 +17,7 @@
 - 新增 2026-09-13 三节点 VM 与组件安装现场的去敏事实摘要：确认 VM、网络、磁盘、时间、Java 和当前安装路径，组件功能状态继续按原始证据门禁分别维护。
 - 新增 `DR-022` 至 `DR-024`，分别记录 M1 实装候选与证据分级、Kafka 三节点 KRaft 存储保护、DataX 稳定入口与 ODS 类型 workaround 边界。
 - 补充 MySQL AppArmor、Hive/Spark Metastore 版本冲突、Kafka KRaft 顺序启动、DataX 包类型及 ORC 类型限制等真实搭建排障摘要。
+- 新增 M2.4 确定性参数化 Generator：使用显式随机 seed、严格 `yyyy-MM-dd` 业务开始日期、日期数量与规模参数生成 19 表候选 SQL；Python 跨行 Contract 覆盖 Login/Session/Event 身份与时间、Return Item 归属、支付/退款关联及顺序、Coupon 释放/重锁/一次成功使用和金额守恒，`scale=1` 固定数据覆盖零应付订单、零成功支付业务日及 Coupon 释放、使用和过期场景。Targeted Test、真实生成行 Mutation Test 与 T5 静态 Contract 已通过，产物保持 `implemented`，尚未连接或验证 MySQL。
 
 - 新增 M2.3 固定验收数据交付：19 表合法固定 Seed、逐表预期结果清单、5 个隔离 MySQL 约束失败用例、幂等入口、静态 Contract 与金额变异回归；产物为 `implemented`，静态检查通过，尚未连接或验证 MySQL。
 

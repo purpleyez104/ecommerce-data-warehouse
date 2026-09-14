@@ -1,0 +1,2 @@
+{"file": "mock/m2_fixed_seed_expected_results.json", "reason": "T5 fixed baseline dates table counts and failures"}
+{"file": "tests/m2/validate_fixed_seed_contract.ps1", "reason": "T5 static contract verification"}

@@ -18,9 +18,13 @@
 - 将静态检查与真实运行验证分开报告；不得把 `candidate`、`implemented` 写成 `verified`。
 - 仅在用户明确要求 Sub-agent、parallel agents 或指定角色时派发；默认 Codex inline。
 
+## 可执行实现契约
+
+- [M2.4 Generator Contract](generator-contract.md)：参数化 SQL Generator 的 CLI、确定性输出、失败行为、静态验证和 MySQL 运行边界。
+
 ## Quality Check
 
 - Task 不复制或替代 `docs/plan.md`、业务模型、DDL、ECS 配置或指标口径。
-- 所有新增批处理均使用显式业务日期或起止时间；本 Task 不创建业务实现。
+- 所有新增批处理均使用显式业务日期或起止时间；Generator 实现还必须遵守 [M2.4 Generator Contract](generator-contract.md)。
 - 变更仅限用户批准范围，并报告 `Changed`、`Verified`、`Notes`、`Next`。
 - 未明确要求时，不启用 hooks、channel workflow、安装、初始化、Push、Merge 或重写 Git 历史。
