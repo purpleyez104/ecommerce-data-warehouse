@@ -35,6 +35,13 @@
 | `DR-018` | M2.2 营销源表字段设计 | `accepted` | 2026-09-11 | 优惠券、领取实例、快照、状态组合、订单关联、增量抽取、M2.2-M2.5 |
 | `DR-019` | Trellis Data Engineering 协作治理基线 | `accepted` | 2026-09-11 | 协作规则、Task 管理、Git 记录边界、Codex 自动化 |
 | `DR-020` | M2.2 Schema 物理规范收口 | `accepted` | 2026-09-11 | Candidate DDL、命名台账、生成列、FK 拓扑、静态检查、M2.2 |
+| `DR-021` | M2-DEC-015 固定验收数据规模 | `accepted` | 2026-09-12 | M2.3 固定 Seed、M2.4 Generator、Targeted Test、M2.5 MySQL 验收 |
+| `DR-022` | M1 实装候选与现场证据分级 | `accepted` | 2026-09-13 | Milestone 1、组件版本、兼容性矩阵、集群基线、验收状态 |
+| `DR-023` | Kafka 采用三节点 KRaft 组合角色与存储保护 | `accepted` | 2026-09-13 | Kafka M1 兼容性、节点角色、启动编排、默认副本安全、数据目录 |
+| `DR-024` | DataX 运行入口与 ODS 类型 workaround 边界 | `accepted` | 2026-09-13 | DataX M1 验收、安装目录、HDFS Writer、Milestone 3 ODS Schema |
+| `DR-025` | M1 组件验收共享 Evidence Contract | `accepted` | 2026-09-14 | M1 验收接口、证据模型、Secret 安全、Cleanup、M1-CAS-02～07 |
+| `DR-026` | M1 Step 2～12 Runtime 验收基线与执行模式边界 | `accepted` | 2026-09-14 | M1 组件状态、M2.5/M3 门禁、Flink 模式、Runtime 验收口径 |
+| `DR-027` | M1 组件验收降低证据门槛并按风险分级 | `accepted` | 2026-09-14 | M1-CAS-02～07、Runtime 验收条件、Evidence Inbox、Trellis 收尾 |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -911,6 +918,230 @@ M2.3 必须静态核对正常 Seed 的 19 表行数、4 个业务日期、12 个
 ### 回滚方式
 
 若 M2.3、M2.4 或 M2.5 的实现与验证证明该规模无法覆盖已确认场景或无法人工核对，由用户确认后新增替代决策，并同步更新业务设计、规格、计划、Seed、Generator、测试和相关预期结果。不得直接改写本历史记录、将异常写入正常 Seed，或把固定验收集结果描述为性能结论。
+
+## DR-022：M1 实装候选与现场证据分级
+
+> 历史说明：本记录保留 2026-09-13 的候选状态与证据分级；当前组件状态和证据充分性口径已由 `DR-026` 替代。
+
+- 状态：`accepted`
+- 决策日期：2026-09-13
+- 决策人：用户
+- 影响范围：Milestone 1、组件版本、兼容性矩阵、集群基线、验收状态
+- 替代决策：Hive 3.1.3 替代原 Hive 4.1.0 候选；其余版本细化既有候选
+
+### 背景
+
+三节点 VM 只读盘点已回传，用户同时提供 Step 1-12 的搭建修复与决策总结。盘点可以直接证明环境、路径、版本、进程、监听和白名单配置；总结可说明已发生的修复和 Smoke Test，但当前目录未包含全部组件原始日志、退出状态、YARN application、固定结果与重启证据。
+
+### 决策
+
+M1 当前实装候选固定为 MySQL 8.0.46、Connector/J 8.0.33、Hive 3.1.3、Kafka 3.9.1 Scala 2.12 KRaft、Spark 3.5.9-bin-hadoop3 和 DataX datax_v202309 运行包。Hive 4.1.0 因当前 Spark 3.5.9 Metastore client Smoke Test 不兼容而退出候选。
+
+三节点 VM 基线可标记为 `verified`；Hadoop 3.4.1 保持既有 `verified`。其余组件在独立验收脚本闭合安装、启动、上下游连通、固定功能结果、失败行为及适用的受控重启前保持 `candidate`，不得因总结中使用 `CONFIRMED` 而自动提升。
+
+默认 Java 保持 17，Hadoop/YARN 已验证 Runtime 保持 Java 11。Hive 3.1.3 的服务进程和 MR Container Runtime 存在 Java 8/11 冲突，保留为 `DECISION_REQUIRED`，以当前进程与 YARN 日志为准。
+
+### 理由
+
+该分级同时保留真实搭建成果和项目对运行证据的严格要求，避免把安装发现、服务监听或二手总结扩大为完整组件验收。选择 Hive 3.1.3 与当前主节点现场及 Spark Smoke Test 结果一致。
+
+### 验证方法
+
+复核 `m1-vm-20260913-01/summary.env`、三节点 inventory/config/process evidence，并分别运行 MySQL、Hive、Kafka、Spark 和 DataX 组件验收脚本。每项必须保存命令、退出状态、固定输入/结果、关键日志和临时对象清理；Hive 额外记录服务 PID 的 `/proc/<pid>/exe` 与 YARN Container Java。
+
+### 影响与风险
+
+`README.md`、架构、规格、集群基线和兼容矩阵统一使用 Hive 3.1.3。两个 worker 当前仍指向 Hive 4.1.0，属于待修复漂移。M1 保持 `in progress`，M2.5 和 M3 的直接门禁不因本决策解除。
+
+### 回滚方式
+
+若原始证据或独立复测证明任一候选不兼容，由用户确认后新增决策替代本记录并同步文档；不得静默切换版本、覆盖 Metastore、格式化 NameNode 或删除运行证据。
+
+## DR-023：Kafka 采用三节点 KRaft 组合角色与存储保护
+
+- 状态：`accepted`
+- 决策日期：2026-09-13
+- 决策人：用户
+- 影响范围：Kafka M1 兼容性、节点角色、启动编排、默认副本安全、数据目录
+- 替代决策：无；细化既有 Kafka KRaft 方向
+
+### 背景
+
+三节点现场配置均为 Kafka 3.9.1 KRaft，使用一致的 Controller quorum 与 Cluster ID。历史顺序启动曾在其他 voter 尚未加入前超时退出，无法形成多数派。
+
+### 决策
+
+`hadoop201`、`hadoop202`、`hadoop203` 均采用 `broker,controller` 组合角色，`node.id` 为 1、2、3，Broker/Controller 端口为 9092/9093，数据目录为 `/data/kafka/kraft-combined-logs`。基础默认值使用 `default.replication.factor=3`、`min.insync.replicas=2`、`num.partitions=3`、`auto.create.topics.enable=false`；三节点启动必须并行发起。
+
+现有 KRaft storage 不得重复 format，不得删除数据目录或重新生成 Cluster ID。上述 `num.partitions` 是 Broker 默认值，不确认任何正式业务 Topic；正式 Topic、Partition、保留与 Schema 仍等待 Milestone 8。
+
+### 理由
+
+三组合角色节点适合当前成本受限开发集群，可在单 Broker 不可用时保留多数派与双 ISR。并行启动解决当前编排超时，不需要引入 ZooKeeper；DolphinScheduler 未来使用的 ZooKeeper 与 Kafka 隔离。
+
+### 验证方法
+
+独立验收必须检查三节点配置与 Cluster ID 一致、Controller quorum 状态、三副本 Topic、生产消费、消费重放，以及停止一个 Broker 后 ISR 降为 2、恢复后回到 3。保存三节点 server log、命令退出状态和临时 Topic 清理结果。
+
+### 影响与风险
+
+三节点在当前资源上同时承担 Broker/Controller，仍需关注组件共存后的内存、磁盘和 GC。现场盘点时 Kafka 未运行，因此配置事实与运行验收必须分别记录。
+
+### 回滚方式
+
+若组合角色在实测资源下无法稳定运行，先停止后续门禁并保留现有 metadata/log；任何角色或 quorum 调整必须新增决策和迁移方案，不得通过重新 format 作为普通回滚。
+
+## DR-024：DataX 运行入口与 ODS 类型 workaround 边界
+
+> 历史说明：本记录的 ODS 类型 workaround 边界继续有效；DataX 当前 Runtime 入口和 M1 状态以 `DR-026` 为准。
+
+- 状态：`accepted`
+- 决策日期：2026-09-13
+- 决策人：用户
+- 影响范围：DataX M1 验收、安装目录、HDFS Writer、Milestone 3 ODS Schema
+- 替代决策：无
+
+### 背景
+
+DataX 首次使用了源码结构压缩包，缺少标准运行入口；换用 202309 运行包后，Smoke Test 的 HDFS Writer ORC 配置不接受 `DECIMAL` 枚举。当前 worker 已发现 MySQL Reader、HDFS Writer 和日志目录，但盘点脚本没有识别到可执行入口，且总结中同时出现 `/data/module/datax` 与 `/data/module/datax-current`。
+
+### 决策
+
+DataX 使用版本目录保存 202309 运行包，并以 `/data/module/datax` 作为唯一稳定软链接和 `DATAX_HOME`。历史 `/data/module/datax-current` 只作为采集兼容入口，不作为正式配置。
+
+当前 Smoke Test 可以将金额和时间暂按 `STRING` 写入 ORC，再由 Spark CAST 为 `DECIMAL(16,2)` 和 `TIMESTAMP`。该做法只记录为当前 DataX HDFS Writer 的兼容 workaround，不自动决定 19 张正式 ODS 表的字段类型；正式类型、Snappy、审计字段、幂等发布和失败隔离仍在 Milestone 3 按 Schema 逐项确认。
+
+### 理由
+
+统一稳定软链接便于脚本和升级管理。把一次 Plugin 限制扩大成全局 ODS 类型规则会越过 M3 设计门禁，也可能损失源类型语义，因此只保留最小可运行 workaround。
+
+### 验证方法
+
+在两个 worker 检查软链接、`bin/datax.py`、运行包标识、MySQL Reader 和 HDFS Writer Plugin。组件验收使用固定临时表验证 MySQL→HDFS ORC + Snappy、Hive 读取、Spark 类型转换、失败任务非零退出及临时对象清理。
+
+### 影响与风险
+
+在现场软链接统一和重新采集前，DataX 保持 `candidate`。M1 Smoke Test 不证明正式 ODS 全量/增量、分区注册、审计字段、幂等或失败隔离，M3 仍为 `pending`。
+
+### 回滚方式
+
+软链接变更可恢复到先前目标，但必须保留版本目录和 Job 日志。若正式 ODS Schema 证明 STRING workaround 不合适，由 M3 决策确定类型映射，不修改本记录伪装为从未发生。
+
+## DR-025：M1 组件验收共享 Evidence Contract
+
+> 当前适用边界：Public API、Secret 去敏、Cleanup Guard 和失败语义继续有效；关于五组件仍为 `candidate` 及必须具备完整目录才能改变状态的结论已由 `DR-026` 替代。
+
+- 状态：`accepted`
+- 决策日期：2026-09-14
+- 决策人：用户
+- 影响范围：M1 验收接口、证据模型、Secret 安全、Cleanup、M1-CAS-02～07
+- 替代决策：无；细化 `DR-007` 与 `DR-022` 的组件级证据执行方式
+
+### 背景
+
+MySQL、Hive、Kafka KRaft、Spark on YARN 和 DataX 需要分别生成可回传、可审查且不会相互覆盖的运行证据。如果每个入口复制路径、状态、去敏和 Cleanup 逻辑，五份实现容易漂移，并可能把本地静态检查或不完整摘要误报为组件 Runtime 通过。
+
+### 决策
+
+M1 采用“五个独立组件入口 + 一个最小共享 Evidence Library”的结构。`scripts/m1/lib/evidence-common.sh` 统一负责组件与 `run-id` 校验、绝对输出根和全新私有运行目录、`umask 077`、步骤日志、断言、SHA-256、Secret 去敏、`summary.env` 状态以及临时对象 Cleanup Guard；组件命令、服务生命周期、固定输入和结果断言保留在各组件入口中。
+
+公共库冻结 15 项 Public Shell API 及 12 个 `summary.env` 核心字段：`schema_version`、`component`、`run_id`、`status`、`started_at_utc`、`finished_at_utc`、`initiator_host`、`functional_check`、`recovery_check`、`failure_path_check`、`cleanup` 和 `exit_code`。状态只使用 `PASS`、`PARTIAL` 和 `FAIL`：授权型恢复未执行时不得提升为 `PASS`，必需断言、安全检查或 Cleanup 失败必须返回非零。Cleanup 在注册与执行阶段都检查当前 Owner，并要求目标包含 `m1_accept_<run-id>`、当前 run-id 且不属于禁止目标。实现禁止 `eval` 和任意 Command String，日志与证据必须对 Password、Secret、Token、Private Key、JDBC Password 和 Authorization 信息去敏。
+
+本地 Git Bash syntax 与 Contract Test 只证明公共接口、失败退出和安全 Guard 的实现行为，不构成 MySQL、Hive、Kafka、Spark 或 DataX 的 VM Runtime Evidence。用户仍须在目标 VM 执行组件脚本并原样回传完整运行目录，由 M1 协调验收后才能改变组件证据状态。
+
+### 理由
+
+共享最小安全层可以让五个组件使用一致、可机器审查的 Evidence Layout 和状态语义，同时保持组件命令与恢复风险相互隔离。双重 Cleanup Guard、全新私有目录和统一去敏降低误删、证据覆盖和 Secret 泄漏风险；明确本地测试与 VM Runtime 的边界可防止证据等级被错误提升。
+
+### 验证方法
+
+公共库必须通过 Bash syntax、正常路径、强制失败、全部需初始化 Public API 的未初始化返回码、禁止越界写入、Secret 脱敏与非密码参数保持、错误 Owner 不注册、正确 Owner 注册并 Cleanup 成功等 Contract Test。`M1-CAS-07` 再执行跨组件静态 Contract Test；每个组件只有在目标 VM 保存完整 `summary.env`、步骤日志、固定功能结果、失败路径及适用的恢复与 Cleanup 证据后，才能单独评定运行状态。
+
+### 影响与风险
+
+`M1-CAS-02～06` 只能消费冻结 API，不得各自修改公共库。公共库缺陷会同时影响五个组件，因此任何接口、字段、状态或安全行为变化都必须先停止并行调用方、评估兼容性并重新运行公共及跨脚本 Contract Test。当前完成只提升共享库的本地实现证据，不改变五组件的 `candidate` 状态，也不解除 M2.5 或 Milestone 3 的直接门禁。
+
+### 回滚方式
+
+若冻结 Contract 被证明不可用，停止新的组件验收运行并保留已有 Evidence；经用户确认后新增替代决策，恢复到最后一个通过 Contract Test 的公共库版本，同步更新全部组件调用方和运行说明，再重新执行 M1-CAS-07 与受影响组件验收。不得通过复制五份安全逻辑、降低 Guard、删除失败证据或把 `PARTIAL` 改写为 `PASS` 规避回滚。
+
+## DR-026：M1 Step 2～12 Runtime 验收基线与执行模式边界
+
+- 状态：`accepted`
+- 决策日期：2026-09-14
+- 决策人：用户
+- 影响范围：Milestone 1 组件状态、M2.5 与 Milestone 3 进入条件、Flink 执行模式、Runtime 验收口径
+- 替代决策：替代 `DR-022`、`DR-025` 中关于当前组件状态和证据充分性的结论；保留 `DR-025` 的接口、安全、去敏和 Cleanup Contract
+
+### 背景
+
+M1 的目标是证明当前集群能够支持后续数据仓库操作。此前验收过度聚焦运行目录的文件完整性，导致已经展示安装、连通、核心功能和必要恢复能力的组件仍被保留为 `candidate`。用户提供并确认了 Step 2～12 的最新验收汇总，要求以实际能力为中心同步项目事实，同时保留可复现、Secret 安全和破坏性操作保护。
+
+### 决策
+
+采用用户确认的 Step 2～12 Runtime 记录作为当前 M1 能力基线：Hadoop 3.4.1、MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9 on YARN、DataX datax_v202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6、Flink Kafka source/sink、Doris 4.0.8 和 Flink Doris Connector 26.1.1 已通过对应核心功能或兼容性验收。Milestone 1 保持 `in progress`，当前唯一剩余门禁为 DolphinScheduler 3.4.2 及其单节点 ZooKeeper；在其通过前不创建 `infra/versions.env`。
+
+验收以“是否证明后续阶段所需能力”为主。原始命令、日志、哈希、Manifest 和分目录证据继续服务于复现、审计和故障诊断；Secret 去敏、Cleanup Owner Guard、失败非零和禁止破坏既有数据等安全要求继续强制执行。但在核心安装、连通、功能、失败行为及适用恢复能力已经展示并由用户确认时，不因非核心附件或目录项缺失单独否定组件能力。
+
+Flink 1.20.5 的 YARN Application Mode 已确认，但本地提交退出 0 只证明提交成功，自动调度必须查询 YARN application 的 final state。Flink Kafka source/sink 已在 SQL Client + YARN Session 模式通过；`yarn-application` 下 SQL `INSERT` 的 `No ExecutorFactory` 是已知模式限制。Flink 客户端使用 Java 17，当前 YARN Container 与 Flink Doris User Jar target 使用 Java 11。上述技术验证不授权混用执行模式。
+
+已通过的 `MySQL→DataX→HDFS→Hive→Spark`、`MySQL Binlog→Flink CDC→Kafka→Flink→Kafka` 和 `Kafka→Flink→Checkpoint/Recovery→Doris Connector→Doris` 均是临时兼容性链路。它们不表示 19 张正式 `ecommerce_oltp` 业务表已经创建，不完成 Milestone 3 的正式 ODS 设计和装载，也不提前确定 Milestone 8～9 的 Topic、Schema、窗口、状态、Doris 实时表模型或端到端 Exactly-Once。
+
+### 理由
+
+该口径直接对应 M1 的实际目标，避免为证明已经明确展示的能力反复补齐低价值附件，同时保留对数据安全、可恢复性和后续自动化最重要的约束。执行模式和阶段边界单独写明，可以防止把技术 Smoke Test 扩大为正式业务链路或可靠性结论。
+
+### 验证方法
+
+以用户确认的 Step 2～12 记录核对各组件的精确版本、启动或提交、核心读写/计算、失败路径及适用的故障恢复结果。后续 DolphinScheduler 验收至少验证 3.4.2 版本、MySQL 与单节点 ZooKeeper 依赖、Master/Worker/API 必要进程、成功任务、失败任务非零或失败态、重启恢复和最终任务状态。Flink 自动调度必须以 YARN final state 为准，不得只读取提交命令退出码。
+
+### 影响与风险
+
+M1 MySQL 直接门禁已经满足，但 M2.5 仍需等待当前 checkout 中 M2.2～M2.4 的交付前置闭合，并在隔离 Schema 验证 19 张正式表、Seed、约束和重跑行为。HDFS/Hive/DataX 的环境前置已经满足，Milestone 3 仍需完成正式 ODS Schema、分区、审计字段、幂等发布、失败隔离和逐层对账。技术链路没有证明生产级高可用或 Exactly-Once；Flink 模式和 Java 角色若被更改，必须重新验证。
+
+### 回滚方式
+
+本决策只更新项目验收事实和文档，不修改目标集群 Runtime。若后续复测证明某项核心能力不可用，应保留失败结果，将该组件降回 `in_progress` 或 `candidate`，并由新的连续决策记录替代本记录的对应结论；不得改写历史记录、删除失败证据、重置 KRaft storage、格式化 NameNode 或删除既有业务数据。
+
+## DR-027：M1 组件验收降低证据门槛并按风险分级
+
+- 状态：`accepted`
+- 决策日期：2026-09-14
+- 决策人：用户
+- 影响范围：Milestone 1、M1-CAS-02～07、组件 Runtime 验收条件、Evidence Inbox 与 Trellis 收尾
+- 替代决策：细化 `DR-026` 的能力优先原则；替代 `DR-025` 中将完整 Evidence Layout 作为组件状态提升必要条件的部分，不改变其接口、安全、去敏、Cleanup Guard 和失败语义
+
+### 背景
+
+M1-CAS-02 重新验收发现，现有流程把证明组件核心能力、支持故障诊断的增强证据和 Trellis 协作治理放在同一级 Acceptance Criteria 中。为补齐每条命令的独立输出、分目录附件、哈希和完整时间链而重复采集，已明显增加目标 VM 操作与协调审查时间，但对已由脚本控制流、关键结果和退出状态证明的能力只带来有限增益。
+
+### 决策
+
+M1 组件验收采用三级口径：
+
+1. **Hard Gate**：必须证明后续阶段直接依赖的核心能力，以及可能造成数据破坏、Secret 泄漏或错误成功状态的安全行为。包括精确版本、启动或健康状态、必要的上下游连通、固定核心功能、失败非零或明确失败态、适用的恢复能力、破坏性操作显式授权、严格 Cleanup 边界和 Secret 去敏。
+2. **Process Check**：Evidence Inbox 回传方式、Trellis 状态更新顺序和协调会话复核继续执行，但不再作为组件功能是否通过的独立阻断条件。发现流程缺口时补充记录，不推翻已经充分证明的核心能力。
+3. **Optional Evidence**：每条命令单独文件、完整原始日志、分目录附件、逐文件哈希、Manifest 和完整时间链用于复现、审计与故障诊断；除非它们是判断某项 Hard Gate 的唯一可用依据，否则缺失时不单独阻断验收。
+
+最小充分证据包为 `summary.env`、关键命令或断言的汇总输出、最终退出状态，以及可定位本次执行逻辑的 Git revision 或脚本 SHA-256。协调会话可以结合已经审查的脚本控制流判断证据：当脚本只有在必需断言全部成功后才能写入 `PASS`，对应脚本身份可核对且本次退出状态为 0 时，不要求每个内部断言再生成独立附件。涉及 restart、服务停止、数据删除或其他破坏性行为时，用户显式授权仍是 Hard Gate。
+
+该口径适用于 M1-CAS-02：MySQL 版本、三节点连接与认证、ROW/FULL Binlog I/U/D、受控 restart 后健康与哨兵检查、严格临时 Database Cleanup 和失败退出属于 Hard Gate；独立 `recovery/` 目录、restart/health/sentinel 分文件、Evidence Inbox 原样回传以及 Trellis 状态提升顺序不再分别作为技术通过门槛。当前 M1-CAS-02 的脚本 Hash、`set -euo pipefail` 控制流、`summary.env` 中的 `recovery_check=PASS` 和最终 `exit_code=0` 可以共同构成恢复能力的充分证据。
+
+### 理由
+
+该分级将验收成本集中在会影响后续阶段、数据安全和结果真实性的风险上。对于当前个人学习与求职项目，核心能力可复现且关键失败不会被误报，比为所有内部步骤保存独立审计附件更有价值；保留增强证据为可选项，仍能在出现故障、状态矛盾或高风险变更时提高取证等级。
+
+### 验证方法
+
+协调验收逐项映射后续阶段依赖与 Hard Gate，核对最小证据包、脚本身份、关键结果和最终状态。只有在结果冲突、脚本身份不明、控制流不能保证失败传播、涉及未授权破坏性操作，或关键能力没有任何直接或间接输出时，才要求补充 targeted evidence。M1-CAS-02 按本口径可将核心功能与恢复结果评为通过；Trellis 状态和归档仍由协调会话单独更新。
+
+### 影响与风险
+
+该决策减少 M1 后续组件和收尾阶段的重复证据采集，但不降低 Secret、Cleanup、显式授权、失败传播和禁止破坏既有数据等安全要求。简化后的证据可能降低事后逐命令审计能力，因此遇到组件失败、版本漂移、脚本变更、状态矛盾或需要对外发布运行结论时，应按风险临时提升证据详细度。该决策不把 M1 临时兼容性链路扩大为 M2、M3 或 M9 的正式业务链路验收。
+
+### 回滚方式
+
+若精简证据导致核心能力无法复现、错误结果被接受或故障无法定位，保留已有证据和失败记录，由新的连续决策恢复受影响组件的详细证据要求，并只对相关风险路径补采；不得无差别要求所有组件重跑，也不得删除基于本决策形成的历史验收记录。
 
 ## 记录模板
 

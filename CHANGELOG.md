@@ -8,6 +8,16 @@
 
 ### 新增
 
+- 新增 `DR-026`，采用用户确认的 M1 Step 2～12 Runtime 记录作为当前能力基线，明确能力优先的验收口径、Flink 执行模式与 final-state 判断规则，以及 M3、M8、M9 的业务边界。
+- 新增三条已验证的临时技术链路记录：MySQL→DataX→HDFS→Hive→Spark、MySQL Binlog→Flink CDC→Kafka→Flink→Kafka、Kafka→Flink→Checkpoint/Recovery→Doris Connector→Doris；这些结果只证明组件组合兼容性，不代表正式 ODS 或实时业务链路完成。
+- 新增 M1 五组件验收共享 Evidence Contract 与最小公共库：统一 `run-id`、私有证据目录、步骤日志、断言、SHA-256、`summary.env`、Secret 去敏和受控 Cleanup；公共库已通过本地 Git Bash Contract Test，不代表组件 VM Runtime 已通过。
+- 新增无中断、去敏的三节点 VM 与已安装组件现场采集脚本及 PowerShell Contract Test；脚本只生成 inventory evidence，不执行组件功能、重启或配置修改。
+- 新增受控 MySQL 验收入口 `scripts/m1/verify-mysql.sh`：检查精确版本、三节点私网认证、ROW/FULL Binlog I/U/D、预期认证失败、显式授权的重启恢复和严格临时 Database Cleanup；脚本入库与本地 syntax 检查不替代目标 ECS Runtime 证据。
+- 新增 `DR-027`，将 M1 组件验收证据划分为 Hard Gate、Process Check 和 Optional Evidence，并以最小充分证据包减少非核心附件的重复采集；Secret、Cleanup、失败传播和破坏性操作授权仍是强制门禁。
+- 新增 2026-09-13 三节点 VM 与组件安装现场的去敏事实摘要：确认 VM、网络、磁盘、时间、Java 和当前安装路径，组件功能状态继续按原始证据门禁分别维护。
+- 新增 `DR-022` 至 `DR-024`，分别记录 M1 实装候选与证据分级、Kafka 三节点 KRaft 存储保护、DataX 稳定入口与 ODS 类型 workaround 边界。
+- 补充 MySQL AppArmor、Hive/Spark Metastore 版本冲突、Kafka KRaft 顺序启动、DataX 包类型及 ORC 类型限制等真实搭建排障摘要。
+
 - 新增 M2.3 固定验收数据交付：19 表合法固定 Seed、逐表预期结果清单、5 个隔离 MySQL 约束失败用例、幂等入口、静态 Contract 与金额变异回归；产物为 `implemented`，静态检查通过，尚未连接或验证 MySQL。
 
 - 新增 M2.2 的 19 张 `ecommerce_oltp` 源表 Candidate DDL 与 PowerShell 静态 Contract 检查：覆盖 230 个字段、命名台账、FK 目标、关键 CHECK、唯一/二级索引列、生成列配对及建表/回滚顺序；产物为 `implemented`，尚未在 MySQL 执行或验证。
@@ -21,6 +31,10 @@
 - 将 `.local-notes/` 纳入 Git 忽略范围，作为从 ECS 接收原始 M1 证据的本地隔离区，防止运行日志和现场值被误提交。
 
 ### 变更
+
+- M1 当前状态同步为 Step 2～12 已通过：MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9 on YARN、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6、Doris 4.0.8 和 Flink Doris Connector 26.1.1 均已确认；当前唯一剩余门禁为 DolphinScheduler 3.4.2。
+- 更新 MySQL、Hive、Kafka 和 Doris 端口与恢复状态；DataX 实际 Runtime 入口记录为 `/data/module/datax-current`。继续禁止创建 `infra/versions.env`，直至 DolphinScheduler 通过且 M1 全部组件完成运行验收。
+- M1 MySQL 直接门禁已满足，M2.5 仍等待当前 checkout 的 M2.2～M2.4 前置闭合；HDFS/Hive/DataX 的环境前置已满足，但 Milestone 3 仍需完成正式 ODS Schema、装载、幂等与对账验收。
 
 - 确认 `M2-DEC-015` 的固定验收数据规模：以可人工核对的小型固定集覆盖 19 张源表和 `M2-SC-001` 至 `012`，业务日期固定为 `2025-01-29` 至 `2025-02-01`，正常 seed 首次运行与同日重跑各 1 次，并设置 14 个独立失败用例；该决策解除 M2.3/M2.4 的数据规模门禁，不表示 Seed、Generator 或 MySQL 验收已完成。
 - M2.2 OLTP 逻辑与物理模型已完成：T2 静态验收通过并归档；19 张表 Candidate DDL 保持 `implemented`，MySQL 执行与行为验证仍待 T7。
@@ -48,6 +62,9 @@
 - 完成 M2.2 Schema 物理规范收口：确认 19 张表的命名台账、两个唯一成功生成列的 `VIRTUAL` 形式、FK 建表/回滚拓扑及 MySQL `PRIMARY` 命名边界；下一步为 Candidate DDL 静态检查，不表示已在 MySQL 创建或验证。
 
 ### 修复
+
+- 修复 M1 Evidence 公共库的脱敏误伤、未初始化 API 继续执行及 Cleanup Owner 延迟拒绝问题：非密码参数保持不变，需初始化的 Public API 统一以退出码 `2` 拒绝，Owner 在注册与执行阶段双重校验。
+- 修复 VM 现场采集器对历史 `/data/module/datax-current` 入口的漏检，并新增 Java 8、Java 进程实际可执行文件、Hive 并存版本和三节点 Hive 软链接漂移证据。
 
 - 修复 Hadoop 受控重启验证对 `jps -lv` 完整 Java 类名的匹配错误，避免在 NameNode 等进程实际存在时误报缺失；修复后已在目标 ECS 完成复测。
 

@@ -8,10 +8,10 @@
 | --- | --- |
 | 当前阶段 | Milestone 0：`completed`；Milestone 1、2：`in progress`（并行推进） |
 | 规格版本 | `0.3-draft` |
-| 实现状态 | Hadoop 3.4.1 已完成 M1 功能与受控重启验证；M1 当前进入 MySQL 8.0.46 门禁；M2.1、M2.2 已完成，19 张 MySQL 源表 Candidate DDL 为 `implemented` 并通过静态 Contract 检查；M2.3 固定 Seed、预期结果、异常/幂等入口和静态 Contract 亦为 `implemented`，均尚未在 MySQL 验证 |
+| 实现状态 | M1 Step 2～12 已根据用户确认的目标 ECS 验收记录完成功能与兼容性验证：Hadoop、MySQL、Hive、Spark on YARN、DataX、Kafka KRaft、Flink on YARN、Flink CDC、Flink Kafka Source/Sink、Doris 和 Flink Doris Connector 已通过；M1 仍为 `in progress`，剩余门禁为 DolphinScheduler 3.4.2；M2.2 Candidate DDL 与 M2.3 固定 Seed 仍只是 `implemented`，尚未在 M2.5 执行 |
 | 当前允许活动 | M1 按组件门禁继续；M2 按 M2.1-M2.5 小计划推进，本地设计与代码准备不等待整个集群完成 |
-| 运行验证 | HDFS 固定文件、MapReduce WordCount、YARN application、聚合日志和 Hadoop 受控重启已于 2026-09-05 通过 |
-| 精确组件版本 | Hadoop 3.4.1 为 `verified`；其余精确版本为候选，尚未锁定 |
+| 运行验证 | 已证明 MySQL → DataX → HDFS → Hive → Spark、MySQL Binlog → Flink CDC → Kafka → Flink → Kafka，以及 Kafka → Flink → Checkpoint/Recovery → Doris Connector → Doris 的临时技术验收链路；这些结果不等于 M3/M9 正式业务链路已完成 |
+| 精确组件版本 | Hadoop 3.4.1、MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6.0、Doris 4.0.8 和 Flink Doris Connector 26.1.1 已在目标 ECS 验证；DolphinScheduler 3.4.2 待验证 |
 | 运行平台 | 阿里云 ECS（三节点） |
 | 实时数仓 | 仅确定目标架构，详细设计待后续评审 |
 
@@ -110,7 +110,7 @@ MySQL Binlog
 | `doris/ddl/` | 离线服务表；实时表在 Milestone 8 后确定 | Milestone 6 | placeholder |
 | `scheduler/dolphinscheduler/` | T+1 DAG、参数、重试、补数、阻断和对账 | Milestone 6 | placeholder |
 | `flink/jobs/` | CDC、实时清洗、聚合和恢复作业 | Milestone 9 | placeholder |
-| `scripts/` | 参数化执行、健康检查和阶段验证入口 | 按阶段 | implemented；M1 Hadoop 验证脚本已在 ECS 通过 |
+| `scripts/` | 参数化执行、健康检查和阶段验证入口 | 按阶段 | implemented；Hadoop 和 MySQL 仓库脚本已有 Runtime 结果；其他组件的当前运行事实来自用户确认的 Step 2～12 验收记录，不虚构尚未进仓的自动化脚本 |
 
 `placeholder` 表示只存在目录或说明文件；`unconfigured` 表示入口明确返回未配置状态；二者都不代表实现可用。
 
@@ -190,4 +190,4 @@ MySQL Binlog
 8. Agent 每次最终答复都总结核心操作和核心决策，并询问用户是否将其写入 `CHANGELOG.md`、`docs/decision-register.md` 或两者；未获确认时不自动落盘，当前请求已明确授权的记录除外。
 9. Trellis 只管理 Task 状态、计划和执行证据；项目事实优先级为 `AGENTS.md`、项目 docs、Trellis Task。当前使用 Data Engineering spec、Codex inline，自动 Commit 与 Hook 注册均关闭。
 
-Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1、2 现按 `DR-008` 并行推进：M1 中 Hadoop 3.4.1 已于 2026-09-05 完成固定 HDFS 文件、MapReduce WordCount、YARN application、聚合日志和受控重启验证，当前技术门禁是 MySQL 8.0.46；M2 的 `M2-DEC-001` 至 `015` 已分别按 `DR-009` 至 `DR-013`、`DR-021` 确认，M2.1、M2.2 已完成。M2.2 的 19 张表 Candidate DDL 及 M2.3 的固定 Seed、预期结果、静态 Contract 和幂等入口均为 `implemented`，并通过静态检查；MySQL 执行与行为验证仍待 T7。`M2-DEC-015` 已解除 M2.3/M2.4 的数据规模门禁；M2.4 仍需准备 Generator 和 Targeted Test，其与决策记录 `DR-015` 不同。M2.5 的 MySQL 执行验收必须等待 M1 的 MySQL 门禁通过，M3 的前置条件保持不变。
+Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1、2 现按 `DR-008` 并行推进。根据 `DR-026`，M1 Step 2～12 已完成兼容性与功能验收，当前只剩 DolphinScheduler 3.4.2；M1 整体仍为 `in progress`。M1 MySQL 门禁已通过，因此 M2.5 不再被基础设施阻断，但仍须等待当前 checkout 中 M2.2～M2.4 交付条件全部满足。HDFS/Hive/DataX 环境组合亦已通过，但 M3 仍须遵守 M2 和正式 ODS 设计门禁。M2 Candidate DDL、Seed 和 Generator 在 M2.5 真实执行前不得提升为 `verified`。

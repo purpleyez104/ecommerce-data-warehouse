@@ -1,6 +1,6 @@
 # Milestone 1 端口基线
 
-状态含义：`confirmed` 表示当前集群记录已有确认事实；`accepted` 表示已经决定但尚待组件安装验证；`planned` 表示必须随精确版本配置现场确认。
+状态含义：`confirmed` 表示当前集群记录或现场快照已有确认事实；`configured` 表示配置已采集但本次快照未确认监听；`accepted` 表示已经决定但尚待组件安装验证；`planned` 表示必须随精确版本配置现场确认。端口状态不等于组件整体 `verified`。
 
 | 组件 | 节点 | 端口 | 状态 | 边界 |
 | --- | --- | ---: | --- | --- |
@@ -15,12 +15,16 @@
 | YARN RM UI | `hadoop201` | 8088 | `confirmed` | 私网，使用 SSH 隧道 |
 | JobHistory RPC | `hadoop201` | 10020 | `confirmed` | 私网 |
 | JobHistory UI | `hadoop201` | 19888 | `confirmed` | 私网，使用 SSH 隧道 |
-| MySQL | `hadoop201` | 3306 | `accepted` | 只允许 `10.20.1.0/24` 和本机 |
-| Hive Metastore | `hadoop201` | 9083 | `planned` | 安装时核对 Hive 4.1.0 配置 |
-| HiveServer2 | `hadoop201` | 10000 | `planned` | 安装时核对认证和监听地址 |
-| Kafka Broker | 三节点 | 9092 | `planned` | KRaft 私网 listener，安装时确认 |
-| Kafka Controller | 三节点 | 9093 | `planned` | KRaft controller listener，安装时确认 |
-| Doris FE HTTP | `hadoop201` | 18030 | `accepted` | 避开 YARN 8030，安装前检查占用 |
+| MySQL | `hadoop201` | 3306 | `confirmed` | 2026-09-13 监听 `0.0.0.0`；安全组仍只允许 `10.20.1.0/24` 和本机 |
+| Hive Metastore | `hadoop201` | 9083 | `confirmed` | Hive 3.1.3、MySQL Metastore schema 3.1.0 已通过 Runtime 验收 |
+| HiveServer2 | `hadoop201` | 10000 | `confirmed` | HiveServer2/Beeline 功能已通过 Runtime 验收 |
+| HiveServer2 Web UI | `hadoop201` | 10002 | `confirmed` | 私网，使用 SSH 隧道 |
+| Kafka Broker | 三节点 | 9092 | `confirmed` | KRaft 私网 listener；生产消费和单 Broker 故障恢复已通过 |
+| Kafka Controller | 三节点 | 9093 | `confirmed` | 三节点 Controller quorum 已通过 Runtime 验收 |
+| Doris FE HTTP | `hadoop201` | 18030 | `confirmed` | 避开 YARN 8030；FE/BE SQL 与受控重启恢复已通过 |
+| Doris FE edit log / RPC / query | `hadoop201` | 9010 / 9020 / 9030 | `confirmed` | 2026-09-13 监听，仅限私网 |
+| Doris BE HTTP | `hadoop202`、`hadoop203` | 18040 | `confirmed` | 2026-09-13 监听，避开 NodeManager 8040 |
+| Doris BE heartbeat / service / BRPC | `hadoop202`、`hadoop203` | 9050 / 9060 / 8060 | `confirmed` | 2026-09-13 监听，仅限私网 |
 | ZooKeeper | `hadoop201` | 2181 | `accepted` | 仅 DolphinScheduler，私网 |
 
-未列出的 Doris、DolphinScheduler 和 Flink 端口不得直接采用经验默认值；必须在对应候选版本进入验证门禁时补充官方依据、监听地址、安全组和健康检查。
+未列出的 DolphinScheduler 端口不得直接采用经验默认值；必须在 3.4.2 验收时补充监听地址、安全组和健康检查。Flink 已完成 Runtime 兼容性验收，但本基线不虚构验收记录未提供的固定服务端口。

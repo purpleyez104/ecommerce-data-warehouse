@@ -1,16 +1,17 @@
 # Milestone 1 组件兼容性矩阵
 
-版本：`0.1-draft`
+版本：`0.3`
 状态：`in progress`
-更新时间：2026-09-05
+更新时间：2026-09-14
 
 ## 使用规则
 
 - `CONFIRMED` 和 `CONFIGURED` 来源于本项目当前集群记录，含义见 [集群事实基线](cluster-baseline.md)。
 - 项目证据状态只使用 `draft`、`candidate`、`planned`、`implemented` 和 `verified`。
-- 官方文档只能提供候选兼容依据；只有目标 ECS 上的安装、启动、功能、上下游连通和重启证据才能标记 `verified`。
+- 官方文档只能提供候选兼容依据；目标 ECS 上的安装、启动、核心功能与必要恢复验证，以及用户确认的 Runtime 验收记录，才可支持 `verified`。
 - 精确版本调整必须先保存失败证据并取得用户确认，不得静默升级、降级或使用容器兜底。
 - 全部 M1 组件验证完成前不创建 `infra/versions.env`。
+- `DR-026` 已采用用户确认的 Step 2～12 Runtime 验收记录作为当前能力基线；文件完整性用于可复现与审计，不再以非核心附件缺失否定已实际展示的组件能力。
 
 ## 当前矩阵
 
@@ -18,28 +19,28 @@
 | --- | --- | --- | --- | --- |
 | Ubuntu | 24.04 LTS，x86_64 | `CONFIRMED` | `verified` | 记录补丁与内核版本只用于环境快照 |
 | 默认 JDK | OpenJDK 17.0.20 | `CONFIRMED` | `verified` | 三节点 `java -version` 已采集；后续组件仍需分别验证所用 Java |
-| Hadoop JDK | OpenJDK 11，补丁未知 | `CONFIRMED` | `verified` | 三节点守护进程均已确认使用 JDK 11；补丁版本仍需后续环境快照 |
+| Hadoop JDK | OpenJDK 11.0.32 | `CONFIRMED` | `verified` | 三节点守护进程已确认使用 JDK 11；补丁版本由 2026-09-13 环境快照补齐 |
 | Hadoop | 3.4.1 | `CONFIRMED` | `verified` | HDFS SHA-256、MapReduce、聚合日志、清理和受控重启均已通过 |
-| MySQL | 8.0.46 | `PLANNED` | `candidate` | 安装、Binlog、私网连接、增删改和重启 |
-| Connector/J | 8.0.33 | `PLANNED` | `candidate` | Hive Metastore JDBC 连接 |
-| Hive | 4.1.0 | `PLANNED` | `candidate` | Metastore、HiveServer2、Beeline、外部表和重启 |
-| Kafka | 3.9.1，Scala 2.12，KRaft | `PLANNED` | `candidate` | 三节点仲裁、生产消费、重放和单节点重启 |
-| Spark | 3.5.9-bin-hadoop3 | `PLANNED` | `candidate` | YARN 作业、Hive 连接、ORC + Snappy 读写 |
-| DataX | 202309 | `PLANNED` | `candidate` | JDK、MySQL Reader、HDFS Writer、ORC + Snappy |
-| Doris | 4.0.8 | `PLANNED` | `candidate` | CPU 指令集、FE/BE、临时表和重启 |
+| MySQL | 8.0.46 | `CONFIRMED` | `verified` | 私网连接、固定 CRUD、ROW/FULL Binlog、认证失败、受控重启与恢复均通过 |
+| Connector/J | 8.0.33 | Hive Metastore 实际使用 | `verified` | 已支持 Hive Metastore 连接；后续升级需重新验证 |
+| Hive | 3.1.3；Metastore schema 3.1.0 | `CONFIRMED_WITH_VERSION_CHANGE` | `verified` | JDK 17、MySQL Metastore、HiveServer2/Beeline 与 ORC 链路已通过；4.1.0 已退出候选 |
+| Kafka | 3.9.1，Scala 2.12，KRaft | `CONFIRMED` | `verified` | 三节点仲裁、RF=3、minISR=2、生产消费、单 Broker 故障与恢复通过 |
+| Spark | 3.5.9-bin-hadoop3，Scala 2.12.18 | `CONFIRMED` | `verified` | YARN 提交、Hive ORC 读取与计算通过 |
+| DataX | datax_v202309；运行入口 `/data/module/datax-current` | `CONFIRMED` | `verified` | MySQL Reader、HDFS Writer、ORC + Snappy、3 行链路与失败非零通过 |
+| Doris | 4.0.8 | `CONFIRMED` | `verified` | FE/BE、SQL、端口与受控重启恢复通过 |
 | Spark Doris Connector | 26.0.0，Spark 3.5 构件 | `PLANNED` | `candidate` | Spark、Scala、Java、Doris 类型和写入验证 |
 | ZooKeeper | 3.8.4，单节点 | 已接受设计 | `planned` | 仅为 DolphinScheduler 验证安装和重启 |
-| DolphinScheduler | 3.4.2 | `PLANNED` | `candidate` | MySQL、ZooKeeper、Worker、成功/失败任务和重启 |
-| Flink | 1.20.5，Scala 2.12 | `PLANNED` | `candidate` | YARN 作业和重启 |
-| Flink CDC | 3.6.0 | `PLANNED` | `candidate` | MySQL Snapshot、Binlog 增删改和 Kafka 输出 |
-| Flink Doris Connector | 26.1.1 for Flink 1.20 | `PLANNED` | `candidate` | 临时表写入和重复写入行为 |
+| DolphinScheduler | 3.4.2 | `PLANNED` | `candidate` | 当前唯一剩余 M1 门禁：MySQL、ZooKeeper、Worker、成功/失败任务和重启 |
+| Flink | 1.20.5，Scala 2.12 | `CONFIRMED_WITH_NOTE` | `verified` | YARN Application Mode 已通过；提交退出 0 不代表最终成功，调度必须查询 YARN final state |
+| Flink CDC | 3.6.0 for Flink 1.20 | `CONFIRMED` | `verified` | MySQL Snapshot、Binlog CRUD 与 Kafka 输出通过；正式 Topic 设计仍等待 M8 |
+| Flink Doris Connector | 26.1.1 for Flink 1.20 | `CONFIRMED` | `verified` | insert/upsert、类型、schema、Checkpoint、TaskManager 故障恢复通过；不确认正式实时表模型或 Exactly-Once |
 
 ## 官方依据入口
 
 | 组合 | 官方入口 | 当前结论边界 |
 | --- | --- | --- |
 | Hadoop 3.4.1 | <https://hadoop.apache.org/docs/r3.4.1/> | 版本文档存在；本项目运行事实来自当前集群记录和 2026-09-05 的功能及重启验证 |
-| Hive 4.1.0 / Hadoop 3.4.1 | <https://hive.apache.org/general/downloads/> | 官方发布说明可作为组合候选依据，仍需目标集群验证 |
+| Hive 3.1.3 / Hadoop 3.4.1 / Spark 3.5.9 | <https://hive.apache.org/general/downloads/> | 4.1.0 在当前 Spark Metastore client Smoke Test 中失败；Hive 3.1.3 使用 JDK 17 的当前组合已通过 Runtime 验收 |
 | Spark 3.5 / Java 17 / YARN | <https://spark.apache.org/docs/3.5.9/> | 支持范围不替代本项目的 Hadoop、Hive 和 YARN 实测 |
 | Kafka 3.9 KRaft | <https://kafka.apache.org/39/documentation.html#kraft> | 只采用 KRaft，不因 DolphinScheduler 引入的 ZooKeeper 改变 Kafka 模式 |
 | DataX HDFS Writer | <https://github.com/alibaba/DataX/blob/master/hdfswriter/doc/hdfswriter.md> | ORC、压缩和依赖必须用 202309 包真实验证 |
@@ -53,14 +54,14 @@
 ```text
 已有事实迁入（已完成）
 → Hadoop 缺失证据补齐（已完成）
-→ MySQL（当前门禁）
-→ Hive
-→ Kafka KRaft
-→ Spark on YARN
-→ DataX
-→ Doris
-→ DolphinScheduler + 单节点 ZooKeeper
-→ Flink / Flink CDC
+→ MySQL（已完成）
+→ Hive（已完成）
+→ Spark on YARN（已完成）
+→ DataX（已完成）
+→ Kafka KRaft（已完成）
+→ Flink / Flink CDC / Kafka source-sink（已完成，保留执行模式边界）
+→ Doris / Flink Doris Connector（已完成）
+→ DolphinScheduler + 单节点 ZooKeeper（当前唯一剩余门禁）
 ```
 
 任一门禁失败时停止后续组件接入。失败记录至少包含节点、版本、命令、退出状态、关键日志、影响范围和回滚结果。

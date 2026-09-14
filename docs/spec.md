@@ -2,7 +2,7 @@
 
 版本：`0.3-draft`
 状态：Milestone 0 `completed`；Milestone 1、2 `in progress`
-更新时间：2026-09-11
+更新时间：2026-09-14
 Repository：`ecommerce-data-warehouse`
 
 ## 0. 文档使用范围
@@ -117,9 +117,9 @@ V1 覆盖五个主题：
 
 用户已通过 `DR-008` 确认 Milestone 1 与 Milestone 2 同时进入 `in progress`。Milestone 编号继续表示交付和运行依赖，但不要求业务规划等待整个集群安装完成。M1 按既有组件门禁推进；M2 按 `docs/plan.md` 的 M2.1 至 M2.5 小计划推进，先在本地完成业务语义、逻辑/物理模型、固定验收数据和数据生成器设计与实现准备。
 
-并行不等于取消直接依赖。M2.1 至 M2.4 可以在不启动云端数据链路的情况下依次推进；未确认的业务规则必须保留为 `DECISION_REQUIRED`，不得使用经验默认值补全。M2.5 的 MySQL 执行验收必须等待 MySQL 通过 M1 的版本、启动、连接、Binlog 和重启验证。M2 无需等待 Hive、Kafka、Spark、DataX、Doris、DolphinScheduler 或 Flink 全部完成即可推进，但任何未在 MySQL 真实执行的 DDL、seed、生成器或测试只能标记为 `draft` 或 `implemented`，不得标记为 `verified`。
+并行不等于取消直接依赖。M2.1 至 M2.4 可以在不启动云端数据链路的情况下依次推进；未确认的业务规则必须保留为 `DECISION_REQUIRED`，不得使用经验默认值补全。根据 `DR-026`，MySQL 已通过 M1 的版本、启动、私网连接、Binlog 增删改和受控重启验证，M2.5 的 M1 直接门禁已满足；M2.5 仍必须等待 M2.2 至 M2.4 的交付条件全部满足。任何未在 M2.5 真实执行的 DDL、seed、生成器或测试仍只能标记为 `draft` 或 `implemented`。
 
-Milestone 3 的进入条件保持不变：既要取得 M2 已确认的 OLTP DDL 和固定数据，也要等待 M1 的 HDFS、Hive、DataX 组合通过验证。M2 本地工作不得修改 ECS 服务或 M1 配置，也不得把静态检查描述为运行证明。
+Milestone 3 所需的 M1 HDFS、Hive、DataX 技术组合已通过验证，但其进入条件仍包括 M2 已确认的 OLTP DDL、固定数据以及全量/增量、硬删除等正式 ODS 设计。M1 临时数据链路通过不等于 M3 已完成。
 
 ### 3.4 已确认的身份、会话与用户分类语义
 
@@ -266,19 +266,19 @@ MySQL 负责主键、唯一、非空、核心外键、状态集合及单行金�
 
 ## 4. 技术栈与开发方式
 
-选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本，也不构成版本兼容、资源充足或链路已经运行的证明。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，并通过 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 分区；格式、依赖、分区发布和失败行为仍需真实验证。
+选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本；当前版本兼容与临时链路的实际结论以 `DR-026` 为准。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，并通过 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 分区；ORC + Snappy 与失败非零的技术能力已验证，正式分区发布、审计、幂等和失败隔离仍由 Milestone 3 验收。
 
 | 职责 | 技术 | 当前状态 |
 | --- | --- | --- |
-| 业务数据源 | MySQL | candidate；尚未安装验证 |
-| 离线抽取 | DataX | candidate；尚未安装验证 |
+| 业务数据源 | MySQL | verified；8.0.46、私网连接、ROW/FULL Binlog 与受控重启已通过 |
+| 离线抽取 | DataX | verified；202309 运行包的 MySQL Reader、HDFS Writer、ORC 输出和失败返回已通过；正式 ODS 行为留在 M3 |
 | 分布式存储与资源管理 | Hadoop HDFS、YARN | verified；固定 HDFS 文件、MapReduce、聚合日志和受控重启已通过 |
-| 数仓元数据与 SQL | Hive | candidate；尚未安装验证 |
-| 离线计算 | Spark SQL、PySpark，运行于 YARN | candidate；尚未安装验证 |
-| 消息传输 | Kafka KRaft | candidate；尚未安装验证 |
-| CDC 与实时计算 | Flink CDC、Flink SQL、Java DataStream，运行于 YARN | planned |
-| 分析服务 | Doris | candidate；尚未安装验证 |
-| 工作流调度 | DolphinScheduler | candidate；尚未安装验证 |
+| 数仓元数据与 SQL | Hive | verified；3.1.3、MySQL Metastore、HiveServer2、Beeline 与 ORC 访问已通过 |
+| 离线计算 | Spark SQL、PySpark，运行于 YARN | verified；Spark 3.5.9 on YARN 可读写 Hive/HDFS ORC |
+| 消息传输 | Kafka KRaft | verified；Kafka 3.9.1 三节点 Quorum、生产消费、ISR 与单 Broker 恢复已通过 |
+| CDC 与实时计算 | Flink CDC、Flink SQL、Java DataStream，运行于 YARN | 组件兼容性 verified；Application Mode、Flink CDC 和 YARN Session Kafka Source/Sink 已通过，正式业务实时链路仍为 planned |
+| 分析服务 | Doris | verified；4.0.8 FE/BE、SQL 与受控重启已通过 |
+| 工作流调度 | DolphinScheduler | candidate；3.4.2 尚未完成 M1 验收 |
 | 数据生成和质量工具 | Python、SQL | candidate |
 
 开发方式：
@@ -408,7 +408,7 @@ Flink 实时清洗与计算
 
 ## 8. 版本与兼容性门禁
 
-Hadoop 3.4.1 已于 2026-09-05 在当前集群完成版本、三节点守护进程 Java、HDFS 固定文件 SHA-256、MapReduce WordCount、YARN application 与聚合日志、临时对象清理和受控重启验证，项目状态为 `verified`。其余精确版本仍为候选。候选组件只有依次完成以下检查，才能写入 `infra/versions.env`：
+Hadoop 3.4.1 已于 2026-09-05 在当前集群完成独立验收。根据 `DR-026`，MySQL、Hive、Spark、DataX、Kafka、Flink、Flink CDC、Doris 及 Flink Doris Connector 的精确版本与核心能力也已验证；当前仅 DolphinScheduler 3.4.2 保持候选。全部 M1 组件完成后，才能写入 `infra/versions.env`。组件验收关注以下能力：
 
 ```text
 官方版本和兼容依据
@@ -421,21 +421,18 @@ Hadoop 3.4.1 已于 2026-09-05 在当前集群完成版本、三节点守护进�
 → 重启验证
 ```
 
-基础门禁顺序：
+当前验收进度：
 
 ```text
 主机与网络
 → JDK
-→ MySQL
-→ HDFS
-→ YARN
-→ Hive
-→ Kafka KRaft
-→ Spark on YARN
-→ DataX
-→ Doris
-→ DolphinScheduler
-→ Flink / Flink CDC
+→ HDFS / YARN / Hadoop（已完成）
+→ MySQL（已完成）
+→ Hive / Spark on YARN / DataX（已完成）
+→ Kafka KRaft（已完成）
+→ Flink / Flink CDC / Kafka source-sink（已完成，保留执行模式边界）
+→ Doris / Flink Doris Connector（已完成）
+→ DolphinScheduler（当前剩余门禁）
 ```
 
 必须验证 Hadoop/JDK、Hive/Hadoop、Hive Metastore/MySQL、Spark/Hadoop/Hive、Kafka/JDK/KRaft、Flink/JDK、Flink CDC/Flink/MySQL、Spark Doris Connector/Spark/Doris、Flink Doris Connector/Flink/Doris、DolphinScheduler/JDK/MySQL 和 DataX/MySQL/HDFS 的组合。
@@ -444,7 +441,7 @@ Hadoop 3.4.1 已于 2026-09-05 在当前集群完成版本、三节点守护进�
 
 YARN ResourceManager Scheduler 已确认使用 `8030`。Doris FE HTTP 已决定使用 `18030`；Doris 配置前必须确认端口未占用，并同步客户端、健康检查、安全组和文档。
 
-当前候选基线为 MySQL 8.0.46、Connector/J 8.0.33、Hive 4.1.0、Kafka 3.9.1 Scala 2.12、Spark 3.5.9-bin-hadoop3、DataX 202309、Doris 4.0.8、DolphinScheduler 3.4.2、Flink 1.20.5 和 Flink CDC 3.6.0。候选值不构成运行证明，具体状态和官方依据见 [组件兼容性矩阵](compatibility-matrix.md)。
+当前已验证基线为 MySQL 8.0.46、Connector/J 8.0.33、Hive 3.1.3、Kafka 3.9.1 Scala 2.12 KRaft、Spark 3.5.9-bin-hadoop3、DataX 202309、Doris 4.0.8、Flink 1.20.5、Flink CDC 3.6.0 和 Flink Doris Connector 26.1.1。Hive 4.1.0 因与 Spark 3.5.9 Metastore client 不兼容而退出。DolphinScheduler 3.4.2 仍是待验证候选；具体模式和边界见 [组件兼容性矩阵](compatibility-matrix.md) 与 `DR-026`。
 
 实时组件可以完成安装兼容性验证，但在实时规格确认前不得进入正式业务开发。
 
@@ -682,7 +679,8 @@ Project 2 不得：
 - Doris 实时表 Key 模型、分区、分桶和更新语义。
 - 实时明细是否长期归档到 HDFS/Hive。
 - 实时与离线对账阈值。
-- 组件精确版本及兼容失败后的版本调整方案。
+- DolphinScheduler 3.4.2 的 MySQL Metadata Schema、ZooKeeper Registry、Master/Worker/API/Alert、失败识别、重试和补数行为。
+- 未在 `DR-026` 中锁定的后续 Connector 补丁版本及兼容失败后的调整方案。
 - hadoop201 是否需要扩容。
 
 未解决事项应保持 `draft`、`candidate` 或 `planned`，不得通过默认值伪装为正式决策。

@@ -4,13 +4,13 @@
 
 状态：Milestone 2 `in progress`；M2.1、M2.2 `completed`
 
-更新时间：2026-09-12
+更新时间：2026-09-14
 
-适用决策：`DR-008` 至 `DR-021`
+适用决策：`DR-008` 至 `DR-026`
 
 ## 1. 文档定位与证据边界
 
-本文档是 Milestone 2 的正式业务设计文档，也是 M2.1 至 M2.5 的业务语义事实来源。Milestone 1 与 Milestone 2 当前均为 `in progress`：M1 继续组件安装与验证，M2 按 `docs/plan.md` 的 M2.1 至 M2.5 小计划推进。`M2-DEC-001` 至 `015` 已由用户确认，M2.1 已完成；M2.2 已确认 19 张 MySQL 源表、公共物理规范及约束分工，并完成全部 19 张源表共 230 个字段的可空性、关系、单行约束和索引方向设计。Candidate DDL 已 `implemented` 并通过静态 Contract 检查，尚未在 MySQL 执行。
+本文档是 Milestone 2 的正式业务设计文档，也是 M2.1 至 M2.5 的业务语义事实来源。Milestone 1 与 Milestone 2 当前均为 `in progress`：M1 的 Step 2～12 已通过 Runtime 验收，仅 DolphinScheduler 3.4.2 待验收；M2 按 `docs/plan.md` 的 M2.1 至 M2.5 小计划推进。`M2-DEC-001` 至 `015` 已由用户确认，M2.1 已完成；M2.2 已确认 19 张 MySQL 源表、公共物理规范及约束分工，并完成全部 19 张源表共 230 个字段的可空性、关系、单行约束和索引方向设计。Candidate DDL 已 `implemented` 并通过静态 Contract 检查，尚未在 MySQL 执行。
 
 本文档只依据当前仓库的 `README.md`、`docs/spec.md`、`docs/plan.md` 和已接受决策，不引用旧仓库候选实现。当前没有执行 MySQL、没有创建业务表；M2.3 已在本地生成固定 Seed、预期结果和静态 Contract，但未验证任何 MySQL 主外键、状态迁移、金额、幂等重跑或指标结果。
 
@@ -18,7 +18,7 @@
 
 - M2.1、M2.2 已完成；Candidate DDL 未执行 MySQL 前最多标记为 `implemented`。
 - `M2-DEC-015` 已确认；M2.3 已在本地实现固定 seed、预期结果、正常/异常入口、幂等入口和静态 Contract；M2.4 仍可并行准备数据生成器和 Targeted Test。
-- M2.5 必须等待 M1 的 MySQL 门禁通过；不得因本地代码或静态检查宣称 MySQL 验收通过。
+- M1 的 MySQL 8.0.46 门禁已通过；M2.5 仍须等待当前 checkout 中 M2.2～M2.4 的交付前置完成，不得用 M1 的临时 CRUD 代替 19 张正式业务表验收。
 - 不根据指标名称反推并采用业务规则；缺失内容统一标记 `DECISION_REQUIRED`。
 
 ## 2. 业务过程与正式指标需求矩阵
@@ -728,7 +728,7 @@ V1 只支持固定金额券，不增加发行额度、库存、抢券、每用�
 18. `return_order`
 19. `refund_attempt`
 
-隔离测试库或 M2.5 验收失败后的 Schema 回滚只能按反向顺序删除本批创建的候选表：`refund_attempt` → `return_order` → `payment_attempt` → `sales_order_item` → `sales_order` → `cart_event` → `page_view_event` → `login_event` → `user_coupon` → `sku` → `spu` → `visit_session` → `user_address` → `coupon` → `category` → `brand` → `traffic_channel` → `visitor` → `user_account`。该顺序不授权对任何既有 MySQL 实例执行 `DROP TABLE`；真实执行仍受 M1 MySQL 门禁和 M2.5 隔离测试库约束。
+隔离测试库或 M2.5 验收失败后的 Schema 回滚只能按反向顺序删除本批创建的候选表：`refund_attempt` → `return_order` → `payment_attempt` → `sales_order_item` → `sales_order` → `cart_event` → `page_view_event` → `login_event` → `user_coupon` → `sku` → `spu` → `visit_session` → `user_address` → `coupon` → `category` → `brand` → `traffic_channel` → `visitor` → `user_account`。该顺序不授权对任何既有 MySQL 实例执行 `DROP TABLE`；M1 MySQL 门禁虽已通过，真实执行仍受 M2.5 隔离测试库和显式执行范围约束。
 
 #### 8.9.4 后续静态检查边界
 
@@ -742,7 +742,7 @@ T2 生成候选 DDL 时至少要静态核对：19 个 `PRIMARY KEY`、本节台�
 
 Milestone 2 已进入 `in progress`。只有以下项目全部满足，才能按 `docs/plan.md` 进入 M2.5 MySQL 运行验收：
 
-- [ ] MySQL 已通过 Milestone 1 的启动和连接验证，并保留环境、版本、命令、退出状态和结果证据。
+- [x] MySQL 已通过 Milestone 1 的启动、连接、CRUD、ROW/FULL Binlog、失败路径和受控重启恢复验证。
 - [x] `M2-DEC-001` 至 `M2-DEC-003` 已由用户明确确认。
 - [x] `M2-DEC-004` 至 `M2-DEC-006` 已由用户明确确认。
 - [x] `M2-DEC-007` 至 `M2-DEC-010` 已由用户明确确认。
@@ -764,4 +764,4 @@ Milestone 2 已进入 `in progress`。只有以下项目全部满足，才能按
 - [x] 固定验收数据的规模、业务日期和重跑次数已确认；异常注入采用独立事务或失败用例，且数据库与 Python 写入层分工已确认。
 - [x] M2.3 本地固定 Seed、预期结果、静态 Contract、失败退出边界和幂等入口已实现；MySQL 执行、回滚与重跑行为仍待 M2.5。
 
-当前结论：Milestone 2 与 Milestone 1 并行处于 `in progress`。`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；19 张 MySQL 源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查。M2.3 的固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract 已 `implemented` 并通过静态检查；M2.4 仍为 `pending`，尚未生成 Generator 或 Targeted Test。MySQL 门禁和其余检查尚未完成，因此不能进入 M2.5；静态文档评审也不能提升 MySQL 或数据链路的证据状态。
+当前结论：Milestone 2 与 Milestone 1 并行处于 `in progress`。`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；19 张 MySQL 源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查。M2.3 的固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract 已 `implemented` 并通过静态检查；M2.4 仍为 `pending`，尚未生成 Generator 或 Targeted Test。M1 MySQL 门禁已经满足，但 M2.5 仍需等待 M2.2～M2.4 的当前交付前置闭合；M1 临时数据库或静态文档评审不能提升 19 张正式业务表及数据行为的证据状态。

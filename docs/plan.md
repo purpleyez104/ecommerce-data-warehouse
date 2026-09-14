@@ -128,7 +128,7 @@ docs/decision-register.md
 - 用户确认 2026-09-04 的外部 ECS 集群记录是本项目实际搭建记录，其中 `CONFIRMED` 可作为当前事实。
 - Ubuntu 24.04、三节点网络与磁盘、`yee` 用户、OpenJDK 17 默认环境以及 Hadoop 3.4.1 的 HDFS/YARN 运行拓扑已经确认。
 - Hadoop 3.4.1 已于 2026-09-05 完成固定 HDFS 文件 SHA-256、MapReduce WordCount、YARN application 与聚合日志、临时对象清理和受控重启验证，整体状态为 `verified`。
-- NameNode 已存在并通过受控重启验证，禁止再次格式化；当前工作进入 MySQL 8.0.46 门禁，不重新初始化主机或 Hadoop。
+- NameNode 已存在并通过受控重启验证，禁止再次格式化。根据 `DR-026`，M1 Step 2～12 已通过，当前门禁为 DolphinScheduler 3.4.2。
 
 ### 涉及模块
 
@@ -157,19 +157,18 @@ docs/installation-troubleshooting.md
 → Flink / Flink CDC
 ```
 
-当前集群已完成标准顺序中的主机、JDK、HDFS 和 YARN 建设。继续实施顺序为：
+当前集群的实际验收顺序与结果为：
 
 ```text
-迁入确认事实（已完成）
-→ 补齐 Hadoop HDFS / MapReduce / 重启证据（已完成）
-→ MySQL（当前门禁）
-→ Hive
-→ Kafka KRaft
-→ Spark on YARN
-→ DataX
-→ Doris
-→ DolphinScheduler + 单节点 ZooKeeper
-→ Flink / Flink CDC
+Hadoop（已通过）
+→ MySQL（已通过）
+→ Hive（已通过）
+→ Spark on YARN（已通过）
+→ DataX（已通过）
+→ Kafka KRaft（已通过）
+→ Flink / Flink CDC / Flink Kafka（已通过，带运行模式说明）
+→ Doris / Flink Doris Connector（已通过）
+→ DolphinScheduler + 单节点 ZooKeeper（当前门禁）
 ```
 
 单节点 ZooKeeper 只服务 DolphinScheduler；Kafka 保持 KRaft。Doris FE HTTP 使用 `18030`，保留 YARN ResourceManager Scheduler 的 `8030`。
@@ -191,7 +190,7 @@ docs/installation-troubleshooting.md
 - 三块系统盘和三块数据盘的设备、挂载点、文件系统、容量和读写权限已实测记录。
 - HDFS 写入/读取、YARN 最小任务、Hive 连接、Kafka 生产消费和 Spark on YARN 最小 SQL 通过。
 - DataX、Doris、DolphinScheduler、Flink 只在前置依赖通过后验证。
-- YARN ResourceManager 与 Doris FE 的 `8030` 端口冲突已确定通过 Doris FE HTTP `18030` 解决；Doris 验收时还需证明端口未占用且配置生效。
+- YARN ResourceManager 与 Doris FE 的 `8030` 端口冲突已通过 Doris FE HTTP `18030` 解决，FE/BE 端口、SQL 和受控重启已实测通过。
 - 所有精确版本都能追溯到官方来源和真实测试。
 - 重启后关键配置仍有效。
 
@@ -206,7 +205,7 @@ docs/installation-troubleshooting.md
 
 ### 与 Milestone 1 的并行规则
 
-`DR-008` 将 Milestone 2 从受限预设计调整为正式 `in progress`，与 Milestone 1 同时推进。M2.1 至 M2.4 属于本地设计和实现准备，不等待整个 M1 集群完成；M2.5 属于 MySQL 运行验收，只等待 M1 的 MySQL 直接门禁。M1 后续 Hive、Kafka、Spark、DataX、Doris、DolphinScheduler 和 Flink/Flink CDC 可以与 M2 继续并行。
+`DR-008` 将 Milestone 2 从受限预设计调整为正式 `in progress`，与 Milestone 1 同时推进。M2.1 至 M2.4 属于本地设计和实现准备，不等待整个 M1 集群完成；M2.5 属于 MySQL 运行验收，只依赖 M1 的 MySQL 直接门禁。根据 `DR-026`，该直接门禁已经通过，M1 当前只需继续 DolphinScheduler 验收，仍可与 M2 并行。
 
 并行不降低证据要求：未经用户确认不得确定业务语义；未在 MySQL 真实执行的 DDL、seed、生成器和测试最多标记为 `implemented`；M2 本地工作不得修改 ECS 服务或 M1 配置。Milestone 3 仍须同时满足其 M1 组件门禁和 M2 交付门禁。
 
@@ -222,9 +221,9 @@ docs/installation-troubleshooting.md
 
 ### 运行实现门禁
 
-- M2.5 开始前，MySQL 必须通过 Milestone 1 的版本、启动、私网连接、Binlog 增删改和受控重启验证。
+- M2.5 的 M1 MySQL 前置已通过：版本、启动、私网连接、Binlog 增删改和受控重启均已验证。
 - 候选 DDL 转为正式执行输入前，用户必须确认 OLTP 表、字段、主外键、状态机、硬删除、时间和金额策略。
-- 未满足运行门禁不阻止 M2.1 至 M2.4 的本地工作，但不得执行 MySQL 验收或提高证据状态。
+- M2.5 仍必须等待 M2.2～M2.4 交付条件满足；在 M2.5 真实执行前，DDL、Seed 和 Generator 不得提高为 `verified`。
 
 ### M2 小计划
 
@@ -700,10 +699,10 @@ scheduler/
 
 ## 15. 当前下一步
 
-Milestone 1、2 已按 `DR-008` 并行开始。Ubuntu、节点、网络、磁盘和用户来自当前集群建设记录并作为确认事实；Hadoop 3.4.1 已于 2026-09-05 达到 `verified`。当前分为两条并行工作流：
+Milestone 1、2 已按 `DR-008` 并行开始。根据 `DR-026`，M1 Step 2～12 已在目标 ECS 完成兼容性与功能验收。当前分为两条并行工作流：
 
-1. M1：在 `hadoop201` 安装并验证 MySQL 8.0.46 和 Binlog；通过后继续 Hive、Kafka KRaft、Spark on YARN、DataX、Doris、DolphinScheduler 和 Flink/Flink CDC。
+1. M1：Hadoop、MySQL、Hive、Spark、DataX、Kafka、Flink/Flink CDC、Doris 和 Flink Doris Connector 已通过；当前执行 DolphinScheduler 3.4.2 门禁。
 2. M2：`M2-DEC-001` 至 `014` 已按 `DR-009` 至 `DR-013` 确认，`M2-DEC-015` 已按 `DR-021` 确认；M2.1、M2.2 已完成，19 张表 Candidate DDL 已通过静态 Contract 检查，证据状态为 `implemented`，尚未在 MySQL 验证。M2.3 已交付 19 表固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract，证据状态同为 `implemented`；M2.4 仍按固定验收规模准备 Generator/Targeted Test。`M2-DEC-015` 与决策记录 `DR-015` 不同。
-3. 汇合点：M1 的 MySQL 门禁与 M2.2-M2.4 都通过后执行 M2.5；M2 不等待整个 M1 完成。
+3. 汇合点：M1 MySQL 门禁已通过；M2.2～M2.4 全部满足后可执行 M2.5。M2 不等待整个 M1 完成。
 
-M1 与 M2 的证据状态分别维护。M1 创建 `infra/` 和验证脚本不代表全部精确版本已锁定；M2 本地候选产物未在 MySQL 执行前不构成运行验证。Milestone 3 继续等待其既有进入条件，不参与本轮并行。
+M1 与 M2 的证据状态分别维护。M1 临时技术链路的通过不代表 M2 Candidate 产物已在 MySQL 验证，也不代表 M3 或 M9 正式业务链路已完成。M1 全部组件通过前仍不创建 `infra/versions.env`。
