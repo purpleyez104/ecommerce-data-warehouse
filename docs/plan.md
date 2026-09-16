@@ -1,8 +1,8 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
 版本：`0.3-draft`
-状态：Milestone 0 已完成；Milestone 1、2 并行实施中
-更新时间：2026-09-11
+状态：Milestone 0、2 已完成；Milestone 1 实施中
+更新时间：2026-09-16
 
 ## 1. 使用方式
 
@@ -201,13 +201,13 @@ Hadoop（已通过）
 
 ## 5. Milestone 2：业务模型与数据生成
 
-**状态：`in progress`**
+**状态：`completed`**
 
 ### 与 Milestone 1 的并行规则
 
-`DR-008` 将 Milestone 2 从受限预设计调整为正式 `in progress`，与 Milestone 1 同时推进。M2.1 至 M2.4 属于本地设计和实现准备，不等待整个 M1 集群完成；M2.5 属于 MySQL 运行验收，只依赖 M1 的 MySQL 直接门禁。根据 `DR-026`，该直接门禁已经通过，M1 当前只需继续 DolphinScheduler 验收，仍可与 M2 并行。
+`DR-008` 将 Milestone 2 从受限预设计调整为可与 Milestone 1 并行推进。M2.1 至 M2.4 完成本地设计和实现准备后，M2.5 依赖已通过的 M1 MySQL 直接门禁完成运行验收。M1 仍需继续 DolphinScheduler 验收；该剩余门禁不改变已经完成的 M2 运行事实。
 
-并行不降低证据要求：未经用户确认不得确定业务语义；未在 MySQL 真实执行的 DDL、seed、生成器和测试最多标记为 `implemented`；M2 本地工作不得修改 ECS 服务或 M1 配置。Milestone 3 仍须同时满足其 M1 组件门禁和 M2 交付门禁。
+并行不降低证据要求：未经用户确认不得确定业务语义。T7 已在目标 MySQL 8.0.46 真实执行 DDL、Seed、Generator 和失败用例，因此对应 M2 范围标记为 `verified`，Milestone 2 标记为 `completed`。该结论不覆盖正式 ODS 或后续数据链路；Milestone 3 仍须完成其进入检查与 ODS 设计。
 
 ### 目标
 
@@ -223,7 +223,7 @@ Hadoop（已通过）
 
 - M2.5 的 M1 MySQL 前置已通过：版本、启动、私网连接、Binlog 增删改和受控重启均已验证。
 - 候选 DDL 转为正式执行输入前，用户必须确认 OLTP 表、字段、主外键、状态机、硬删除、时间和金额策略。
-- M2.5 仍必须等待 M2.2～M2.4 交付条件满足；在 M2.5 真实执行前，DDL、Seed 和 Generator 不得提高为 `verified`。
+- M2.2～M2.4 交付条件已满足；M2.5 已在 MySQL 8.0.46 完成运行验收并清理隔离 Database。
 
 ### M2 小计划
 
@@ -239,10 +239,10 @@ M2.1 业务语义与状态机
 | 小计划 | 当前状态 | 进入条件 | 核心交付 | 验收与退出条件 |
 | --- | --- | --- | --- | --- |
 | M2.1 业务语义与状态机 | `completed`；`M2-DEC-001` 至 `013` 已确认 | M2 总体进入条件成立 | 在正式业务设计文档 `docs/milestone-2-business-design.md` 逐项确认身份、会话、商品层级、加购、订单、支付、取消、退单/退款、硬删除、时间、金额和优惠券语义 | 已通过；13 项决策均有用户确认结论，状态机、时间、金额和优惠券语义已形成正式设计 |
-| M2.2 OLTP 逻辑与物理模型 | `completed`；19 张源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查，尚未在 MySQL 验证 | M2.1 通过 | 业务过程矩阵、实体关系、表与字段字典、事实粒度、业务键、主外键、状态字段、索引、硬删除设计和候选 DDL | 已通过；每个表和字段可追溯到已确认业务过程，DDL 静态检查通过；未在 MySQL 执行前最多为 `implemented` |
-| M2.3 固定验收数据与预期结果 | `implemented`；静态 Contract 已通过，尚未在 MySQL 验证 | M2.2 通过；`M2-DEC-014`、`M2-DEC-015` 已确认 | 19 表固定 seed、正常与异常数据入口、逐表预期结果、跨日和重复输入样例、幂等入口与静态 Contract | 静态检查已核对固定数据、正常与异常隔离、金额/引用关系和漂移失败边界；MySQL 结果仍由 M2.5 验证 |
-| M2.4 参数化数据生成器 | `implemented`；Targeted Test 已通过，尚未在 MySQL 验证 | M2.2 通过；`M2-DEC-015` 已确认，可与 M2.3 并行 | Python 生成器、固定随机种子、业务日期/规模参数、使用说明和 Targeted Test | 静态验收已确认确定性输出、非法参数/规则违约非零、跨表身份及金额/退单/退款/优惠券规则；MySQL 结果仍由 M2.5 验证 |
-| M2.5 MySQL 运行验收与 M2 收尾 | `pending` | M1 MySQL 门禁通过；M2.2-M2.4 已完成 | 在真实 MySQL 执行 DDL、seed 和生成器，保存去敏的命令、退出状态、结果摘要与回滚方法 | 验证首次运行、同日重跑、确定性、主外键、状态、金额、`update_time`、硬删除和失败行为；全部通过后才结束 M2 |
+| M2.2 OLTP 逻辑与物理模型 | `completed`；19 张源表 Candidate DDL 已通过静态 Contract 与 MySQL 8.0.46 运行验收 | M2.1 通过 | 业务过程矩阵、实体关系、表与字段字典、事实粒度、业务键、主外键、状态字段、索引、硬删除设计和候选 DDL | 已通过；每个表和字段可追溯到已确认业务过程，两套隔离库均按顺序完成 19 表建表 |
+| M2.3 固定验收数据与预期结果 | `completed`；静态 Contract 与 MySQL Runtime 验收通过 | M2.2 通过；`M2-DEC-014`、`M2-DEC-015` 已确认 | 19 表固定 seed、正常与异常数据入口、逐表预期结果、跨日和重复输入样例、幂等入口与静态 Contract | 已通过首次装载、同内容重跑、漂移拒绝、5 个约束失败用例及基线不变检查 |
+| M2.4 参数化数据生成器 | `completed`；Targeted Test 与 MySQL Runtime 验收通过 | M2.2 通过；`M2-DEC-015` 已确认，可与 M2.3 并行 | Python 生成器、固定随机种子、业务日期/规模参数、使用说明和 Targeted Test | 已确认确定性输出、非法参数/规则违约非零、跨表规则、金额守恒及 MySQL 装载结果 |
+| M2.5 MySQL 运行验收与 M2 收尾 | `completed` | M1 MySQL 门禁通过；M2.2-M2.4 已完成 | 在真实 MySQL 执行 DDL、seed 和生成器，保存去敏的命令、退出状态、结果摘要与回滚方法 | 已在 MySQL 8.0.46 验证首次运行、重跑、确定性、主外键、状态、金额、`update_time`、删除语义、失败行为和受控清理 |
 
 ### 涉及模块
 
@@ -699,10 +699,10 @@ scheduler/
 
 ## 15. 当前下一步
 
-Milestone 1、2 已按 `DR-008` 并行开始。根据 `DR-026`，M1 Step 2～12 已在目标 ECS 完成兼容性与功能验收。当前分为两条并行工作流：
+Milestone 1、2 曾按 `DR-008` 并行推进。根据 `DR-026`，M1 Step 2～12 已在目标 ECS 完成兼容性与功能验收；Milestone 2 已于 2026-09-16 完成。当前工作流为：
 
 1. M1：Hadoop、MySQL、Hive、Spark、DataX、Kafka、Flink/Flink CDC、Doris 和 Flink Doris Connector 已通过；当前执行 DolphinScheduler 3.4.2 门禁。
-2. M2：`M2-DEC-001` 至 `014` 已按 `DR-009` 至 `DR-013` 确认，`M2-DEC-015` 已按 `DR-021` 确认；M2.1、M2.2 已完成，19 张表 Candidate DDL 已通过静态 Contract 检查，证据状态为 `implemented`，尚未在 MySQL 验证。M2.3 已交付 19 表固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract；M2.4 已交付确定性参数化 Generator、Python 跨行规则、使用说明和 Targeted Test，两者证据状态均为 `implemented`，MySQL 运行验收仍待 M2.5。`M2-DEC-015` 与决策记录 `DR-015` 不同。
-3. 汇合点：M1 的 MySQL 门禁与 M2.2～M2.4 交付前置均已满足，下一步可以执行 M2.5；M2 不等待整个 M1 完成，DolphinScheduler 门禁可在 M1 工作流继续推进。
+2. M2：`M2-DEC-001` 至 `015` 均已确认，M2.1～M2.5 已完成。T7 在目标 MySQL 8.0.46 验证两套 19 表 DDL、固定 Seed 首次装载与幂等重跑、漂移拒绝、5 个约束失败用例、Generator 确定性装载、金额守恒、生成列、软删除、`update_time` 和 Cleanup，Milestone 2 状态为 `completed`。`M2-DEC-015` 与决策记录 `DR-015` 不同。
+3. 下一步：继续 M1 DolphinScheduler 3.4.2 门禁；M3 的 M1 组件前置和 M2 交付前置已满足，但在正式实施前仍须完成 ODS Schema、全量/增量、幂等发布、失败隔离和对账设计的进入检查。
 
-M1 与 M2 的证据状态分别维护。M1 临时技术链路的通过不代表 M2 Candidate 产物已在 MySQL 验证，也不代表 M3 或 M9 正式业务链路已完成。M1 全部组件通过前仍不创建 `infra/versions.env`。
+M1 与 M2 的证据状态分别维护。M2 Runtime 通过不代表 M3 或 M9 正式业务链路已完成。M1 全部组件通过前仍不创建 `infra/versions.env`。

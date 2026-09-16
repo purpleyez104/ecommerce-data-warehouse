@@ -12,7 +12,7 @@
 
 ## 当前阶段门禁
 
-Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。Milestone 1“基础设施与兼容性”和 Milestone 2“业务模型与数据生成”状态均为 `in progress`。当前 ECS 集群记录中的 `CONFIRMED` 已由用户确认为本项目事实；Ubuntu、网络、磁盘、`yee` 用户和 Hadoop 3.4.1 运行拓扑不重新初始化。根据 `DR-026`，M1 Step 2～12 已完成 Runtime 验收，Milestone 1 当前唯一剩余门禁为 DolphinScheduler 3.4.2。推进 Milestone 1 时：
+Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。Milestone 1“基础设施与兼容性”状态为 `in progress`，Milestone 2“业务模型与数据生成”状态为 `completed`。当前 ECS 集群记录中的 `CONFIRMED` 已由用户确认为本项目事实；Ubuntu、网络、磁盘、`yee` 用户和 Hadoop 3.4.1 运行拓扑不重新初始化。根据 `DR-026`，M1 Step 2～12 已完成 Runtime 验收，Milestone 1 当前唯一剩余门禁为 DolphinScheduler 3.4.2。推进 Milestone 1 时：
 
 - 严格按 `docs/plan.md` 的主机、网络、JDK 和组件前置顺序实施，不跳过兼容性与资源门禁。
 - 不得以 Milestone 1 的名义创建业务表、数据模型、指标 SQL、离线任务或实时作业；Milestone 2 的本地产物只按 `DR-008` 和 M2 小计划门禁创建。
@@ -20,9 +20,9 @@ Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审
 - Milestone 1 的变更只创建其确实需要维护的环境、基础设施、兼容性、安装排障和验证内容，不夹带 M2 实现。
 - 禁止格式化已存在的 NameNode；验证脚本只能删除自己创建且经过前缀和运行编号约束的临时对象。
 
-经用户确认的 `DR-008` 允许 Milestone 1 与 Milestone 2 并行推进。M2 必须按 `docs/plan.md` 的 M2.1 至 M2.5 小计划执行：`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；M2.2 已确认 19 张 MySQL 源表、公共物理规范和约束分工，全部 19 张表共 230 个字段的可空性、关系、单行约束、生成列语义和索引方向已按 `DR-014` 至 `DR-018` 确认，Candidate DDL 已 `implemented` 并通过静态 Contract 检查。`M2-DEC-015` 已按 `DR-021` 确认；M2.3 固定 Seed 与 M2.4 确定性参数化 Generator 均已 `implemented` 并通过对应静态检查。M1 MySQL 8.0.46 门禁和 M2.2～M2.4 交付前置均已满足，可以进入 M2.5；未在 M2.5 真实执行的产物不得提升为 `verified`。其余未确认事项仍不得使用经验默认值补全。`DR-015` 是商品字段决策记录，不能与已确认的验收规模决策 `M2-DEC-015` 混淆。
+经用户确认的 `DR-008` 曾允许 Milestone 1 与 Milestone 2 并行推进。M2 已按 `docs/plan.md` 的 M2.1 至 M2.5 小计划完成：`M2-DEC-001` 至 `015` 已确认；19 张 MySQL 源表、230 个字段、公共物理规范和约束分工已按 `DR-014` 至 `DR-021` 收口；Candidate DDL、固定 Seed 与确定性参数化 Generator 已通过静态检查，并在目标 MySQL 8.0.46 的 T7 隔离验收中完成运行验证。T7 覆盖两套 19 表建库、固定 Seed 首次装载与幂等重跑、漂移拒绝、5 个约束失败用例、Generator 确定性装载、金额守恒、生成列、软删除、`update_time` 和受控 Cleanup。其余未确认事项仍不得使用经验默认值补全。`DR-015` 是商品字段决策记录，不能与验收规模决策 `M2-DEC-015` 混淆。
 
-M1 与 M2 的并行只解除“必须完成整个 M1 才能规划和准备 M2”的等待，不解除直接运行依赖。M2.5 的 M1 MySQL 直接门禁和 M2.2～M2.4 交付前置均已满足，可以进入运行验收；Milestone 3 仍须同时满足其既有 M1 组件门禁和 M2 交付门禁。M2 本地改动不得修改 ECS 服务、覆盖 M1 配置或把静态检查描述为运行验证。
+M1 与 M2 的并行只解除了“必须完成整个 M1 才能规划和准备 M2”的等待，没有解除直接运行依赖。M2.5 已在 M1 MySQL 直接门禁与 M2.2～M2.4 交付前置满足后通过；Milestone 3 的 M2 交付门禁已经满足，但仍须按 `docs/plan.md` 完成正式 ODS 设计和进入检查。M2 的完成不代表 M3 或正式离线链路已经实现。
 
 `completed` 只表示对应 Milestone 的进入条件、交付物和验收项已满足，不替代 `draft`、`candidate`、`planned`、`implemented`、`verified` 等内容证据状态。M0 完成不证明任何组件已经安装或数据链路已经运行。
 
@@ -66,7 +66,7 @@ MySQL ecommerce_oltp
 
 DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，输出格式为 ORC + Snappy；不建设独立持久化的中间数据层。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储，ODS 装载负责分区注册、审计字段、幂等发布和失败隔离。DataX 不负责决定正式金额精度、状态枚举和最终字段类型。ODS 保留源语义，DWD 保存原子事实，DIM 保存一致维度，DWS 保存可复用度量以及比率的分子和分母，ADS 负责最终指标表达。DolphinScheduler 只能在任务独立运行通过后接入，负责参数、依赖、重试、回补、质量阻断、装载和对账，不承载业务计算逻辑。
 
-仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。`generator/` 已按 M2.4 创建，只承担确定性候选 SQL 生成和 Python 跨行规则校验，当前证据状态为 `implemented`，未在 MySQL 验证。`hive/dim/`、`reconciliation/` 和 `kafka/` 等后续目录仍须满足 `README.md` 与 `docs/plan.md` 中的创建条件后再建立；`tests/` 仅按已进入阶段的验证范围扩展。
+仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。`generator/` 已按 M2.4 创建，只承担确定性候选 SQL 生成和 Python 跨行规则校验；其固定输入输出和 MySQL 8.0.46 装载语义已在 T7 验证，不代表正式 ODS 或指标写入层已经实现。`hive/dim/`、`reconciliation/` 和 `kafka/` 等后续目录仍须满足 `README.md` 与 `docs/plan.md` 中的创建条件后再建立；`tests/` 仅按已进入阶段的验证范围扩展。
 
 ## 业务语义与待决策项
 

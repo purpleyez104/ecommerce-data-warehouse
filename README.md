@@ -6,10 +6,10 @@
 
 | 项目 | 当前值 |
 | --- | --- |
-| 当前阶段 | Milestone 0：`completed`；Milestone 1、2：`in progress`（并行推进） |
+| 当前阶段 | Milestone 0、2：`completed`；Milestone 1：`in progress` |
 | 规格版本 | `0.3-draft` |
-| 实现状态 | M1 Step 2～12 已根据用户确认的目标 ECS 验收记录完成功能与兼容性验证：Hadoop、MySQL、Hive、Spark on YARN、DataX、Kafka KRaft、Flink on YARN、Flink CDC、Flink Kafka Source/Sink、Doris 和 Flink Doris Connector 已通过；M1 仍为 `in progress`，剩余门禁为 DolphinScheduler 3.4.2；M2.2 Candidate DDL、M2.3 固定 Seed 与 M2.4 参数化 Generator 均为 `implemented` 并通过对应静态检查，尚未在 M2.5 执行 |
-| 当前允许活动 | M1 按组件门禁继续；M2 按 M2.1-M2.5 小计划推进，本地设计与代码准备不等待整个集群完成 |
+| 实现状态 | M1 Step 2～12 已根据用户确认的目标 ECS 验收记录完成功能与兼容性验证，M1 剩余门禁为 DolphinScheduler 3.4.2；M2.1～M2.5 已完成，Candidate DDL、固定 Seed 与参数化 Generator 已在 MySQL 8.0.46 通过 T7 Runtime 验收 |
+| 当前允许活动 | M1 继续 DolphinScheduler 3.4.2 门禁；M3 仅在完成正式 ODS 设计与进入检查后开始实施 |
 | 运行验证 | 已证明 MySQL → DataX → HDFS → Hive → Spark、MySQL Binlog → Flink CDC → Kafka → Flink → Kafka，以及 Kafka → Flink → Checkpoint/Recovery → Doris Connector → Doris 的临时技术验收链路；这些结果不等于 M3/M9 正式业务链路已完成 |
 | 精确组件版本 | Hadoop 3.4.1、MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6.0、Doris 4.0.8 和 Flink Doris Connector 26.1.1 已在目标 ECS 验证；DolphinScheduler 3.4.2 待验证 |
 | 运行平台 | 阿里云 ECS（三节点） |
@@ -97,11 +97,11 @@ MySQL Binlog
 | `docs/` | 规格、计划、架构、集群基线、兼容矩阵、指标口径和验证结论 | Milestone 0 | in progress |
 | `infra/` | 主机、端口、组件配置、版本锁定和兼容性记录 | Milestone 1 | implemented |
 | `env/` | 不含秘密值的环境变量示例 | Milestone 0-1 | implemented |
-| `mock/` | 固定 seed 验收数据、边界场景和预期结果说明 | Milestone 2 | implemented；静态 Contract 已通过，未在 MySQL 验证 |
-| `mysql/ddl/` | OLTP DDL、约束、索引和状态字段 | Milestone 2 | implemented；未在 MySQL 验证 |
-| `mysql/seed/` | 固定验收数据与初始化入口 | Milestone 2 | implemented；静态 Contract 已通过，未在 MySQL 验证 |
-| `generator/` | 显式 seed、业务日期和规模参数的确定性候选 SQL 生成器及 Python 跨行规则 | Milestone 2 | implemented；Targeted Test 已通过，未在 MySQL 验证 |
-| `tests/` | 固定输入、预期输出、契约和回归测试 | Milestone 2 | implemented；当前覆盖 M2 DDL、固定 Seed 和 Generator 静态验证 |
+| `mock/` | 固定 seed 验收数据、边界场景和预期结果说明 | Milestone 2 | verified；静态 Contract 与 MySQL 8.0.46 T7 结果核对通过 |
+| `mysql/ddl/` | OLTP DDL、约束、索引和状态字段 | Milestone 2 | verified；两套隔离库均完成 19 表建表与约束验收 |
+| `mysql/seed/` | 固定验收数据与初始化入口 | Milestone 2 | verified；首次装载、同内容重跑、漂移拒绝和失败隔离通过 |
+| `generator/` | 显式 seed、业务日期和规模参数的确定性候选 SQL 生成器及 Python 跨行规则 | Milestone 2 | verified；确定性、跨行 Contract 与 MySQL 装载语义通过 |
+| `tests/` | 固定输入、预期输出、契约和回归测试 | Milestone 2 | implemented；覆盖 DDL、Seed、Generator 与 T7 Bash safety regression |
 | `datax/jobs/` | MySQL 到 Hive ODS 对应 HDFS 分区的全量和增量抽取任务 | Milestone 3 | placeholder |
 | `hive/ods/` | ODS 表、分区注册、审计字段和发布规则 | Milestone 3 | placeholder |
 | `hive/dwd/` | 原子事实、去重、状态和字段标准化 | Milestone 4 | placeholder |
@@ -140,7 +140,7 @@ MySQL Binlog
 | --- | --- | --- | --- |
 | 0 | 项目定义与文档基线 | README、规格、阶段计划、协作边界 | completed |
 | 1 | 基础设施与兼容性 | 三节点、版本矩阵、启动和最小连通验证 | in progress |
-| 2 | 业务模型与数据生成 | OLTP、状态机、固定 seed、预期结果 | in progress |
+| 2 | 业务模型与数据生成 | OLTP、状态机、固定 seed、预期结果 | completed |
 | 3 | DataX 直写 Hive ODS | 全量/增量抽取、ODS ORC 分区、注册与对账 | pending |
 | 4 | 离线数仓 MVP | DIM/DWD、DWS、ADS 最小垂直链路 | pending |
 | 5 | 正式指标与数据质量 | 30 项指标、质量结果、幂等和回补 | pending |
@@ -173,7 +173,7 @@ MySQL Binlog
 - [组件兼容性矩阵](docs/compatibility-matrix.md)：精确版本候选、官方依据、项目状态和验证门禁。
 - [安装与排障记录](docs/installation-troubleshooting.md)：目标 ECS 上真实发生的问题、修复、复测和回滚。
 - [指标口径](docs/metrics.md)：指标定义和血缘入口；正式口径尚待后续阶段补充。
-- [Milestone 2 业务设计](docs/milestone-2-business-design.md)：M2 的正式业务设计文档，记录已确认的业务语义、19 张 `ecommerce_oltp` 源表、公共物理规范、约束分工及全部 230 个字段；M2.2 Candidate DDL、M2.3 固定 Seed 与 M2.4 参数化 Generator 均已 `implemented` 并通过对应静态检查，尚未在 MySQL 运行验证。
+- [Milestone 2 业务设计](docs/milestone-2-business-design.md)：M2 的正式业务设计文档，记录已确认的业务语义、19 张 `ecommerce_oltp` 源表、公共物理规范、约束分工及全部 230 个字段；M2.2 Candidate DDL、M2.3 固定 Seed 与 M2.4 参数化 Generator 已通过静态检查和 MySQL 8.0.46 T7 Runtime 验收。
 - [修改日志](CHANGELOG.md)：按“新增、变更、修复、移除”记录面向使用者和维护者的可交付变更。
 - [项目决策记录](docs/decision-register.md)：记录影响项目范围、业务口径、架构、版本、模型、接口、安全或验收方式的正式决策及其状态。
 - [协作规则](AGENTS.md)：Codex 和贡献者修改仓库时必须遵循的规则。
@@ -190,4 +190,4 @@ MySQL Binlog
 8. Agent 每次最终答复都总结核心操作和核心决策，并询问用户是否将其写入 `CHANGELOG.md`、`docs/decision-register.md` 或两者；未获确认时不自动落盘，当前请求已明确授权的记录除外。
 9. Trellis 只管理 Task 状态、计划和执行证据；项目事实优先级为 `AGENTS.md`、项目 docs、Trellis Task。当前使用 Data Engineering spec、Codex inline，自动 Commit 与 Hook 注册均关闭。
 
-Milestone 0 已于 2026-09-04 通过用户评审。Milestone 1、2 现按 `DR-008` 并行推进。根据 `DR-026`，M1 Step 2～12 已完成兼容性与功能验收，当前只剩 DolphinScheduler 3.4.2；M1 整体仍为 `in progress`。M2 的 `M2-DEC-001` 至 `015` 已分别按 `DR-009` 至 `DR-013`、`DR-021` 确认，M2.1、M2.2 已完成。M2.2 的 19 张表 Candidate DDL、M2.3 的固定 Seed/预期结果/异常与幂等入口，以及 M2.4 的确定性 Generator、Python 跨行规则和 Targeted Test 均为 `implemented` 并通过对应静态检查；M1 MySQL 门禁和 M2.2～M2.4 交付前置均已满足，可以进入 T7/M2.5，但在真实执行前这些产物不得提升为 `verified`。HDFS/Hive/DataX 环境组合亦已通过，但 M3 仍须遵守 M2 和正式 ODS 设计门禁。`M2-DEC-015` 与决策记录 `DR-015` 属于不同编号体系。
+Milestone 0 已于 2026-09-04 通过用户评审。根据 `DR-026`，M1 Step 2～12 已完成兼容性与功能验收，当前只剩 DolphinScheduler 3.4.2，M1 整体仍为 `in progress`。M2 的 `M2-DEC-001` 至 `015` 已分别按 `DR-009` 至 `DR-013`、`DR-021` 确认；M2.1～M2.5 均已完成。T7 在目标 MySQL 8.0.46 使用受控隔离库完成两套 19 表 DDL、固定 Seed 首次装载与幂等重跑、漂移拒绝、5 个约束失败用例、Generator 确定性装载、金额守恒、生成列、软删除、`update_time` 和 Cleanup 验收，因此 Milestone 2 标记为 `completed`。这只证明 M2 输入及其运行契约，不代表 M3 正式 ODS 或后续数据链路已经实现。HDFS/Hive/DataX 环境组合已通过，M3 仍须完成正式 ODS 设计和进入检查。`M2-DEC-015` 与决策记录 `DR-015` 属于不同编号体系。

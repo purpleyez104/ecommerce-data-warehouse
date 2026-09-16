@@ -8,6 +8,8 @@
 
 ### 新增
 
+- 新增 T7 M2.5 Linux Bash Runtime 验收入口：在目标 MySQL 8.0.46 使用两个受控隔离 Database 联合执行 19 表 DDL、固定 Seed、Generator、约束失败和业务语义检查，并生成去敏的完整结果摘要。
+- 新增 T7 MySQL Runtime 验收结果：两套 19 表 DDL、固定 Seed 首次装载与同内容重跑、漂移拒绝、5 个约束失败用例、Generator 确定性装载、金额守恒、生成列、软删除和 `update_time` 语义均通过，两个隔离 Database 均已清理。
 - 新增 `DR-026`，采用用户确认的 M1 Step 2～12 Runtime 记录作为当前能力基线，明确能力优先的验收口径、Flink 执行模式与 final-state 判断规则，以及 M3、M8、M9 的业务边界。
 - 新增三条已验证的临时技术链路记录：MySQL→DataX→HDFS→Hive→Spark、MySQL Binlog→Flink CDC→Kafka→Flink→Kafka、Kafka→Flink→Checkpoint/Recovery→Doris Connector→Doris；这些结果只证明组件组合兼容性，不代表正式 ODS 或实时业务链路完成。
 - 新增 M1 五组件验收共享 Evidence Contract 与最小公共库：统一 `run-id`、私有证据目录、步骤日志、断言、SHA-256、`summary.env`、Secret 去敏和受控 Cleanup；公共库已通过本地 Git Bash Contract Test，不代表组件 VM Runtime 已通过。
@@ -33,6 +35,7 @@
 
 ### 变更
 
+- Milestone 2 更新为 `completed`：M2.1～M2.5 的进入条件、交付物和验收项均已满足；Candidate DDL、固定 Seed 与 Generator 的 T7 验收范围由 `implemented` 提升为 `verified`，不代表 M3 ODS 或后续数据链路完成。
 - M1 当前状态同步为 Step 2～12 已通过：MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9 on YARN、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6、Doris 4.0.8 和 Flink Doris Connector 26.1.1 均已确认；当前唯一剩余门禁为 DolphinScheduler 3.4.2。
 - 更新 MySQL、Hive、Kafka 和 Doris 端口与恢复状态；DataX 实际 Runtime 入口记录为 `/data/module/datax-current`。继续禁止创建 `infra/versions.env`，直至 DolphinScheduler 通过且 M1 全部组件完成运行验收。
 - M1 MySQL 直接门禁已满足，M2.5 仍等待当前 checkout 的 M2.2～M2.4 前置闭合；HDFS/Hive/DataX 的环境前置已满足，但 Milestone 3 仍需完成正式 ODS Schema、装载、幂等与对账验收。
@@ -64,6 +67,7 @@
 
 ### 修复
 
+- 修复 T7 Cleanup 安全边界：只清理由当前进程成功创建并登记的合法前缀 Database；目标已存在时不执行 `DROP DATABASE`，单库创建后失败仅清理该库，任一 DROP 失败会返回非零并将结果摘要标记为 `failed`。
 - 修复 M1 Evidence 公共库的脱敏误伤、未初始化 API 继续执行及 Cleanup Owner 延迟拒绝问题：非密码参数保持不变，需初始化的 Public API 统一以退出码 `2` 拒绝，Owner 在注册与执行阶段双重校验。
 - 修复 VM 现场采集器对历史 `/data/module/datax-current` 入口的漏检，并新增 Java 8、Java 进程实际可执行文件、Hive 并存版本和三节点 Hive 软链接漂移证据。
 

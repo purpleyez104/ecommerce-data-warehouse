@@ -1,24 +1,24 @@
 # Milestone 2 业务设计
 
-版本：`1.3-draft`
+版本：`1.4-draft`
 
-状态：Milestone 2 `in progress`；M2.1、M2.2 `completed`
+状态：Milestone 2 `completed`；M2.1～M2.5 `completed`
 
-更新时间：2026-09-14
+更新时间：2026-09-16
 
 适用决策：`DR-008` 至 `DR-026`
 
 ## 1. 文档定位与证据边界
 
-本文档是 Milestone 2 的正式业务设计文档，也是 M2.1 至 M2.5 的业务语义事实来源。Milestone 1 与 Milestone 2 当前均为 `in progress`：M1 的 Step 2～12 已通过 Runtime 验收，仅 DolphinScheduler 3.4.2 待验收；M2 按 `docs/plan.md` 的 M2.1 至 M2.5 小计划推进。`M2-DEC-001` 至 `015` 已由用户确认，M2.1 已完成；M2.2 已确认 19 张 MySQL 源表、公共物理规范及约束分工，并完成全部 19 张源表共 230 个字段的可空性、关系、单行约束和索引方向设计。Candidate DDL 已 `implemented` 并通过静态 Contract 检查，尚未在 MySQL 执行。
+本文档是 Milestone 2 的正式业务设计文档，也是 M2.1 至 M2.5 的业务语义事实来源。Milestone 1 当前为 `in progress`：M1 的 Step 2～12 已通过 Runtime 验收，仅 DolphinScheduler 3.4.2 待验收；Milestone 2 已按 `docs/plan.md` 完成。`M2-DEC-001` 至 `015` 已由用户确认，19 张 MySQL 源表、230 个字段、公共物理规范及约束分工已收口；Candidate DDL、固定 Seed 与 Generator 已通过静态检查及 MySQL 8.0.46 T7 Runtime 验收。
 
-本文档只依据当前仓库的 `README.md`、`docs/spec.md`、`docs/plan.md` 和已接受决策，不引用旧仓库候选实现。当前没有执行 MySQL、没有创建业务表；M2.3 已在本地生成固定 Seed、预期结果和静态 Contract，但未验证任何 MySQL 主外键、状态迁移、金额、幂等重跑或指标结果。
+本文档只依据当前仓库的 `README.md`、`docs/spec.md`、`docs/plan.md`、已接受决策和 T7 运行证据，不引用旧仓库候选实现。T7 在两个受控隔离 Database 中执行并验证 19 张业务表，验收后两库均已清理；这不表示存在持久业务库，也不表示 M3 或指标链路已完成。
 
 按小计划执行时：
 
-- M2.1、M2.2 已完成；Candidate DDL 未执行 MySQL 前最多标记为 `implemented`。
-- `M2-DEC-015` 已确认；M2.3 已在本地实现固定 seed、预期结果、正常/异常入口、幂等入口和静态 Contract；M2.4 已实现确定性参数化 Generator、Python 跨行规则、使用说明和 Targeted Test。两者均未在 MySQL 运行验证。
-- M1 的 MySQL 8.0.46 门禁与 M2.2～M2.4 的交付前置均已满足，可以进入 M2.5；不得用 M1 的临时 CRUD、本地代码或静态检查代替 19 张正式业务表验收。
+- M2.1～M2.5 已完成；Candidate DDL、固定 Seed 与 Generator 的 T7 验收范围标记为 `verified`。
+- `M2-DEC-015` 已确认；M2.3 的固定 Seed 与 M2.4 的确定性参数化 Generator 已通过静态检查和 MySQL 8.0.46 运行验收。
+- T7 Runtime 证据只覆盖 M2 业务源模型及验收数据，不替代 M3 正式 ODS、指标或后续数据链路验收。
 - 不根据指标名称反推并采用业务规则；缺失内容统一标记 `DECISION_REQUIRED`。
 
 ## 2. 业务过程与正式指标需求矩阵
@@ -173,7 +173,7 @@ flowchart LR
 
 ## 6. 固定验收场景矩阵
 
-固定集规模、日期、运行次数和异常用例数量已确认；M2.3 已提供 19 表数据行、逐表预期结果与静态 Contract。指标结果和 MySQL 运行行为仍待后续实现与 M2.5 验证。
+固定集规模、日期、运行次数和异常用例数量已确认；M2.3 已提供 19 表数据行、逐表预期结果与静态 Contract，并在 T7 完成 MySQL 8.0.46 首次装载、幂等重跑、漂移拒绝和约束失败验收。指标结果仍待后续 Milestone 实现。
 
 | 场景编号 | 场景 | 未来固定输入必须覆盖 | 未来预期约束 |
 | --- | --- | --- | --- |
@@ -653,7 +653,7 @@ V1 只支持固定金额券，不增加发行额度、库存、抢券、每用�
 
 ### 8.9 Schema 级物理规范
 
-本节收口 M2.2 的 Schema 级物理规则；它是后续候选 DDL 的唯一命名与依赖输入，但本身不是 DDL，也不表示任何表、索引或约束已在 MySQL 创建或验证。第 8.4 至 8.8 节已经确认的字段、关系、单行约束语义和索引方向保持不变。
+本节收口 M2.2 的 Schema 级物理规则；它是候选 DDL 的唯一命名与依赖输入，但本节设计文本本身不是运行证据。第 8.4 至 8.8 节已经确认的字段、关系、单行约束语义和索引方向保持不变；对应 Candidate DDL 后续已通过 T7 MySQL 8.0.46 运行验收。
 
 #### 8.9.1 命名规则与完整台账
 
@@ -693,14 +693,14 @@ V1 只支持固定金额券，不增加发行额度、库存、抢券、每用�
 
 #### 8.9.2 生成列物理形式
 
-候选 DDL 将两个仅用于唯一成功保护的派生键定义为 `VIRTUAL GENERATED ALWAYS` 列，而不是 `STORED`：它们完全由同一行的状态和外键派生，没有业务读取或审计保留需求；`InnoDB` 的唯一二级索引仍会保存用于索引判重的键值。这样避免冗余聚簇数据，同时保持 `DR-017` 已确认的并发唯一语义。该选择是 MySQL 8.0.46 候选 DDL 的静态设计，尚未完成目标环境的语法或行为验证。
+候选 DDL 将两个仅用于唯一成功保护的派生键定义为 `VIRTUAL GENERATED ALWAYS` 列，而不是 `STORED`：它们完全由同一行的状态和外键派生，没有业务读取或审计保留需求；`InnoDB` 的唯一二级索引仍会保存用于索引判重的键值。这样避免冗余聚簇数据，同时保持 `DR-017` 已确认的并发唯一语义。该选择已在 T7 的 MySQL 8.0.46 目标环境通过语法和行为验证。
 
 | 源表 | 生成列候选定义 | 唯一保护 | 采用理由 |
 | --- | --- | --- | --- |
 | `payment_attempt` | `successful_order_pk BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN payment_status = 'SUCCESS' THEN order_pk ELSE NULL END) VIRTUAL` | `uq_payment_attempt_successful_order (successful_order_pk)` | 只表达“成功时的订单键”；失败与创建态为 `NULL`，允许多次重试。 |
 | `refund_attempt` | `successful_return_order_pk BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN refund_status = 'SUCCESS' THEN return_order_pk ELSE NULL END) VIRTUAL` | `uq_refund_attempt_successful_return_order (successful_return_order_pk)` | 只表达“成功时的退单键”；失败与创建态为 `NULL`，允许多次重试和零金额成功退款。 |
 
-不得在 DDL 或写入层直接给这两个生成列赋值；状态从 `CREATED` 进入终态时由表达式重算。若 M2.5 的 MySQL 8.0.46 语法或并发行为验证失败，保留 `DR-017` 的语义并将物理实现标为 `DECISION_REQUIRED`，不得静默切换为 Trigger、Stored Procedure 或放弃唯一保护。
+不得在 DDL 或写入层直接给这两个生成列赋值；状态从 `CREATED` 进入终态时由表达式重算。后续若目标 MySQL 版本或行为发生变化，必须重新验证并保留 `DR-017` 的语义，不得静默切换为 Trigger、Stored Procedure 或放弃唯一保护。
 
 #### 8.9.3 FK 拓扑、建表与回滚顺序
 
@@ -736,11 +736,11 @@ T2 生成候选 DDL 时至少要静态核对：19 个 `PRIMARY KEY`、本节台�
 
 ### 8.10 M2.2 剩余工作
 
-本批的 Schema 级物理规范收口与 T2 静态 Contract 已完成，M2.2 已完成。19 张表 Candidate DDL 未在真实 MySQL 执行前最多标记为 `implemented`，不得标记为 `verified`。
+本批的 Schema 级物理规范收口与 T2 静态 Contract 已完成，M2.2 已完成。19 张表 Candidate DDL 随 T7 在 MySQL 8.0.46 的两个隔离 Database 中按既定顺序执行成功，运行证据状态为 `verified`。
 
-## 9. 进入 M2.5 与完成 Milestone 2 的检查表
+## 9. M2.5 与 Milestone 2 完成检查表
 
-Milestone 2 已进入 `in progress`。只有以下项目全部满足，才能按 `docs/plan.md` 进入 M2.5 MySQL 运行验收：
+以下项目均已满足；M2.5 MySQL 运行验收通过，Milestone 2 状态为 `completed`：
 
 - [x] MySQL 已通过 Milestone 1 的启动、连接、CRUD、ROW/FULL Binlog、失败路径和受控重启恢复验证。
 - [x] `M2-DEC-001` 至 `M2-DEC-003` 已由用户明确确认。
@@ -762,7 +762,9 @@ Milestone 2 已进入 `in progress`。只有以下项目全部满足，才能按
 - [x] 时间、金额、数量、精度和舍入规则已确认。
 - [x] 30 项正式指标所需业务过程均有已确认的源模型语义支撑；除 `P1_METRIC_030` 的基础公式外，其余完整指标公式仍保持 `draft`。
 - [x] 固定验收数据的规模、业务日期和重跑次数已确认；异常注入采用独立事务或失败用例，且数据库与 Python 写入层分工已确认。
-- [x] M2.3 本地固定 Seed、预期结果、静态 Contract、失败退出边界和幂等入口已实现；MySQL 执行、回滚与重跑行为仍待 M2.5。
-- [x] M2.4 确定性参数化 Generator、使用说明、严格日期和失败退出边界、真实生成行跨表 Contract 与 Mutation Test 已实现；`scale=1` 覆盖零应付订单、零成功支付业务日以及优惠券释放、使用和过期场景，MySQL 执行仍待 M2.5。
+- [x] M2.3 固定 Seed、预期结果、静态 Contract、失败退出边界和幂等入口已实现；MySQL 8.0.46 首次装载、同内容重跑、漂移拒绝、5 个约束失败用例及基线不变检查通过。
+- [x] M2.4 确定性参数化 Generator、使用说明、严格日期和失败退出边界、真实生成行跨表 Contract 与 Mutation Test 已实现；`scale=1` 固定边界场景及 MySQL 装载结果通过。
+- [x] T7 在两个隔离 Database 中分别完成 19 表 DDL，验证金额守恒、生成列、软删除、`update_time` 和失败传播；两个 Database 均已受控清理。
+- [x] 去敏结果摘要位于目标 VM 的 `/data/projects/ecommerce-data-warehouse/.local-notes/m2/t7/m2_20260916_01/summary.json`，状态为 `passed`；该本地证据不纳入 Git。
 
-当前结论：Milestone 2 与 Milestone 1 并行处于 `in progress`。`M2-DEC-001` 至 `015` 已确认，M2.1、M2.2 已完成；19 张 MySQL 源表 Candidate DDL 已 `implemented` 并通过静态 Contract 检查。M2.3 的固定 Seed、预期结果、正常/异常入口、幂等入口和静态 Contract，以及 M2.4 的确定性参数化 Generator、严格参数和失败边界、Python 跨行规则、固定边界场景、使用说明和 Targeted Test 均已 `implemented` 并通过对应静态检查。M1 MySQL 门禁和 M2.2～M2.4 交付前置均已满足，可以进入 M2.5；在真实执行前不得宣称 MySQL 约束行为或数据链路已验证。
+当前结论：Milestone 2 为 `completed`。`M2-DEC-001` 至 `015` 已确认，M2.1～M2.5 均已完成；19 张 MySQL 源表 Candidate DDL、固定 Seed 与确定性参数化 Generator 已通过对应静态检查和 MySQL 8.0.46 T7 Runtime 验收。该结论不表示 M3 ODS、30 项指标或正式离实时链路已经实现。
