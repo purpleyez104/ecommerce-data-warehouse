@@ -1,0 +1,8 @@
+{"file":".trellis/tasks/09-11-t7-m2-5-mysql-acceptance/prd.md","reason":"T7 scope acceptance criteria and verification contract"}
+{"file":"docs/milestone-2-business-design.md","reason":"review runtime results against confirmed semantics and M2.5 checklist"}
+{"file":"mysql/ddl/README.md","reason":"review actual schema evidence against the Candidate DDL contract"}
+{"file":"mock/README.md","reason":"review fixed lane results against the accepted dataset boundary"}
+{"file":"generator/README.md","reason":"review generated lane parameters determinism and runtime boundary"}
+{"file":".trellis/spec/data-engineering/generator-contract.md","reason":"review Generator output and Python-owned failure responsibilities"}
+{"file":".trellis/tasks/archive/2026-09/09-11-t5-m2-3-fixed-seed/design.md","reason":"review fixed lane idempotency drift and isolation evidence"}
+{"file":".trellis/tasks/archive/2026-09/09-11-t6-m2-4-generator/design.md","reason":"review generated lane invariants and MySQL handoff evidence"}

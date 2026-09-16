@@ -1,0 +1,12 @@
+{"file":"README.md","reason":"current M1/M2 status and T7 entry gate"}
+{"file":"docs/spec.md","reason":"project evidence states safety boundaries and M2 acceptance requirements"}
+{"file":"docs/plan.md","reason":"M2.5 deliverables execution order and exit conditions"}
+{"file":"docs/milestone-2-business-design.md","reason":"confirmed 19-table semantics constraints scenarios and rollback order"}
+{"file":"mysql/ddl/README.md","reason":"T2 Candidate DDL status static checks and runtime boundary"}
+{"file":"mock/README.md","reason":"fixed acceptance dataset purpose scenarios and evidence boundary"}
+{"file":"generator/README.md","reason":"T6 fixed CLI parameters output and runtime boundary"}
+{"file":".trellis/spec/data-engineering/generator-contract.md","reason":"accepted Generator determinism failure and MySQL boundary contract"}
+{"file":".trellis/tasks/archive/2026-09/09-11-t5-m2-3-fixed-seed/design.md","reason":"T5 fixed data idempotency isolation and rollback design"}
+{"file":".trellis/tasks/archive/2026-09/09-11-t5-m2-3-fixed-seed/implement.md","reason":"T5 accepted files verification and runtime handoff"}
+{"file":".trellis/tasks/archive/2026-09/09-11-t6-m2-4-generator/design.md","reason":"T6 deterministic data and Python rule ownership design"}
+{"file":".trellis/tasks/archive/2026-09/09-11-t6-m2-4-generator/implement.md","reason":"T6 accepted verification commands and M2.5 handoff"}
