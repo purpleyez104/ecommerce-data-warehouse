@@ -1,0 +1,27 @@
+{
+  "expected_nonempty": {
+    "biz_cart": 2,
+    "biz_cart_item": 1,
+    "biz_category": 2,
+    "biz_coupon": 1,
+    "biz_coupon_event": 1,
+    "biz_coupon_template": 1,
+    "biz_order": 2,
+    "biz_order_item": 2,
+    "biz_order_status_event": 2,
+    "biz_payment_attempt": 2,
+    "biz_payment_event": 2,
+    "biz_product_change_event": 1,
+    "biz_refund_event": 1,
+    "biz_refund_request": 1,
+    "biz_refund_transaction": 1,
+    "biz_sku": 3,
+    "biz_spu": 2,
+    "biz_user": 4,
+    "biz_visitor": 1
+  },
+  "expected_empty": [
+    "biz_cart_merge_record",
+    "biz_identity_mapping"
+  ]
+}

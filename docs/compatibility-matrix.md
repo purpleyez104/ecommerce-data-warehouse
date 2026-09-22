@@ -1,8 +1,8 @@
 # Milestone 1 组件兼容性矩阵
 
-版本：`0.3`
+版本：`0.4`
 状态：`in progress`
-更新时间：2026-09-14
+更新时间：2026-09-20
 
 ## 使用规则
 
@@ -12,6 +12,7 @@
 - 精确版本调整必须先保存失败证据并取得用户确认，不得静默升级、降级或使用容器兜底。
 - 全部 M1 组件验证完成前不创建 `infra/versions.env`。
 - `DR-026` 已采用用户确认的 Step 2～12 Runtime 验收记录作为当前能力基线；文件完整性用于可复现与审计，不再以非核心附件缺失否定已实际展示的组件能力。
+- [最终工程架构](final-architecture-v1.0.md)确定正式 Flink 业务作业采用 Java DataStream Jar + YARN Application Mode；这是一项部署选型，不会将 M1 临时作业提升为 M9 正式业务链路验收。
 
 ## 当前矩阵
 
@@ -27,11 +28,11 @@
 | Kafka | 3.9.1，Scala 2.12，KRaft | `CONFIRMED` | `verified` | 三节点仲裁、RF=3、minISR=2、生产消费、单 Broker 故障与恢复通过 |
 | Spark | 3.5.9-bin-hadoop3，Scala 2.12.18 | `CONFIRMED` | `verified` | YARN 提交、Hive ORC 读取与计算通过 |
 | DataX | datax_v202309；运行入口 `/data/module/datax-current` | `CONFIRMED` | `verified` | MySQL Reader、HDFS Writer、ORC + Snappy、3 行链路与失败非零通过 |
-| Doris | 4.0.8 | `CONFIRMED` | `verified` | FE/BE、SQL、端口与受控重启恢复通过 |
+| Doris | 4.0.8 | `CONFIRMED` | `verified` | FE/BE、SQL、端口与受控重启恢复均已通过；正式服务表仍待 M6/M9 |
 | Spark Doris Connector | 26.0.0，Spark 3.5 构件 | `PLANNED` | `candidate` | Spark、Scala、Java、Doris 类型和写入验证 |
 | ZooKeeper | 3.8.4，单节点 | 已接受设计 | `planned` | 仅为 DolphinScheduler 验证安装和重启 |
 | DolphinScheduler | 3.4.2 | `PLANNED` | `candidate` | 当前唯一剩余 M1 门禁：MySQL、ZooKeeper、Worker、成功/失败任务和重启 |
-| Flink | 1.20.5，Scala 2.12 | `CONFIRMED_WITH_NOTE` | `verified` | YARN Application Mode 已通过；提交退出 0 不代表最终成功，调度必须查询 YARN final state |
+| Flink | 1.20.5，Scala 2.12 | `CONFIRMED_WITH_NOTE` | `verified` | YARN Application Mode 已通过；正式业务部署选 Java DataStream Jar，尚无正式业务 Jar；提交退出 0 不代表最终成功，调度必须查询 YARN final state |
 | Flink CDC | 3.6.0 for Flink 1.20 | `CONFIRMED` | `verified` | MySQL Snapshot、Binlog CRUD 与 Kafka 输出通过；正式 Topic 设计仍等待 M8 |
 | Flink Doris Connector | 26.1.1 for Flink 1.20 | `CONFIRMED` | `verified` | insert/upsert、类型、schema、Checkpoint、TaskManager 故障恢复通过；不确认正式实时表模型或 Exactly-Once |
 
@@ -65,6 +66,18 @@
 ```
 
 任一门禁失败时停止后续组件接入。失败记录至少包含节点、版本、命令、退出状态、关键日志、影响范围和回滚结果。
+
+## Java 与执行模式边界
+
+| 对象 | 当前已验证用法 | 不可外推的结论 |
+| --- | --- | --- |
+| Hadoop/YARN 守护进程 | OpenJDK 11.0.32 | 不表示 Hive 也已切换到 Java 11 |
+| Hive 3.1.3 | 当前 Java 17 环境下的 Metastore、HiveServer2/Beeline 与 ORC 链路 | 未验证 Hive Java 11 切换 |
+| Flink Client | Java 17；YARN Application Mode 验证 | 提交成功不等于作业最终成功 |
+| Flink YARN Container / Doris User Jar | Java 11 兼容边界、限定范围的连接器验收 | 不表示正式 21 表业务 Jar 或端到端 Exactly-Once 已通过 |
+| Flink SQL Client + YARN Session | Kafka Source/Sink 技术验证 | 不作为正式业务部署模式；不替代 Java DataStream Jar 验收 |
+
+节点分布与资源边界见[部署拓扑](deployment-topology.md)，正式实时链路的待决策契约见[实时链路规范](realtime-pipeline-design.md)。
 
 ## 端口与资源约束
 

@@ -8,6 +8,7 @@
 
 ### 新增
 
+- 新增 `DR-028`，确认 V2 业务基线、合并后的 `docs/metrics.md`、逻辑模型和 21 张 `biz_*` 字段级候选物理设计成为当前 Milestone 2 实施基线；归档方案及其运行证据继续保留，但不再满足当前 M2/M3 门禁。
 - 新增 T7 M2.5 Linux Bash Runtime 验收入口：在目标 MySQL 8.0.46 使用两个受控隔离 Database 联合执行 19 表 DDL、固定 Seed、Generator、约束失败和业务语义检查，并生成去敏的完整结果摘要。
 - 新增 T7 MySQL Runtime 验收结果：两套 19 表 DDL、固定 Seed 首次装载与同内容重跑、漂移拒绝、5 个约束失败用例、Generator 确定性装载、金额守恒、生成列、软删除和 `update_time` 语义均通过，两个隔离 Database 均已清理。
 - 新增 `DR-026`，采用用户确认的 M1 Step 2～12 Runtime 记录作为当前能力基线，明确能力优先的验收口径、Flink 执行模式与 final-state 判断规则，以及 M3、M8、M9 的业务边界。
@@ -35,6 +36,8 @@
 
 ### 变更
 
+- Milestone 2 调整为 `in progress`：当前采用自营商城 V2 业务规则、六域指标体系、21 张 `biz_*` 候选源表和独立行为事件流；正式 DDL、Seed、Generator、正式表 CDC/离线接续及 Runtime 尚未完成，Milestone 3 因此继续阻断。
+- 将 `docs/metrics/metrics-v2.md` 合并到 `docs/metrics.md`，保留原 V2 指标正文，仅调整移动后的相对链接并补充实现状态边界；仓库内指标入口统一为 `docs/metrics.md`。
 - Milestone 2 更新为 `completed`：M2.1～M2.5 的进入条件、交付物和验收项均已满足；Candidate DDL、固定 Seed 与 Generator 的 T7 验收范围由 `implemented` 提升为 `verified`，不代表 M3 ODS 或后续数据链路完成。
 - M1 当前状态同步为 Step 2～12 已通过：MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9 on YARN、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6、Doris 4.0.8 和 Flink Doris Connector 26.1.1 均已确认；当前唯一剩余门禁为 DolphinScheduler 3.4.2。
 - 更新 MySQL、Hive、Kafka 和 Doris 端口与恢复状态；DataX 实际 Runtime 入口记录为 `/data/module/datax-current`。继续禁止创建 `infra/versions.env`，直至 DolphinScheduler 通过且 M1 全部组件完成运行验收。

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecommerce-generator-v1"
+version = "0.1.0"
+description = "Deterministic MySQL business data generator for the 21-table e-commerce warehouse acceptance schema"
+requires-python = ">=3.10"
+dependencies = ["PyMySQL>=1.1,<2"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+behavior = ["kafka-python>=2.2,<3"]
+
+[project.scripts]
+ecommerce-gen = "ecommerce_generator.cli:main"
+ecommerce-behavior = "ecommerce_generator.behavior:main"
+
+[tool.setuptools.package-data]
+ecommerce_generator = ["schema_contract.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

@@ -1,8 +1,8 @@
 # 电商离实时一体化数据仓库项目规格
 
-版本：`0.3-draft`
-状态：Milestone 0、2 `completed`；Milestone 1 `in progress`
-更新时间：2026-09-16
+版本：`0.4-draft`
+状态：Milestone 0 `completed`；Milestone 1 `in progress`；Milestone 2 `in progress`（V2 业务与源模型重设计）
+更新时间：2026-09-20
 Repository：`ecommerce-data-warehouse`
 
 ## 0. 文档使用范围
@@ -94,175 +94,81 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 
 ### 3.1 V1 业务范围
 
-V1 覆盖五个主题：
+当前业务基线采用自营商城两期方案。第一期覆盖用户与匿名身份、Category/SPU/SKU、商品展示与行为、购物车、下单与取消、订单券、支付和基础退款，形成可核对的交易与资金闭环；第二期再扩展库存流水/快照、完整履约物流、复杂营销和更完整售后。当前正式业务规则入口为 `docs/business/business-baseline-v2.md`。
 
-- 用户：注册、登录、用户类型、新增、活跃和回流。
-- 流量：渠道、会话、页面访问、访问时长、跳出和小时分布。
-- 商品：品牌、品类、SPU 和商品详情浏览。
-- 交易：加购、下单、支付、取消、退单或退款。
-- 营销：优惠券领取、使用和补贴。
+分析范围覆盖交易与资金、流量与转化、商品、用户、退款与售后、营销。交易状态由模拟业务服务写入 MySQL，业务交易 CDC 只来自 MySQL Binlog；页面、商品和购物行为由独立行为源写入 Kafka，不得由生成器直接写 Kafka 冒充 CDC。
 
-具体 OLTP 表、字段、状态机、事实粒度和业务规则必须在进入源数据设计前确认，不得根据指标名称反推并直接生成正式 DDL。
+当前源模型目标为 21 张 `biz_*` MySQL 表及独立行为事件流。逻辑模型见 `docs/source/logical-model-v2.md`，字段级候选物理设计见 `docs/source/physical-model-v1.md`。候选设计及仓库 DDL 不保证与现存 MySQL 结构一致；隔离库历史验收不得外推为正式库或完整链路验收。
 
 ### 3.2 当前非目标
 
-- V1 不建设库存域。
+- 第一期不建设完整库存域或库存流水；SKU 最小库存属性与是否扣减仍需在正式 DDL 前确认。
 - 当前阶段不确定实时 Topic、窗口、Watermark、迟到、状态 TTL、维度关联和 Doris 实时表模型。
 - 不建设生产级 Hadoop HA，也不将三节点开发环境描述为高可用集群。
 - 不引入阿里云专有中间件、Kafka ZooKeeper 模式、Spark Standalone、Flink Standalone、Kubernetes、HBase、Redis、Elasticsearch、ClickHouse、Iceberg、Hudi 或 Paimon。
-- 不在 Project 1 中实现 DataOps、AI 服务或前端。
+- 当前 M0～M10 不实现 DataOps、AI 服务或前端；BI/Dashboard/Agent 只列入后续数据应用规划，其仓库归属与实施门禁另行评审。
 - 不预设百万级、QPS、延迟、Exactly-Once 或性能提升数字。
 
 ### 3.3 Milestone 1 与 Milestone 2 并行推进
 
-用户已通过 `DR-008` 确认 Milestone 1 与 Milestone 2 可以并行推进。M1 继续按既有组件门禁执行；M2 已按 `docs/plan.md` 的 M2.1 至 M2.5 小计划完成，并于 2026-09-16 通过 MySQL 8.0.46 Runtime 验收。
+`DR-008` 允许 M1 与 M2 分轨推进，但不取消直接依赖。上一版 M2 的设计与验收材料已整体迁入 `docs/archive/milestone-2-business-design.md`，不在当前规格中继续展开。
 
-并行不等于取消直接依赖。根据 `DR-026`，MySQL 已通过 M1 的版本、启动、私网连接、Binlog 增删改和受控重启验证；M2.2 至 M2.4 的交付条件满足后，T7 在目标 MySQL 8.0.46 完成两套隔离库的 19 表 DDL、固定 Seed、Generator、约束失败、幂等、漂移拒绝、业务语义和 Cleanup 验收。M2 的 Candidate DDL、固定 Seed 与 Generator 对应范围由 `implemented` 提升为 `verified`；该状态不延伸到正式 ODS、指标 SQL 或后续数据链路。
+2026-09-18 的 V2 业务重设计不沿用归档实现作为当前模型依据。当前采用 21 张 `biz_*` 表的候选设计、独立行为事件流和新版指标口径，Milestone 2 保持 `in progress`。旧 19 表归档验证不能证明 V2 实现。后续用户提供的 2026-09-19～20 历史摘要记录了新 21 表隔离验收库的限定范围结果；它不证明正式源库、固定 Seed、90 天数据、DataX 接续或 M2 完成。
 
-Milestone 3 所需的 M1 HDFS、Hive、DataX 技术组合已通过验证，但其进入条件仍包括 M2 已确认的 OLTP DDL、固定数据以及全量/增量、硬删除等正式 ODS 设计。M1 临时数据链路通过不等于 M3 已完成。
+Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证，但当前 M2 的正式 DDL、固定数据和抽取语义尚未闭合，M3 进入门禁未满足。
 
-### 3.4 已确认的身份、会话与用户分类语义
+### 3.4 当前业务语义基线
 
-`DR-009` 已确认 `M2-DEC-001` 至 `M2-DEC-003`，作为后续 OLTP 模型和指标口径的基础语义：
+`docs/business/business-baseline-v2.md` 是当前业务规则入口，核心约束包括：
 
-- 身份：`visitor_id` 与 `user_id` 分离；一个用户允许关联多个 `visitor_id`。登录前事件保留匿名身份且不追溯改写，登录后事件同时记录当时的 `visitor_id` 和 `user_id`，登录动作本身不切断当前会话。
-- 会话：连续 30 分钟无活动后，新事件开始新会话；跨 `Asia/Shanghai` 自然日强制切分会话。会话渠道取会话首次进入渠道，会话内渠道变化不拆分会话。
-- 访客分类：`visitor_id` 的首次访问日期等于业务日期时为新访客，早于业务日期时为老访客；两类互斥。
-- 用户分类：注册日期等于业务日期时为新增用户；业务日期内至少产生一次带 `user_id` 的访问、加购、下单或支付行为时为活跃用户；此前活跃、连续 7 个完整自然日未活跃并在业务日期再次活跃时为回流用户。新增用户与回流用户互斥，活跃用户集合可以包含新增用户和回流用户。
-- 首次转化：新增下单人数按个人首次有效订单发生日期识别，新增支付成功人数按个人首次成功支付发生日期识别。这里的“有效订单”和“成功支付”仍分别依赖订单、支付及状态机决策，不在本节提前定义。
+- 身份：匿名访客与注册用户分离，只在可靠证据下建立可版本化映射；歧义事件保持匿名，不能静默覆盖历史结果。
+- 会话与漏斗：同一访客按事件时间连续 30 分钟无活动开启新会话；同时保留自然日经营漏斗和 7×24 小时同群组漏斗。
+- 商品与订单：Category 1:N SPU 1:N SKU；每单 1～5 个不重复 SKU，订单明细冻结成交时商品与金额快照；第一期不拆单。
+- 购物车：登录合并按 SKU 数量相加，单 SKU 上限 99，超限裁剪并记录；相同合并操作重试不得再次累加。
+- 订单与支付：订单状态为 `CREATED / PAID / CANCELED`，支付有效期 15 分钟；允许失败重试，但每单最多一次有效成功支付。
+- 退款：一笔申请只关联一条订单明细，可多次资金尝试，但申请最终完整成功或失败；纯金额补偿不能反推退款件数。
+- 优惠券：订单级最多一张固定金额券；锁定覆盖订单支付期限，取消时释放或过期，支付后 `USED`，退款不返券。
+- 金额：源候选模型统一使用整数分，订单头、明细、优惠分摊、支付和退款必须满足守恒，不使用浮点财务金额。
 
-上述内容只确认业务语义，不直接确定指标公式或实时身份合并策略。用户与流量源表字段及页面分类已由 `DR-014` 确认；订单有效状态和支付成功状态已由 `DR-011` 确认，其余物理模型按 M2.2 后续批次继续设计。
+### 3.5 当前逻辑与候选物理模型
 
-### 3.5 已确认的商品、加购与订单语义
+当前逻辑模型见 `docs/source/logical-model-v2.md`，字段级候选物理设计见 `docs/source/physical-model-v1.md`。21 张候选 MySQL 表按以下七组组织：
 
-`DR-010` 已确认 `M2-DEC-004` 至 `M2-DEC-006`，作为商品和交易主题后续建模的基础：
+- 用户与身份 3 张：`biz_user`、`biz_visitor`、`biz_identity_mapping`。
+- 商品 4 张：`biz_category`、`biz_spu`、`biz_sku`、`biz_product_change_event`。
+- 购物车 3 张：`biz_cart`、`biz_cart_item`、`biz_cart_merge_record`。
+- 订单 3 张：`biz_order`、`biz_order_item`、`biz_order_status_event`。
+- 支付 2 张：`biz_payment_attempt`、`biz_payment_event`。
+- 退款 3 张：`biz_refund_request`、`biz_refund_transaction`、`biz_refund_event`。
+- 优惠券 3 张：`biz_coupon_template`、`biz_coupon`、`biz_coupon_event`。
 
-- 商品层级：Category 使用三级结构；SPU 归属一个 Brand 和一个末级 Category，一个 SPU 可以包含多个 SKU。SKU 是商品详情浏览、加购和交易的最小商品单位。
-- 历史归属：订单明细保存下单时的 Brand、Category、SPU 和 SKU 快照；商品主数据后续变化不改写历史订单的归属。
-- 加购粒度：一行加购事件表示一个行为主体对一个 SKU 的一次操作，区分新增、修改数量和移除，并保留操作前、操作后数量。相同 `request_id` 的重复请求只生效一次；数量为非负整数，移除后的数量为 0。
-- 加购主体：事件发生时已登录则使用 `user_id`，匿名则使用 `visitor_id` 作为人数去重主体；不追溯合并登录前行为。
-- 订单粒度：V1 只有注册用户可以下单。一次结算生成一个订单头，一种 SKU 生成一条订单明细；一个订单允许多条明细，但不进行仓库、商家或物流拆单。
-- 订单业务键与幂等：`order_no` 和 `order_item_no` 分别是订单头和订单明细业务键；相同下单 `request_id` 的重复提交返回原订单，不创建新订单。订单明细数量为正整数。
+行为事件不计入 21 张 MySQL 表，逻辑上包含页面浏览、商品曝光、商品点击、加购和移除，至少保留稳定事件键、事件时间、采集时间、访客/用户、会话及按事件适用的 SKU、页面和数量字段。精确 Kafka Schema、Topic key 和保留策略仍待实施设计。
 
-上述结论定义业务粒度和关系。商品源表字段与索引方向已由 `DR-015` 确认，加购、订单和订单明细字段与索引方向已由 `DR-016` 确认；支付、取消、退单、退款与状态机已由 `DR-011` 确认；时间、金额和优惠券语义已由 `DR-012` 确认，支付、逆向交易和营销物理映射继续留在 M2.2。
+21 表设计仍为 `candidate`：仓库 `mysql/ddl/001_ecommerce_oltp_v1.sql` 与 `docs/source/M2-03-物理设计与静态审查.md` 记录的是当时已生成、静态通过但未执行的快照。用户提供的后续摘要记录了隔离验收库 19 张非空表共 32 条初始 Snapshot、两张原空表的 INSERT/DELETE 探针，以及 10 单和 100 单批次的订单 CDC 核对；这是限定范围的历史验收，不是仓库 DDL 与当前 MySQL 逐字一致的证明。新生成器文件已入库，但显式业务日期、重跑契约和精确依赖版本未定；固定 Seed、90 天规模、DataX/CDC 初始化接续及正式源库验收均未完成。正式实施前仍需收敛 SKU 库存属性、订单身份、回调去重、状态 JSON、循环 FK、状态枚举与零元订单等问题。
 
-### 3.6 已确认的支付、逆向交易、状态机与删除语义
+### 3.6 历史材料边界
 
-`DR-011` 已确认 `M2-DEC-007` 至 `M2-DEC-010`：
+旧 19 表设计保留在 `docs/archive/milestone-2-business-design.md`，对应 Seed、Generator、脚本和测试位于 `archive/legacy-m2-19-table/`。这些归档内容不作为当前 21 表的实现依据，也不直接满足 M2/M3 门禁；不得混用旧表名、字段和指标编号。
 
-- 支付：一个订单允许多次支付尝试，但最多一次成功；V1 不支持分次支付，成功支付金额必须等于订单应付金额。每次尝试使用独立 `payment_no`，相同 `request_id` 只创建一次。重复回调不得重复记成功或修改首次成功时间；支付成功人数按 `paid_at` 所属业务日期对 `user_id` 去重。
-- 取消：只有未支付的 `CREATED` 订单可以取消；支付成功后不得取消，只能进入退单与退款流程。
-- 退单：退单业务单与资金退款分离。一条退单记录作用于一条订单明细，允许部分数量和多次退单；累计退单数量不得超过原购买数量。退单指标使用原订单明细保存的商品归属快照，退单数以完成的退单业务单为基础，不按退款流水计数。
-- 退款：退款关联退单、原订单和原成功支付，允许多次部分退款；累计成功退款金额不得超过成功支付金额。
-- 状态机：订单采用 `CREATED`、`PAID`、`CANCELLED`、`PARTIALLY_REFUNDED`、`REFUNDED`；支付尝试和退款尝试采用 `CREATED`、`SUCCESS`、`FAILED`；退单采用 `APPLIED`、`APPROVED`、`REJECTED`、`COMPLETED`。`CANCELLED`、`REFUNDED` 是订单终态，退单只有在关联退款成功后才能成为 `COMPLETED`。
-- 状态规则：失败的支付或退款再次尝试时创建新的业务尝试记录。非法迁移必须拒绝且不修改原记录；每次合法状态变化都必须更新 `update_time`。
-- 删除：用户、商品、订单、支付、退单、退款和优惠券禁止业务硬删除。主数据使用停用或软删除，交易数据保留原记录；加购事件保持 append-only，错误事件通过有效性标记处理。软删除或停用必须更新 `update_time`。
-- 删除边界：V1 不建设周期性全量快照识别硬删除。固定测试数据只允许在隔离测试库整体重建，不能把清理操作当成业务删除。
+### 3.7 CDC 环境验收边界
 
-订单应付金额、退款金额精度、舍入、事件时间和跨日归属已由后续 `DR-012` 确认。支付、退单和退款字段、生成列语义、单行状态组合及索引方向已由 `DR-017` 确认；Candidate DDL 已通过静态 Contract，并在 T7 验证 MySQL 8.0.46 的生成列、约束和业务语义。
+`docs/acceptance/env-05-cdc-acceptance.md` 记录了 MySQL 8.0.46 测试表 `cdc_acceptance.probe_order` 经 Flink CDC 3.6.0-1.20、Flink 1.20.5 和 Kafka 3.9.1 的隔离验收：Snapshot、Binlog INSERT/UPDATE/DELETE、HDFS Checkpoint、一次 TaskManager 故障恢复及恢复后继续采集均为 `CONFIRMED`。
 
-### 3.7 已确认的时间、金额与优惠券语义
+该结论只适用于指定测试表和故障场景，不证明 21 张正式业务表 CDC、三组行为 Topic、90 天初始化接续、端到端 Exactly-Once、性能目标或完整离实时对账。
 
-`DR-012` 已确认 `M2-DEC-011` 至 `M2-DEC-013`，M2.1 的业务语义与状态机评审完成：
+另据用户提供的 2026-09-19～20 终端结果摘要，隔离验收库的 21 表 CDC 初始快照和两张原空表探针有有限范围记录；`smoke-v1-001` 为 10 单 34 明细，`hist-v1-001` 为 100 单 319 明细，订单 CDC 创建与最终状态分别核对。摘要未入库，且本次未重新连接 VM、未运行导入的 `.sh`；这些历史结果不证明当前在线状态、逐表完整 CRUD、正式 Topic、端到端 Exactly-Once、Hive ODS 或 Doris 业务层。
 
-- 时间：所有业务时间统一按 `Asia/Shanghai` 解释并保留毫秒精度，MySQL 物理基线为 `DATETIME(3)`。业务日期分别由页面访问 `event_time`、加购 `action_time`、下单 `ordered_at`、首次成功支付 `paid_at`、取消 `cancelled_at`、退单完成 `completed_at`、成功退款 `refunded_at` 和注册 `registered_at` 计算。跨日过程按各自事件时间独立归属。
-- 审计与到达：`create_time`、`update_time` 只表示记录审计时间，不替代指标业务时间；合法状态迁移必须更新 `update_time`，重复回调不得改变首次成功业务时间。数据到达时间与事件时间分离，迟到数据仍按事件时间归属；实时迟到处理留到 Milestone 8。
-- 金额：V1 仅支持 `CNY`，MySQL 金额物理基线为 `DECIMAL(18,2)` 并使用 `HALF_UP`；价格含税、不单列税额，运费固定为 `0.00`。订单应付金额等于明细原价金额之和减去商品优惠和优惠券优惠，优惠不得超过原价，负数金额被拒绝。
-- 优惠分摊：订单级商品优惠和优惠券优惠分别按明细原价比例分摊；舍入尾差按明细原价金额降序、`order_item_no` 升序依次分配，保证明细与订单金额守恒。
-- 退款：部分退货使用累计法计算可退金额，本次退款等于累计可退金额减去此前成功退款金额；全部商品完成退款后，累计成功退款金额必须等于订单应付金额。
-- 优惠券：V1 只支持带最低订单原价门槛的固定金额券。仅注册用户可领取和使用，一个订单最多一张券，一个领取实例最多成功使用一次；状态使用 `CLAIMED`、`LOCKED`、`USED`、`EXPIRED`。未支付取消时按是否过期释放或失效，支付成功后不因退单或退款返还。
-- 补贴率：`P1_METRIC_030` 按 `paid_at` 业务日期统计毛补贴率，分子为成功支付订单的优惠券优惠金额，分母为同批订单商品原价金额；后续退款不追溯修改。分母为零输出 `0`，比率保留 4 位、百分比展示保留 2 位，均使用 `HALF_UP`。
+### 3.8 当前模型状态总结
 
-优惠券与领取实例的物理字段、金额及有效期快照、状态时间组合和索引方向已由 `DR-018` 确认。Candidate DDL 已通过静态 Contract；M2.4 Generator 已实现确定性 19 表候选 SQL、严格 `yyyy-MM-dd` 参数校验，以及身份与时间、订单与明细、支付与退款、优惠券释放/重锁/使用和金额守恒等本地 Python 跨行规则与 Targeted Test。T7 已验证其确定性输出能够在 MySQL 8.0.46 装载并满足对应运行语义；该 Generator 仍不是正式业务写入层或指标 SQL。
-
-### 3.8 已确认的 OLTP 源表与约束基线
-
-`DR-013` 已确认 `M2-DEC-014`、19 张 MySQL 源表及第一批公共物理规范。所有表均属于 MySQL 数据库 `ecommerce_oltp` 的 OLTP 业务源层：
-
-- 用户与流量：`user_account`、`user_address`、`visitor`、`traffic_channel`、`visit_session`、`login_event`、`page_view_event`。
-- 商品：`brand`、`category`、`spu`、`sku`。
-- 交易：`cart_event`、`sales_order`、`sales_order_item`、`payment_attempt`、`return_order`、`refund_attempt`。
-- 营销：`coupon`、`user_coupon`。
-
-`visit_session` 只固定归属 `visitor`，登录事件关联访客、会话和用户；订单保存收货省份及商品归属快照。V1 不创建独立取消表或状态历史表，取消字段保存在 `sales_order`，当前状态、关键事件时间和 `update_time` 保存在对应业务表。
-
-物理基线采用 `InnoDB`、`utf8mb4`、`BIGINT UNSIGNED AUTO_INCREMENT` 内部主键、唯一业务键、`DECIMAL(18,2)` 金额、`INT UNSIGNED` 数量、`DATETIME(3)` 时间、`CHAR(3)` 币种和 `VARCHAR(32)` 状态。状态使用 `CHECK`，不使用 MySQL `ENUM`；`request_id` 只要求在对应业务过程中唯一。主数据使用 `is_deleted` 和可空 `deleted_at`，交易与事件表禁止业务硬删除。
-
-MySQL 负责主键、唯一、非空、核心外键、状态集合及单行金额/数量范围约束；同一订单最多一笔成功支付使用生成列和唯一索引。状态迁移、跨行累计退货/退款、优惠券流程、金额分摊和重复请求返回原对象由 Python 写入层负责。V1 不使用 Trigger 或 Stored Procedure。
-
-正常 seed 只能包含合法数据；数据库约束拒绝场景在独立事务中执行并回滚，跨行或流程异常由 Python 写入层拒绝并返回非零状态。不得通过关闭外键或修改正式 DDL 注入异常。用户与流量 7 张表字段已由 `DR-014` 确认，商品 4 张表字段已由 `DR-015` 确认，正向交易 3 张表字段已由 `DR-016` 确认，支付与逆向交易 3 张表字段已由 `DR-017` 确认，营销 2 张表字段已由 `DR-018` 确认；全部 19 张表共 230 个字段、可命名约束/索引台账、生成列物理形式及建表顺序已按 `DR-020` 确认。Candidate DDL 已通过静态 Contract，并在 T7 的两个隔离 Database 中完成 MySQL 8.0.46 运行验收；验收库均已清理，未留下持久业务库。
-
-### 3.9 已确认的用户与流量源表字段
-
-`DR-014` 已确认 `user_account`、`user_address`、`visitor`、`traffic_channel`、`visit_session`、`login_event` 和 `page_view_event` 的字段、可空性、关系、单行约束和索引方向。完整字段字典以 `docs/milestone-2-business-design.md` 8.4 节为准，核心边界如下：
-
-- 内部主键统一使用 `<table>_pk`，业务键使用 `VARCHAR(32)` 并在各自表内唯一；子表通过 `*_pk` 外键关联，不冗余复制主表业务键。
-- `user_account`、`user_address`、`visitor`、`traffic_channel` 是可更新的软删除主数据，保留 `create_time`、`update_time`、`is_deleted` 和可空 `deleted_at`。
-- `visit_session` 归属一个访客和一个首次渠道，保留 `started_at`、`last_event_at`、可空 `ended_at` 以及审计时间，不直接绑定用户。
-- `login_event` 只记录成功登录并关联事件发生时的访客、会话和用户；`page_view_event` 同时保留访客、会话、可空用户、事件渠道、页面类型、页面路径、可空 SKU 和 `event_time`。两张事件表保持 append-only，只保留 `create_time` 到达审计时间。
-- 页面类型只允许 `HOME`、`PRODUCT_DETAIL`、`OTHER`。商品详情页必须关联 SKU，其他页面不得关联 SKU；未知或直接访问统一引用 `channel_code = 'DIRECT'` 的渠道字典记录，不使用空渠道。
-- 所有外键采用 `RESTRICT`，不使用级联删除。MySQL 检查软删除字段一致性、事件时间先后和页面类型等单行规则；会话切分、首渠道、登录前后身份、访客/会话一致性及首末访问时间维护由 Python 写入层负责。
-- 查询索引覆盖注册、首次访问、访客会话、渠道会话、登录用户、页面访问主体、渠道、页面类型、SKU 和事件时间；可变表使用 `(update_time, <table>_pk)`，append-only 事件使用 `(create_time, <table>_pk)` 支持增量抽取。
-
-该字段确认本身不构成 MySQL 运行证据。`page_view_event.sku_pk` 的外键目标已由 `DR-015` 确认，完整物理命名与依赖顺序见 `DR-020`；Candidate DDL 后续已通过静态 Contract 和 T7 MySQL 8.0.46 运行验收。
-
-### 3.10 已确认的商品源表字段
-
-`DR-015` 已确认 `brand`、`category`、`spu` 和 `sku` 的 35 个字段、可空性、关系、单行约束和索引方向。完整字段字典以 `docs/milestone-2-business-design.md` 8.5 节为准，核心边界如下：
-
-- 四张表均使用 `<table>_pk` 内部自增主键和 `VARCHAR(32)` 唯一业务键，并保留 `create_time`、`update_time`、`is_deleted` 和可空 `deleted_at`。
-- `category` 通过可空 `parent_category_pk` 建立自关联，`category_level` 只允许 1、2、3；Level 1 没有父节点，Level 2、3 必须有父节点。
-- `spu` 归属一个 Brand 和一个 Level 3 Category；`sku` 归属一个 SPU，并保存当前 `sale_price DECIMAL(18,2)` 和 `currency CHAR(3)`。
-- 所有外键使用 `RESTRICT`，不级联删除。MySQL 检查软删除组合、Category 层级与父节点空值组合、非负价格和 `CNY`；父子层级连续、Category 无循环及 SPU 只引用末级 Category 由 Python 写入层保证。
-- 商品当前属性、归属和价格允许更新并刷新 `update_time`；历史订单使用后续订单明细快照，不因商品主数据变化而回写。
-- 索引覆盖 Category 父子查找、Brand/Category 下的 SPU、SPU 下的 SKU 和四张表的 `update_time` 增量抽取。
-- V1 不加入库存、商家、仓库、复杂规格 JSON、图片或搜索字段。
-
-该字段确认使 `page_view_event.sku_pk → sku.sku_pk` 的外键目标完整，但本身不构成 MySQL 运行证据。其余逐表字段已由 `DR-016` 至 `DR-018` 确认，完整物理命名与依赖顺序见 `DR-020`；Candidate DDL 后续已通过静态 Contract 和 T7 MySQL 8.0.46 运行验收。
-
-### 3.11 已确认的正向交易源表字段
-
-`DR-016` 已确认 `cart_event`、`sales_order` 和 `sales_order_item` 的 57 个字段、可空性、关系、单行约束和索引方向。完整字段字典以 `docs/milestone-2-business-design.md` 8.6 节为准，核心边界如下：
-
-- `cart_event` 保留事件业务键、请求幂等键、事件时访客/会话/可空用户、SKU、动作类型、前后数量、有效性、无效原因、业务时间和到达审计时间；动作只允许 `ADD`、`CHANGE_QUANTITY`、`REMOVE`。
-- 有效加购事件必须满足对应前后数量规则；无效事件必须填写原因并保留原始数量。相同 `request_id` 返回原事件，由 Python 写入层保证流程幂等。
-- `sales_order` 保存下单用户、地址、可空优惠券领取实例、订单状态、收货省份快照、四项订单金额、币种、下单/取消时间和审计时间；`CANCELLED` 状态必须同时保存取消时间和原因。
-- `sales_order_item` 保存 SKU、购买数量、Brand、三级 Category、SPU、SKU 的业务键与名称快照、原始单价及四项明细金额；商品主数据后续变化不回写历史订单。
-- 订单与明细金额非负且分别满足应付金额公式，明细原价等于原始单价乘数量；订单头与明细合计、优惠分摊、地址/优惠券归属、状态迁移等跨行或流程规则由 Python 写入层保证。
-- `cart_event` 和 `sales_order_item` 保持 append-only，`sales_order` 的合法状态变化刷新 `update_time`；三张表均禁止业务删除。
-- 所有外键使用 `RESTRICT`。`sales_order.user_coupon_pk → user_coupon.user_coupon_pk` 已由 `DR-018` 补齐目标字段；显式约束名称已由 `DR-020` 确认。
-- 索引覆盖加购主体/会话/SKU 与事件时间、订单用户/状态/优惠券与下单时间、订单明细的订单/SKU 查询，以及 append-only 或可变表对应的增量抽取方向。
-
-该字段确认本身不构成 MySQL 运行证据。支付与逆向交易 3 张表字段已由 `DR-017`、营销 2 张表字段已由 `DR-018` 确认；19 张表的完整物理命名与依赖顺序见 `DR-020`，Candidate DDL 后续已通过静态 Contract 和 T7 MySQL 8.0.46 运行验收。
-
-### 3.12 已确认的支付与逆向交易源表字段
-
-`DR-017` 已确认 `payment_attempt`、`return_order` 和 `refund_attempt` 的 49 个字段、可空性、关系、单行状态组合、生成列语义和索引方向。完整字段字典以 `docs/milestone-2-business-design.md` 8.7 节为准，核心边界如下：
-
-- `payment_attempt` 保存支付业务键、请求幂等键、订单、状态、金额、币种、尝试/成功/失败时间、终态回调幂等键、失败原因和审计时间。生成列 `successful_order_pk` 在成功时取订单主键，并通过唯一索引限制一单最多一笔成功支付。
-- `return_order` 保存退单业务键、请求幂等键、原订单与明细、状态、退单数量及原因、批准后的应退金额、币种、申请/批准/拒绝/完成时间、拒绝原因和审计时间。状态只允许 `APPLIED → APPROVED → COMPLETED` 或 `APPLIED → REJECTED`。
-- `refund_attempt` 保存退款业务键、请求幂等键、退单、原订单、原成功支付、状态、金额、币种、尝试/成功/失败时间、终态回调幂等键、失败原因和审计时间。生成列 `successful_return_order_pk` 限制一张退单最多一笔成功退款。
-- 支付与退款尝试的 `CREATED`、`SUCCESS`、`FAILED` 状态和对应时间、回调、失败原因组合由 MySQL 单行约束检查；支付/退款金额非负，退单数量为正数，币种只允许 `CNY`。
-- 支付成功金额等于订单应付金额、退单累计数量上限、累计可退金额、退款与退单/订单/成功支付归属、累计退款上限和状态迁移由 Python 写入层保证。
-- 退单应退金额为 `0.00` 时仍创建一笔零金额成功退款，再把退单更新为 `COMPLETED`；失败重试创建新的尝试记录，相同请求或回调不得重复改变首次终态结果。
-- 三张表均为可更新交易记录，合法状态变化必须刷新 `update_time`；禁止业务硬删除，所有外键使用 `RESTRICT`。
-
-该字段确认本身不构成 MySQL 运行证据。营销 2 张表字段已由 `DR-018` 确认；两个生成列的 `VIRTUAL` 物理形式及显式约束名称已由 `DR-020` 确认，并在 T7 MySQL 8.0.46 运行验收中通过生成列和唯一保护检查。
-
-### 3.13 已确认的营销源表字段
-
-`DR-018` 已确认 `coupon` 和 `user_coupon` 的 28 个字段、可空性、关系、单行状态组合、领取快照规则和索引方向。完整字段字典以 `docs/milestone-2-business-design.md` 8.8 节为准，核心边界如下：
-
-- `coupon` 共 11 个字段，保存唯一业务键、名称、固定优惠金额、最低订单原价门槛、定义有效期、软删除和审计时间。优惠金额必须大于 0，门槛不得为负，有效期结束不得早于开始；软删除后不得新领取，已领取实例不受影响。
-- `user_coupon` 共 17 个字段，保存唯一实例业务键、领取请求幂等键、优惠券与用户外键、`CLAIMED`、`LOCKED`、`USED`、`EXPIRED` 状态、领取时金额/门槛/有效期快照、领取/锁定/释放/使用/过期时间和审计时间。
-- 同一用户可以拥有同一优惠券定义的多个独立实例，不设置 `(coupon_pk, user_pk)` 唯一约束。领取时复制快照，后续优惠券定义变化不得回写历史实例；重复 `request_id` 返回原实例。
-- `user_coupon.coupon_pk → coupon.coupon_pk`、`user_coupon.user_pk → user_account.user_account_pk`、`sales_order.user_coupon_pk → user_coupon.user_coupon_pk`，全部使用 `RESTRICT`。不增加反向 `locked_order_pk`，当前订单关系通过 `sales_order.user_coupon_pk` 查询，避免循环外键。
-- 锁券时检查用户所有权、领取实例状态、快照有效期和订单原价门槛。实际优惠必须等于快照金额；若会使订单应付金额为负，则拒绝用券，不自动截断或降低优惠。
-- 一个领取实例最多关联一个成功支付订单，但可以多次锁定、取消和释放。重新锁定更新 `locked_at` 并清空 `released_at`；未支付取消时，未过期回到 `CLAIMED`，已过期进入 `EXPIRED`。支付成功进入 `USED`，后续退单或退款不返券。
-- MySQL 负责业务键唯一、软删除组合、金额范围、有效期和本行状态时间组合；所有权、状态迁移、一次成功使用、订单关联和快照正确性由 Python 写入层负责。
-- V1 不增加发行额度、库存、抢券、每用户领取上限或比例折扣券。查询索引覆盖定义有效期、用户持券状态、优惠券下实例状态、过期处理和 `update_time` 增量抽取。
-
-该确认使全部 19 张源表共 230 个字段完成评审。M2.4 Generator 已在本地验证生成行的跨行 Contract，并在 T7 验证确定性 SQL 的 MySQL 8.0.46 装载结果；它不构成正式业务写入层。`DR-020` 已统一可命名约束与索引名称、生成列物理形式和建表顺序；M2.2 Candidate DDL 已通过静态与运行验收。
+| 范围 | 状态 | 证据边界 |
+| --- | --- | --- |
+| V2 业务规则 | baseline | `docs/business/business-baseline-v2.md`；不是业务系统上线证明 |
+| V2 逻辑模型 | design archive | `docs/source/logical-model-v2.md`；不是 SQL 或部署证据 |
+| 21 表候选物理模型 | `candidate` | 字段设计、仓库候选 DDL 和 `M2-03` 静态快照；与现存 MySQL DDL 未做逐字核对 |
+| V2 Generator | `implemented`（文件级） | `mock/generator/ecommerce_generator_v1/`；日期默认行为与依赖版本待决，未作为正式批任务验收 |
+| 21 表隔离验收历史 | 限定范围的用户提供结果 | 2026-09-19～20 摘要；不代表当前在线状态或正式链路通过 |
+| V2 指标体系 | `draft` / 部分待细化 | `docs/metrics.md`；尚无 DWS/ADS SQL 或引擎结果 |
+| ENV-05 CDC | `CONFIRMED`（限定范围） | 单隔离测试表与指定故障场景，不外推正式 21 表 |
 
 ## 4. 技术栈与开发方式
 
@@ -276,16 +182,17 @@ MySQL 负责主键、唯一、非空、核心外键、状态集合及单行金�
 | 数仓元数据与 SQL | Hive | verified；3.1.3、MySQL Metastore、HiveServer2、Beeline 与 ORC 访问已通过 |
 | 离线计算 | Spark SQL、PySpark，运行于 YARN | verified；Spark 3.5.9 on YARN 可读写 Hive/HDFS ORC |
 | 消息传输 | Kafka KRaft | verified；Kafka 3.9.1 三节点 Quorum、生产消费、ISR 与单 Broker 恢复已通过 |
-| CDC 与实时计算 | Flink CDC、Flink SQL、Java DataStream，运行于 YARN | 组件兼容性 verified；Application Mode、Flink CDC 和 YARN Session Kafka Source/Sink 已通过，正式业务实时链路仍为 planned |
+| CDC 与实时计算 | Flink CDC、Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 用于技术验证 | 组件兼容性 verified；Application Mode、Flink CDC 和 YARN Session Kafka Source/Sink 已通过，正式业务实时链路仍为 planned |
 | 分析服务 | Doris | verified；4.0.8 FE/BE、SQL 与受控重启已通过 |
 | 工作流调度 | DolphinScheduler | candidate；3.4.2 尚未完成 M1 验收 |
-| 数据生成和质量工具 | Python、SQL | verified；M2 固定 Seed、Generator 与 MySQL 8.0.46 T7 运行结果通过 |
+| 数据生成和质量工具 | Python、SQL | V2 Generator 与验收辅助文件已入库，文件级 `implemented`；固定 Seed、批处理契约与 Runtime 仍未完成 |
 
 开发方式：
 
 - Spark SQL 负责主要离线转换；只有 SQL 不适合表达的复杂逻辑才使用 PySpark。
-- Flink SQL 负责常规实时 ETL 和聚合；Java DataStream 只用于状态、定时器、去重、迟到处理和恢复等需要细粒度控制的逻辑。
+- 正式 Flink 业务 ETL 与聚合作业采用 Java DataStream Jar + YARN Application Mode；Flink SQL Client + YARN Session 仅保留为 Kafka SQL 技术验证，不作为正式业务部署模式。该选择不提前确定窗口、状态或指标实现。
 - Python 用于固定 seed 数据生成器和轻量质量工具。
+- 当前 `mock/generator/ecommerce_generator_v1/` 仍允许缺省 `--anchor` 并使用执行时刻；其依赖版本也未锁定。在日期契约及精确版本获确认前，该目录只作待完善实现，不作为符合本节批任务要求的正式入口。
 - 不得使用多种语言重复实现同一个生产任务。
 
 技术能力依据：
@@ -301,6 +208,8 @@ MySQL 负责主键、唯一、非空、核心外键、状态集合及单行金�
 上述文档只能证明组件具有相应能力，不能证明本项目的候选版本组合已经兼容或能够稳定运行。
 
 ## 5. 目标架构与实施链路
+
+总体技术路线见[最终工程架构 V1.0](final-architecture-v1.0.md)；节点、源系统和实时作业的责任分别见[部署拓扑](deployment-topology.md)、[业务源设计](business-source-design.md)和[实时链路规范](realtime-pipeline-design.md)。这些文档只按各自证据范围解释，不改变本规格的 Milestone 门禁。
 
 ### 5.1 离线主线
 
@@ -365,6 +274,8 @@ Flink 实时清洗与计算
 
 该链路当前只表示目标架构。Flink CDC 是运行在 Flink 上的采集任务，不是独立于 Flink 的常驻平台。实时部分在完成单独评审前保持 `planned`，不得生成正式业务作业或宣称已经实现。
 
+正式业务作业部署方式已选为 Java DataStream Jar + YARN Application Mode；正式 Topic、Schema、窗口、状态、Doris 表模型及端到端一致性仍由 Milestone 8 评审。SQL Client + YARN Session 的 M1 验证不作为正式业务作业验收。
+
 ## 6. 数据分层与存储责任
 
 | 逻辑层或区域 | 主要物理位置 | 责任 |
@@ -405,6 +316,7 @@ Flink 实时清洗与计算
 - 是否扩容必须依据磁盘空间不足、OOM、持续 Swap、频繁 Full GC、进程被杀或核心组件无法稳定共存等实测证据。
 - 不得通过关闭当前链路的关键服务伪装组件兼容或链路稳定。
 - 当前事实来源、状态映射和证据缺口以 [集群事实基线](cluster-baseline.md) 为准。
+- 节点上当前角色与后续角色的区分见[部署拓扑](deployment-topology.md)。
 
 ## 8. 版本与兼容性门禁
 
@@ -445,6 +357,8 @@ YARN ResourceManager Scheduler 已确认使用 `8030`。Doris FE HTTP 已决定�
 
 实时组件可以完成安装兼容性验证，但在实时规格确认前不得进入正式业务开发。
 
+Doris 4.0.8 的受控重启恢复已通过，`docs/final-architecture-v1.0.md` 中的 Step 11 已按此事实修正。Hive 3.1.3 当前在 Java 17 环境通过验收；不能把 Java 11 的设计偏好记成 Hive 已切换的事实。
+
 ## 9. 数据生成、任务参数与幂等
 
 采用双数据集：
@@ -454,108 +368,42 @@ YARN ResourceManager Scheduler 已确认使用 `8030`。Doris FE HTTP 已决定�
 
 验收数据必须覆盖：
 
-- 正常注册、访问、加购、下单和支付。
-- 取消、退单或退款。
+- 正常注册与可靠身份映射、访问、购物车、下单和支付。
+- 取消、退款申请、资金失败重试与成功。
 - 重复输入和同一批次重跑。
 - 跨日订单、支付和退款。
 - 非法状态迁移和主外键缺失。
-- 用户属性变化和维度关联。
-- 零分母、空值、金额精度和舍入边界。
+- 身份映射修订、商品属性变化和维度历史关联。
+- 零分母、空值、整数分金额、优惠分摊和守恒边界。
+- 订单超时与支付成功竞争、券释放/过期、购物车合并截断。
 - 为未来实时验证准备的乱序、迟到和重复事件，但当前不定义处理策略。
 
 所有批任务必须显式接收业务日期或起止时间，不得依赖执行机器当前日期推断数据范围。装载和转换应支持首次运行、同日重跑、连续回补和失败退出。
 
+本次并入的 Generator 尚未符合上述全部条件：`--anchor` 可省略，重复 run-id 会拒绝执行，`pyproject.toml` 仍使用浮动范围。代码文件的存在与历史批次运行结果不能替代这些契约的确认和验收；在确认前不安装未锁定依赖、不将其作为正式批任务。
+
 ## 10. 指标范围与编号
 
-建议数量：
+当前指标口径唯一入口为 `docs/metrics.md`。V2 按六个域提供 47 个检索条目：交易与资金 `TR-01`～`TR-14`、流量与转化 `TF-01`～`TF-08`、商品 `PR-01`～`PR-05`、用户 `US-01`～`US-06`、退款与售后 `RF-01`～`RF-07`、营销 `MK-01`～`MK-07`。
 
-```text
-30 项 V1 正式离线指标
-+
-10 项扩展候选指标
-+
-5 项候选实时指标
-```
+这些 `TR/TF/PR/US/RF/MK` 编号是 V2 文档内的检索标识，不自动继承归档方案的编号、实现或验证状态。历史指标清单不再作为当前源模型的直接实现输入。
 
-指标使用本项目稳定编号；原材料序号只用于来源追溯，Project 2 和后续代码不得继续使用原序号作为正式标识。
+### 10.1 已确认的共同口径
 
-### 10.1 V1 正式指标
+- 统计时区为 `Asia/Shanghai`，各过程按自身业务事件时间归属；记录时间和采集时间只用于延迟与审计。
+- 订单取消回冲原订单创建日的有效 GMV；退款按真实成功日进入资金流，并影响原订单群组截至指定 `as_of_time` 的累计净额。
+- 当前状态与不可变状态事件不能重复累计同一交易事实；支付和退款只选择唯一有效成功资金记录。
+- 身份敏感指标必须绑定可靠映射版本；无法确认归属的事件保持匿名，历史修订保留版本、原因和影响窗口。
+- 订单级金额按商品维度拆分时使用订单明细成交与优惠分摊快照，禁止将订单头金额直接 JOIN 多行明细后重复求和。
+- 比率先合并分子和分母再计算，并显式记录零分母规则、`as_of_time` 和计算版本。
 
-| 新指标编号 | 原序号 | 指标名称 | 首版实时候选 |
-| --- | ---: | --- | --- |
-| `P1_METRIC_001` | 1 | 各渠道独立访客数 | 否 |
-| `P1_METRIC_002` | 2 | 各渠道会话总数 | 否 |
-| `P1_METRIC_003` | 3 | 各渠道会话平均浏览页数 | 否 |
-| `P1_METRIC_004` | 4 | 各渠道会话平均停留时长 | 否 |
-| `P1_METRIC_005` | 5 | 各渠道跳出率 | 否 |
-| `P1_METRIC_006` | 6 | 各小时独立访客数 | 否 |
-| `P1_METRIC_007` | 7 | 各小时页面浏览数 | 否 |
-| `P1_METRIC_008` | 9 | 各类访客数 | 否 |
-| `P1_METRIC_009` | 15 | 回流用户数 | 否 |
-| `P1_METRIC_010` | 16 | 新增用户数 | 否 |
-| `P1_METRIC_011` | 17 | 活跃用户数 | 否 |
-| `P1_METRIC_012` | 18 | 首页浏览人数 | 否 |
-| `P1_METRIC_013` | 19 | 商品详情页浏览人数 | 否 |
-| `P1_METRIC_014` | 20 | 加购人数 | 是 |
-| `P1_METRIC_015` | 21 | 下单人数 | 是 |
-| `P1_METRIC_016` | 22 | 支付成功人数 | 是 |
-| `P1_METRIC_017` | 23 | 新增下单人数 | 否 |
-| `P1_METRIC_018` | 24 | 新增支付成功人数 | 否 |
-| `P1_METRIC_019` | 25 | 各品牌订单数 | 否 |
-| `P1_METRIC_020` | 27 | 各品牌订单金额 | 否 |
-| `P1_METRIC_021` | 28 | 各品牌退单数 | 否 |
-| `P1_METRIC_022` | 30 | 各品类订单数 | 否 |
-| `P1_METRIC_023` | 35 | 各 SPU 订单数 | 否 |
-| `P1_METRIC_024` | 37 | 各 SPU 订单金额 | 否 |
-| `P1_METRIC_025` | 38 | 订单总额 | 是 |
-| `P1_METRIC_026` | 39 | 订单数 | 是 |
-| `P1_METRIC_027` | 40 | 订单人数 | 否 |
-| `P1_METRIC_028` | 41 | 退单数 | 否 |
-| `P1_METRIC_029` | 44 | 各省份订单金额 | 否 |
-| `P1_METRIC_030` | 45 | 优惠券补贴率 | 否 |
+### 10.2 尚未冻结的口径
 
-### 10.2 扩展候选指标
+复购率、部分退款比例、券核销率、细分漏斗阶段比率分母、30 日退款率的精确支付分母截止点和支付完成临界时刻仍为 `待细化`。这些指标在口径确认、源字段血缘、固定样例和真实引擎结果完成前保持 `draft`，不得生成正式 SQL 或描述为 `verified`。
 
-| 新指标编号 | 原序号 | 指标名称 |
-| --- | ---: | --- |
-| `P1_METRIC_031` | 11 | 各类访客跳出率 |
-| `P1_METRIC_032` | 13 | 各类访客平均访问页数 |
-| `P1_METRIC_033` | 26 | 各品牌订单人数 |
-| `P1_METRIC_034` | 29 | 各品牌退单人数 |
-| `P1_METRIC_035` | 31 | 各品类订单人数 |
-| `P1_METRIC_036` | 33 | 各品类退单数 |
-| `P1_METRIC_037` | 34 | 各品类退单人数 |
-| `P1_METRIC_038` | 36 | 各 SPU 订单人数 |
-| `P1_METRIC_039` | 42 | 退单人数 |
-| `P1_METRIC_040` | 43 | 各省份订单数 |
+### 10.3 实现前契约
 
-扩展指标只有在 30 项正式指标完成口径、血缘、固定样例和真实引擎验收后才能实施。
-
-### 10.3 不采用指标
-
-| 原序号 | 指标名称 | 原因 |
-| ---: | --- | --- |
-| 10 | 各类访客页面浏览数 | 与访客数、平均访问页数等保留指标重复度较高 |
-| 12 | 各类访客平均在线时长 | 与渠道平均停留时长重复度较高 |
-| 32 | 品类子主题中的“各品牌订单金额” | 主题和名称冲突，不知道实际应为品类还是品牌指标 |
-
-不得擅自把原 32 改名后重新加入。
-
-### 10.4 候选实时指标
-
-以下五项只作为未来实时阶段的候选范围：
-
-```text
-P1_METRIC_014  加购人数
-P1_METRIC_015  下单人数
-P1_METRIC_016  支付成功人数
-P1_METRIC_025  订单总额
-P1_METRIC_026  订单数
-```
-
-在实时 Milestone 启动前，必须重新确认事件来源、统计窗口、去重对象、迟到处理、撤回或更新语义和离线对账口径。
-
-每个指标在进入实现前必须定义名称、业务含义、统计粒度、维度、公式、分子分母、去重规则、时间口径、过滤条件、来源字段、离线来源、实时来源、零分母处理、精度、舍入、验证样例和状态。
+每个进入实现的指标必须定义稳定 ID、业务含义、粒度、维度、公式、分子分母、去重规则、事件时间、过滤条件、源字段、ODS/DWD/DWS/ADS 血缘、离实时来源、零分母、精度、舍入、固定样例、修订策略和证据状态。V2 检索编号是否直接成为稳定发布 ID，须在 Milestone 5 实施前明确。
 
 ## 11. 数据质量、对账与性能实验
 
@@ -590,7 +438,7 @@ Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。�
 | --- | --- | --- |
 | `P1-METADATA-01` | MySQL、Hive、Doris 的库表字段、逻辑层、物理存储、分区和保留策略 | draft |
 | `P1-LINEAGE-01` | 进入 Git 的真实 SQL、任务依赖和层级映射 | draft |
-| `P1-METRIC-01` | `P1_METRIC_*` 指标的名称、公式、粒度、维度、时间口径、来源和状态 | draft |
+| `P1-METRIC-01` | 已发布指标的稳定 ID、名称、公式、粒度、维度、时间口径、来源、版本和状态 | draft；V2 检索编号尚未确认是否直接作为发布 ID |
 | `P1-QUALITY-01` | `data_quality_result` 的规则、对象、期望值、实际值和状态 | draft |
 | `P1-RECONCILIATION-01` | `reconciliation_result` 的实时值、离线值、差异和状态 | draft |
 | `P1-TASK-01` | DolphinScheduler 工作流、任务状态、时间、耗时、失败日志和依赖 | draft |
@@ -608,16 +456,18 @@ Project 2 不得：
 ## 13. 阶段顺序与进入条件
 
 1. **规格、环境和兼容性基线**：规格通过评审；阻断决策有记录；核心组件具备最小验证方案。
-2. **OLTP 模型与数据生成器**：确认业务过程、字段、状态机、事实粒度和固定验收数据。
+2. **OLTP 模型与数据生成器**：按当前 V2 基线确认业务过程、21 表字段、状态机、事实粒度和固定验收数据，并完成 DDL、Seed、Generator 与运行验收。
 3. **离线抽取与 ODS**：DataX 将固定数据真实写入 Hive ODS 对应的 HDFS ORC 分区，Hive 分区可见且失败返回非零状态。
 4. **离线数仓 MVP**：Hive ODS 与 Spark DIM/DWD、DWS、ADS 在真实引擎执行并完成逐层对账。
-5. **正式指标与质量**：30 项正式指标具有口径、血缘、固定样例和质量规则。
+5. **正式指标与质量**：V2 采用的指标具有稳定发布 ID、口径、血缘、固定样例和质量规则。
 6. **服务与调度**：Doris 离线服务表和 DolphinScheduler T+1 DAG 通过重跑、补数和失败测试。
 7. **Spark 性能实验**：完成倾斜、Join 和分区裁剪的可复现实验。
 8. **实时设计评审**：确认 Topic、Schema、窗口、迟到、去重、维度、状态、Doris 模型、归档和阈值。
 9. **实时链路与可靠性**：完成 CDC、Kafka、Flink、Doris、恢复及五项离实时对账。
 10. **Project 1 面试发布**：所有简历表述均有代码和运行证据。
 11. **Project 2**：只消费 Project 1 已稳定发布的只读契约。
+
+BI/Dashboard/Agent 仅为 M0～M10 之后的数据应用规划，不在本阶段顺序中插入新的实施门禁；其归属、安全、接口和验收需另行评审。Project 2 当前的只读边界不变。
 
 `DR-008` 只允许 Milestone 1 与 Milestone 2 按分轨门禁并行。除此之外，上一阶段的阻断项未解决时不得进入下一阶段；Milestone 3 及后续阶段的进入条件没有改变。
 
@@ -668,8 +518,14 @@ Project 2 不得：
 
 以下内容尚不知道或尚未确认，进入对应阶段前必须询问用户，不得由实现者自行补全：
 
-`M2-DEC-001` 至 `M2-DEC-003` 已通过 `DR-009` 确认，`M2-DEC-004` 至 `M2-DEC-006` 已通过 `DR-010` 确认，`M2-DEC-007` 至 `M2-DEC-010` 已通过 `DR-011` 确认，`M2-DEC-011` 至 `M2-DEC-013` 已通过 `DR-012` 确认，`M2-DEC-014` 已通过 `DR-013` 确认，`M2-DEC-015` 已通过 `DR-021` 确认，不再属于待决策项；其结论见 3.4 至 3.8 节。用户与流量 7 张源表字段已通过 `DR-014` 确认，商品 4 张源表字段已通过 `DR-015` 确认，正向交易 3 张源表字段已通过 `DR-016` 确认，支付与逆向交易 3 张源表字段已通过 `DR-017` 确认，营销 2 张源表字段已通过 `DR-018` 确认，见 3.9 至 3.13 节。`DR-015` 与已确认的 `M2-DEC-015` 属于不同编号体系。Candidate DDL、固定 Seed 与 Generator 已完成静态和 MySQL 8.0.46 T7 运行验收。当前仍需确认：
-- 30 项正式指标的完整公式、时间归属、过滤、精度、舍入和零分母规则。
+历史 M2 决策与实现已经整体归档，不自动决定当前 V2 的 21 表实现。当前仍需确认：
+- 新 Generator 的显式业务日期或起止时间、同日重跑/回补语义，以及经验证的精确 Python 依赖版本。
+- 当前 MySQL 的 `SHOW CREATE TABLE` 与仓库候选 DDL 的差异，以及隔离验收结果如何映射到正式源库门禁。
+- SKU 最小库存属性及第一期是否执行简单扣减。
+- 订单匿名/注册身份互斥规则、guest checkout 边界和精确 CHECK。
+- 支付/退款回调去重保留范围、状态 JSON 演进契约、订单与优惠券循环 FK 建立顺序。
+- 21 表完整状态枚举、NOT NULL/default、外键策略、生成列、锁顺序与零元订单处理。
+- V2 指标检索编号是否直接作为稳定发布 ID，以及复购率、部分退款比例、券核销率、细分漏斗和 30 日退款率的待细化口径。
 - 拉链维度及实时维度历史策略。
 - 基准数据规模、并发和实时事件速率。
 - HDFS/Hive、Kafka 和 Doris 的保留周期。

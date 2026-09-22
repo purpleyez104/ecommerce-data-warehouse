@@ -20,11 +20,11 @@
 
 ## 可执行实现契约
 
-- [M2.4 Generator Contract](generator-contract.md)：参数化 SQL Generator 的 CLI、确定性输出、失败行为、静态验证和 MySQL 运行边界。
+旧 19 表 [M2.4 Generator Contract](../../../archive/legacy-m2-19-table/trellis/generator-contract.md) 已归档，不适用于 `mock/generator/ecommerce_generator_v1/`。V2 Generator 的显式业务日期、同日重跑/回补和精确依赖版本尚为 `DECISION_REQUIRED`；确认前不得以旧契约代替新规范或标记正式批任务验收通过。
 
 ## Quality Check
 
 - Task 不复制或替代 `docs/plan.md`、业务模型、DDL、ECS 配置或指标口径。
-- 所有新增批处理均使用显式业务日期或起止时间；Generator 实现还必须遵守 [M2.4 Generator Contract](generator-contract.md)。
+- 所有正式批处理均使用显式业务日期或起止时间；新 Generator 的现有默认行为尚不满足这一要求，需单独确认并验收。
 - 变更仅限用户批准范围，并报告 `Changed`、`Verified`、`Notes`、`Next`。
 - 未明确要求时，不启用 hooks、channel workflow、安装、初始化、Push、Merge 或重写 Git 历史。

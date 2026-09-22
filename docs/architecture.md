@@ -3,6 +3,8 @@
 版本：`0.3-draft`
 状态：Milestone 1 实施中；M1 Step 2～12 已验证，当前剩余门禁为 DolphinScheduler 3.4.2
 
+总体技术路线见[最终工程架构 V1.0](final-architecture-v1.0.md)，节点和 Java 角色见[部署拓扑](deployment-topology.md)。本文件保留阶段与技术验收边界；业务源和实时设计分别见[业务源设计](business-source-design.md)与[实时链路规范](realtime-pipeline-design.md)。
+
 ## 当前基础设施
 
 ```text
@@ -75,6 +77,8 @@ MySQL Binlog → Flink CDC → Kafka → Flink → Doris
 ```
 
 M1 只允许使用临时对象验证组件兼容性。正式 Topic、Partition、窗口、Watermark、迟到、去重、状态 TTL、维度策略和 Doris 实时表模型必须等待 Milestone 8 评审。
+
+正式 Flink 业务作业采用 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅为技术验证。用户提供的 2026-09-19～20 摘要记录了隔离验收库的有限 21 表 CDC 与订单批次核对，不代表正式 Java 业务 Jar、正式 Topic、业务指标或端到端一致性已验收。Doris 4.0.8 的受控重启恢复已通过，不能因此将正式业务服务表提前标记为通过。
 
 ## 配置边界
 

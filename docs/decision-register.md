@@ -42,6 +42,8 @@
 | `DR-025` | M1 组件验收共享 Evidence Contract | `accepted` | 2026-09-14 | M1 验收接口、证据模型、Secret 安全、Cleanup、M1-CAS-02～07 |
 | `DR-026` | M1 Step 2～12 Runtime 验收基线与执行模式边界 | `accepted` | 2026-09-14 | M1 组件状态、M2.5/M3 门禁、Flink 模式、Runtime 验收口径 |
 | `DR-027` | M1 组件验收降低证据门槛并按风险分级 | `accepted` | 2026-09-14 | M1-CAS-02～07、Runtime 验收条件、Evidence Inbox、Trellis 收尾 |
+| `DR-028` | V2 业务与源模型成为当前 Milestone 2 实施基线 | `accepted` | 2026-09-18 | M2 当前事实、业务与指标口径、21 表候选源模型、M3 门禁、历史归档 |
+| `DR-029` | Flink 正式业务部署方式与后续数据应用边界 | `accepted` | 2026-09-20 | Flink 作业形态、M8/M9 验收、BI/Dashboard/Agent 路线、架构文档 |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -1085,6 +1087,8 @@ M1 的目标是证明当前集群能够支持后续数据仓库操作。此前�
 
 Flink 1.20.5 的 YARN Application Mode 已确认，但本地提交退出 0 只证明提交成功，自动调度必须查询 YARN application 的 final state。Flink Kafka source/sink 已在 SQL Client + YARN Session 模式通过；`yarn-application` 下 SQL `INSERT` 的 `No ExecutorFactory` 是已知模式限制。Flink 客户端使用 Java 17，当前 YARN Container 与 Flink Doris User Jar target 使用 Java 11。上述技术验证不授权混用执行模式。
 
+后续正式业务作业的具体选型由 `DR-029` 补充：Java DataStream Jar + YARN Application Mode；本记录中的 SQL Client + YARN Session 结果仍只作为技术验收事实。
+
 已通过的 `MySQL→DataX→HDFS→Hive→Spark`、`MySQL Binlog→Flink CDC→Kafka→Flink→Kafka` 和 `Kafka→Flink→Checkpoint/Recovery→Doris Connector→Doris` 均是临时兼容性链路。它们不表示 19 张正式 `ecommerce_oltp` 业务表已经创建，不完成 Milestone 3 的正式 ODS 设计和装载，也不提前确定 Milestone 8～9 的 Topic、Schema、窗口、状态、Doris 实时表模型或端到端 Exactly-Once。
 
 ### 理由
@@ -1142,6 +1146,86 @@ M1 组件验收采用三级口径：
 ### 回滚方式
 
 若精简证据导致核心能力无法复现、错误结果被接受或故障无法定位，保留已有证据和失败记录，由新的连续决策恢复受影响组件的详细证据要求，并只对相关风险路径补采；不得无差别要求所有组件重跑，也不得删除基于本决策形成的历史验收记录。
+
+## DR-028：V2 业务与源模型成为当前 Milestone 2 实施基线
+
+- 状态：`accepted`
+- 决策日期：2026-09-18
+- 决策人：用户
+- 影响范围：Milestone 2 当前事实、业务与指标口径、21 表候选源模型、Milestone 3 进入门禁、历史归档
+- 替代决策：替代 `DR-009` 至 `DR-018`、`DR-020`、`DR-021` 作为当前 Milestone 2 实施基线的用途；不撤销这些记录在原方案和原验收范围内的历史事实
+
+### 背景
+
+上一版 Milestone 2 已形成业务设计、源表模型、Candidate DDL、固定 Seed、Generator 和 MySQL Runtime 证据。随后项目重新整理自营商城业务边界、交易与资金语义、身份修订、购物车、不可变状态事件、退款与优惠券规则以及指标体系，并形成 V2 业务基线、六域指标口径、逻辑模型和 21 张 `biz_*` 表的字段级候选物理设计。若继续把归档方案描述为当前实现，会使表结构、金额类型、状态机、指标编号和 M3 进入条件相互冲突。
+
+### 决策
+
+当前 Milestone 2 采用以下文档作为实施基线：
+
+1. `docs/business/business-baseline-v2.md`：当前自营商城业务规则和验收不变量。
+2. `docs/metrics.md`：交易与资金、流量与转化、商品、用户、退款与售后、营销六域指标的唯一口径入口。
+3. `docs/source/logical-model-v2.md`：当前实体、关系、状态、行为事件和指标字段覆盖。
+4. `docs/source/physical-model-v1.md`：21 张 `biz_*` MySQL 表的字段级候选物理设计。
+5. `docs/acceptance/env-05-cdc-acceptance.md`：仅用于证明单个隔离测试表的 Snapshot、Binlog c/u/d、Checkpoint 和指定 TaskManager 故障恢复，不外推到正式 21 表。
+
+Milestone 2 状态为 `in progress`。21 表方案保持 `candidate`；正式 DDL、Seed、Generator、21 表 CDC、DataX/CDC 接续、90 天规模和 Runtime 均未完成。Milestone 3 在当前 21 表 DDL、固定数据和抽取语义通过验收前保持阻断。
+
+上一版 M2 设计整体归档于 `docs/archive/milestone-2-business-design.md`。其代码和运行结果继续作为原方案历史证据，不删除、不改写为失败，也不得直接描述为当前 V2 已实现或用于解除当前 M2/M3 门禁。
+
+### 理由
+
+单一当前实施基线可以避免新旧表名、字段、状态机、金额表达和指标编号交叉使用。保留历史归档又能维持已发生验证的可追溯性，不把“方案被替换”错误表述为“历史验收无效”。把 V2 的业务、指标、逻辑和候选物理模型分工固定下来，也使后续 DDL、造数、CDC 和 ODS 设计能够从同一组事实出发。
+
+### 验证方法
+
+1. 检查 `README.md`、`AGENTS.md`、`docs/spec.md` 和 `docs/plan.md`：M2 均为 `in progress`，21 表均为候选状态，M3 均保持阻断。
+2. 检查当前文档不再引用归档表数量、字段数量、旧指标编号或已删除的 `docs/metrics/metrics-v2.md` 路径。
+3. 检查 `docs/metrics.md` 包含 `TR-01`～`TR-14`、`TF-01`～`TF-08`、`PR-01`～`PR-05`、`US-01`～`US-06`、`RF-01`～`RF-07` 和 `MK-01`～`MK-07`，共 47 个无重复检索编号。
+4. 检查所有本地 Markdown 链接有效，归档文件与迁移前内容 SHA-256 一致，并执行 `git diff --check`、UTF-8/LF/末尾换行和高置信 Secret 扫描。
+5. 上述检查只证明文档同步和归档边界，不构成 21 表 DDL、数据生成、CDC、ODS 或指标 SQL 的运行验收。
+
+### 影响与风险
+
+当前 `mysql/`、`mock/`、`generator/` 和相关测试属于归档方案实现，不能直接计入 V2 完成度。后续需要先收敛 SKU 最小库存属性、订单身份互斥、回调去重、状态枚举、券与订单 FK、零元订单等物理缺口，再实现并验收 21 表。V2 检索编号尚未确认是否直接作为稳定发布 ID；复购率、部分退款比例、券核销率、细分漏斗和 30 日退款率仍有待细化口径。
+
+### 回滚方式
+
+若 V2 基线被证明不可实施，保留本决策、当前文档和全部失败证据，由新的连续决策记录替代 `DR-028`，明确恢复或采用的业务与源模型版本，再同步 README、规格、计划和指标入口。不得删除归档证据、静默恢复旧方案、把历史 Runtime 外推为新方案通过，或直接改写本决策为未发生。
+
+## DR-029：Flink 正式业务部署方式与后续数据应用边界
+
+- 状态：`accepted`
+- 决策日期：2026-09-20
+- 决策人：用户
+- 影响范围：Flink 正式作业形态、Milestone 8～9 设计与验收、后续 BI/Dashboard/Agent 路线、Java 与 Doris 证据边界
+- 关联决策：补充 `DR-026` 的执行模式选型，不推翻其 M1 Runtime 事实；保留 `DR-028` 的 V2 业务源和 M2/M3 门禁
+
+### 背景
+
+`docs/final-architecture-v1.0.md` 给出 Java DataStream Jar + YARN Application Mode 作为正式 Flink 方案，但旧协作规则将 Flink SQL 写为常规生产 ETL 方案。该文件还将 BI/Dashboard/Agent 列入后续阶段，并将 Doris 受控重启误列为待完成；当前兼容性矩阵和 `DR-026` 已记录 Doris 4.0.8 受控重启恢复通过。用户逐项确认这三项取舍与事实。
+
+### 决策
+
+1. 正式实时业务作业采用 Java DataStream API，打包 Jar 并以 YARN Application Mode 部署。SQL Client + YARN Session 保留为 Kafka SQL 技术验证方式，不作为正式业务部署模式。Application 提交后的最终结果必须检查 YARN final state，不能只凭提交退出码判定成功。
+2. BI、Dashboard 和自然语言问数 Agent 暂列为后续数据应用阶段的规划项，不计入当前 M0～M10 的已交付能力；其具体实现、仓库归属、接口、安全和进入门禁需要单独评审。Project 2 仍只能通过六个只读契约消费已发布的 Project 1 事实。
+3. Doris 4.0.8 的 FE/BE、SQL 与受控重启恢复保持已验证事实；`docs/final-architecture-v1.0.md` 的 Step 11 同步修正。此事实不证明正式 Doris 服务表或端到端实时业务链路已经通过。
+
+### 理由
+
+正式作业形态与已验证的技术 Smoke Test 分开，可避免混用 SQL Session 与 Application 的运行证据。后续数据应用只保留路线，避免把尚无设计和验收的产品能力提前计入项目成果。Doris 历史验收按现有证据保留，不因架构摘要的较旧表述降级。
+
+### 验证方法
+
+静态核对 `AGENTS.md`、`README.md`、`docs/spec.md`、`docs/plan.md`、`docs/compatibility-matrix.md`、`docs/deployment-topology.md` 和 `docs/realtime-pipeline-design.md` 的模式、阶段和证据边界一致。后续 Milestone 9 以固定输入、正式 Jar、YARN final state、Flink 作业状态、Checkpoint/恢复、Doris 结果及离实时对账验收；静态同步不构成该 Runtime 验收。
+
+### 影响与风险
+
+正式 DataStream Jar 的代码、依赖、目标 Java 字节码、状态和连接器组合尚未实现验证；M8 仍需确认 Topic、Schema、窗口、迟到、去重、Doris 实时表模型和一致性目标。BI/Agent 仍可能与 Project 2 范围冲突，正式立项时必须明确归属与只读权限。Hive 当前在 Java 17 环境验收，不能把架构中的 Java 11 偏好写成 Hive 已切换事实。
+
+### 回滚方式
+
+如后续正式 Jar 验收表明该部署方式不可行，保留失败证据并由新的连续决策选择替代作业形态，同步更新架构、规格、计划和测试；不得改写 M1 的 SQL Session 结果或伪造 Application 通过。若后续数据应用不再建设，保留本路线历史并在新决策中移除规划，不修改既有 Doris 验收事实。
 
 ## 记录模板
 

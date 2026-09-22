@@ -36,3 +36,9 @@ tests/**/evidence/
 Thumbs.db
 *.swp
 *~
+
+
+.obsidian/
+_bmad*
+.agents
+.codex

@@ -1,8 +1,8 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
-版本：`0.3-draft`
-状态：Milestone 0、2 已完成；Milestone 1 实施中
-更新时间：2026-09-16
+版本：`0.4-draft`
+状态：Milestone 0 `completed`；Milestone 1、2 `in progress`
+更新时间：2026-09-20
 
 ## 1. 使用方式
 
@@ -35,18 +35,18 @@
 | --- | --- | --- |
 | 项目规范 | `README.md`、`docs/` | 0-10 |
 | 环境与基础设施 | `env/`、计划中的 `infra/`、`scripts/` | 1 |
-| 业务源系统 | `mysql/ddl/`、`mysql/seed/`、`generator/` | 2 |
-| 离线抽取 | `datax/jobs/` | 3 |
+| 业务源系统 | `mysql/ddl/`、`mysql/ddl/reference/`、`mysql/sql/`、`mock/generator/ecommerce_generator_v1/` | 2 |
+| 离线抽取 | `datax/jobs/`、`datax/scripts/` | 3 |
 | ODS | `hive/ods/`、`spark/sql/` | 3 |
-| DIM/DWD | 计划中的 `hive/dim/`、`hive/dwd/`、`spark/sql/` | 4 |
+| DIM/DWD | `hive/dim/`（当前仅占位）、`hive/dwd/`、`spark/sql/` | 4 |
 | DWS/ADS | `hive/dws/`、`hive/ads/`、`spark/sql/` | 4-5 |
 | 数据质量 | `quality/checks/` | 3-6 |
 | 对账 | 计划中的 `reconciliation/` | 5-6、9 |
-| Doris 服务层 | `doris/ddl/` | 6、9 |
+| Doris 服务层 | `doris/ddl/`、`doris/sql/` | 6、9 |
 | 调度 | `scheduler/dolphinscheduler/` | 6 |
-| Spark 性能实验 | `spark/sql/`、计划中的 `tests/` 和实验文档 | 7 |
-| 实时设计与配置 | 计划中的 `kafka/`、`docs/` | 8 |
-| 实时作业 | `flink/jobs/` | 9 |
+| Spark 性能实验 | `spark/sql/`、`spark/scripts/`、计划中的 `tests/` 和实验文档 | 7 |
+| 实时设计与配置 | `kafka/`（当前仅占位）、`flink/cdc/`、`flink/sql/`、`docs/` | 8 |
+| 实时作业 | `flink/jobs/`、`flink/scripts/` | 9 |
 | Project 2 契约 | `docs/`、质量/对账结果、调度接口 | 10 |
 
 ## 3. Milestone 0：项目定义与文档基线
@@ -55,7 +55,7 @@
 
 ### 目标
 
-建立一致的项目范围、架构、模块、阶段、指标数量、状态规则和 Project 2 边界。
+建立一致的项目范围、架构、模块、阶段、指标治理、状态规则和 Project 2 边界。
 
 ### 进入条件
 
@@ -80,9 +80,9 @@ docs/decision-register.md
 ### 交付物
 
 - 项目总览、模块边界和当前状态。
-- `0.3-draft` 项目规格。
+- 项目规格和版本化更新规则。
 - Milestone 0-10 的阶段开发计划。
-- 30 项正式指标、10 项扩展指标和 5 项实时候选的范围。
+- 指标范围、编号治理和实现前契约。
 - Project 2 六个只读交接契约。
 - 明确的 `DECISION_REQUIRED` 清单。
 - 面向使用者和维护者的可交付变更日志，以及可追溯的正式决策记录。
@@ -90,7 +90,7 @@ docs/decision-register.md
 
 ### 验收
 
-- README、规格和计划对项目名称、离线链路、实时状态、资源和指标数量的描述一致。
+- README、规格和计划对项目名称、离线链路、实时状态、资源和指标治理的描述一致。
 - 未把占位目录、静态检查或候选组件写成已实现。
 - 实时细节保持 `planned`，没有擅自补全 Topic、窗口、状态或 Doris 模型。
 - README、规格、计划和协作规则对 `CHANGELOG.md`、`docs/decision-register.md` 的路径、职责和确认门禁描述一致。
@@ -201,89 +201,97 @@ Hadoop（已通过）
 
 ## 5. Milestone 2：业务模型与数据生成
 
-**状态：`completed`**
+**状态：`in progress`（V2 业务与源模型重设计）**
 
 ### 与 Milestone 1 的并行规则
 
-`DR-008` 将 Milestone 2 从受限预设计调整为可与 Milestone 1 并行推进。M2.1 至 M2.4 完成本地设计和实现准备后，M2.5 依赖已通过的 M1 MySQL 直接门禁完成运行验收。M1 仍需继续 DolphinScheduler 验收；该剩余门禁不改变已经完成的 M2 运行事实。
+`DR-008` 允许 Milestone 2 与 Milestone 1 分轨推进，但不降低业务确认和运行证据要求。当前 M2 采用 2026-09-18 的 V2 业务基线、21 张 `biz_*` 候选表、独立行为事件流和新版指标体系；旧方案完整保留在 `docs/archive/`，不混入当前交付状态。
 
-并行不降低证据要求：未经用户确认不得确定业务语义。T7 已在目标 MySQL 8.0.46 真实执行 DDL、Seed、Generator 和失败用例，因此对应 M2 范围标记为 `verified`，Milestone 2 标记为 `completed`。该结论不覆盖正式 ODS 或后续数据链路；Milestone 3 仍须完成其进入检查与 ODS 设计。
+M1 的 MySQL、HDFS、Hive、DataX、Kafka、Flink CDC 等环境验证可以复用为组件前置，但不能替代 V2 固定 Seed、Generator 正式契约、现存 DDL 核对、正式库 CDC 和离线抽取验收。用户提供的后续隔离验收历史与 `M2-03` 的部署前快照须按时间分开解释。
 
 ### 目标
 
-建立用户、流量、商品、交易和营销五个主题的源系统模型，以及可复现的验收数据。
+建立自营商城用户身份、商品、购物车、订单、支付、退款、优惠券和独立行为事件的源系统模型，以及可复现的验收数据。
 
 ### 进入条件
 
 - Milestone 0 已完成，Milestone 1 已进入 `in progress`。
 - 用户已确认 M1 与 M2 并行推进。
-- 五个业务主题和 30 项正式指标范围已经建立，具体业务规则继续按 `DECISION_REQUIRED` 评审。
+- V2 业务基线、指标口径、逻辑模型和字段级候选物理设计已进入仓库。
+- 候选物理模型中的缺口继续按 `DECISION_REQUIRED` 评审，不得由 DDL 实现者默认补全。
 
 ### 运行实现门禁
 
-- M2.5 的 M1 MySQL 前置已通过：版本、启动、私网连接、Binlog 增删改和受控重启均已验证。
-- 候选 DDL 转为正式执行输入前，用户必须确认 OLTP 表、字段、主外键、状态机、硬删除、时间和金额策略。
-- M2.2～M2.4 交付条件已满足；M2.5 已在 MySQL 8.0.46 完成运行验收并清理隔离 Database。
+- MySQL 版本、启动、私网连接、ROW/FULL Binlog 和受控重启已有环境证据。
+- ENV-05 已确认单个隔离测试表的 Snapshot、Binlog c/u/d、Checkpoint 和指定 TaskManager 故障恢复；该证据不外推至正式 21 表。
+- 正式 DDL 前必须收敛 SKU 最小库存属性、订单身份互斥、回调去重、状态枚举、券与订单 FK、零元订单及完整 null/default 策略。
+- `M2-03` 记录候选 DDL 静态通过但当时未部署；后续用户提供的摘要记录隔离验收库的有限 21 表 CDC 与 10/100 单批次。当前正式源库结构、固定 Seed、Generator 批处理契约、90 天规模和离线接续仍未闭合，不得进入 M3 实施。
 
 ### M2 小计划
 
 ```text
-M2.1 业务语义与状态机
-  → M2.2 OLTP 逻辑与物理模型
-      ├── M2.3 固定验收数据与预期结果
-      └── M2.4 参数化数据生成器
-             ↓
-      M2.5 MySQL 运行验收与 M2 收尾
+业务基线与指标口径
+  → 逻辑模型与字段级候选物理设计
+      → 未决物理规则收口
+          → 21 表 DDL 与静态 Contract
+              ├── 固定小样本与预期结果
+              └── 参数化 Generator
+                    → MySQL Runtime + 正式表 CDC/抽取门禁
 ```
 
-| 小计划 | 当前状态 | 进入条件 | 核心交付 | 验收与退出条件 |
-| --- | --- | --- | --- | --- |
-| M2.1 业务语义与状态机 | `completed`；`M2-DEC-001` 至 `013` 已确认 | M2 总体进入条件成立 | 在正式业务设计文档 `docs/milestone-2-business-design.md` 逐项确认身份、会话、商品层级、加购、订单、支付、取消、退单/退款、硬删除、时间、金额和优惠券语义 | 已通过；13 项决策均有用户确认结论，状态机、时间、金额和优惠券语义已形成正式设计 |
-| M2.2 OLTP 逻辑与物理模型 | `completed`；19 张源表 Candidate DDL 已通过静态 Contract 与 MySQL 8.0.46 运行验收 | M2.1 通过 | 业务过程矩阵、实体关系、表与字段字典、事实粒度、业务键、主外键、状态字段、索引、硬删除设计和候选 DDL | 已通过；每个表和字段可追溯到已确认业务过程，两套隔离库均按顺序完成 19 表建表 |
-| M2.3 固定验收数据与预期结果 | `completed`；静态 Contract 与 MySQL Runtime 验收通过 | M2.2 通过；`M2-DEC-014`、`M2-DEC-015` 已确认 | 19 表固定 seed、正常与异常数据入口、逐表预期结果、跨日和重复输入样例、幂等入口与静态 Contract | 已通过首次装载、同内容重跑、漂移拒绝、5 个约束失败用例及基线不变检查 |
-| M2.4 参数化数据生成器 | `completed`；Targeted Test 与 MySQL Runtime 验收通过 | M2.2 通过；`M2-DEC-015` 已确认，可与 M2.3 并行 | Python 生成器、固定随机种子、业务日期/规模参数、使用说明和 Targeted Test | 已确认确定性输出、非法参数/规则违约非零、跨表规则、金额守恒及 MySQL 装载结果 |
-| M2.5 MySQL 运行验收与 M2 收尾 | `completed` | M1 MySQL 门禁通过；M2.2-M2.4 已完成 | 在真实 MySQL 执行 DDL、seed 和生成器，保存去敏的命令、退出状态、结果摘要与回滚方法 | 已在 MySQL 8.0.46 验证首次运行、重跑、确定性、主外键、状态、金额、`update_time`、删除语义、失败行为和受控清理 |
+| 工作项 | 当前状态 | 核心交付 | 退出条件 |
+| --- | --- | --- | --- |
+| V2 业务基线 | baseline | `docs/business/business-baseline-v2.md` | 已形成当前规则入口；实现差异必须回到此处评审 |
+| V2 指标体系 | `draft`；部分待细化 | `docs/metrics.md` | 待细化口径和稳定发布 ID 在指标实现前确认 |
+| V2 逻辑模型 | design archive | `docs/source/logical-model-v2.md` | 当前实体、关系、状态和指标字段覆盖可追溯 |
+| 21 表候选物理设计 | `candidate` | `docs/source/physical-model-v1.md` | 物理缺口确认，形成可生成 DDL 的完整契约 |
+| DDL / Seed / Generator | 候选 DDL 静态快照已形成；V2 Generator 文件已入库但日期、重跑及依赖版本待决；固定 Seed `pending` | 现存 DDL 核对、固定输入、预期结果和正式批任务 | 静态 Contract、Targeted Test、失败路径与版本锁定通过 |
+| MySQL 与采集验收 | 隔离库 21 表初始 CDC、空表探针和 10/100 单订单 CDC 有用户提供的历史结果；正式源库和离线接续仍 `pending` | 正式库结构、固定数据、幂等、守恒、CDC/DataX 接续与清理证据 | 固定范围 Runtime 通过且结果去敏可复现，不以历史摘要替代当前现场核对 |
 
 ### 涉及模块
 
 ```text
 mysql/ddl/
-mysql/seed/
+mysql/ddl/reference/
+mysql/sql/
 mock/
-generator/
+mock/generator/ecommerce_generator_v1/
+archive/legacy-m2-19-table/ # 只作旧 19 表代码归档
 docs/
 tests/
 ```
 
 ### 交付物
 
-- 业务过程矩阵和源表关系。
-- OLTP DDL、索引、约束和状态枚举。
-- 用户、访客、会话、商品、加购、订单、支付、取消、退单/退款和优惠券数据。
+- 业务过程矩阵、21 表关系和独立行为事件契约。
+- 21 表 OLTP DDL、索引、约束、状态枚举和历史事件表。
+- 用户/访客身份、商品、购物车、订单、支付、退款、优惠券和行为数据。
 - 固定 seed 验收数据生成入口。
 - 可调规模的基准数据生成入口。
 - 固定输入、预期源表结果和异常数据说明。
 
 ### 必测场景
 
-- 正常注册、访问、加购、下单和支付。
-- 取消、退单或退款。
+- 正常注册/身份映射、访问、购物车合并、下单和支付。
+- 取消、退款申请、资金失败重试与成功。
 - 重复业务请求和重复数据。
 - 跨日订单、支付和退款。
 - 非法状态迁移、主外键缺失、空值和金额边界。
-- 用户属性变化和维度关联。
+- 身份映射修订、商品属性变化和维度历史关联。
+- 订单 15 分钟超时与支付成功竞争、优惠券释放/过期、购物车数量截断。
 
 ### 验收
 
 - 相同 seed 生成相同数据。
 - 主外键、金额和状态逻辑符合已确认规则。
-- `update_time` 在需要增量抽取的变化上正确更新。
-- 硬删除策略有明确设计和测试。
+- 当前状态与不可变事件在同一事务内一致，且不会被重复汇总。
+- Snapshot/Binlog 与 DataX 初始化接续的重复和缺失可解释。
 - 固定验收集能够人工核对，基准集规模可参数化。
 
 ### 阻断
 
-- 不知道事实粒度、状态机、退单/退款关系或用户/访客标识时，不生成正式 DDL。
+- 当前候选物理设计列出的未决项未确认时，不生成正式 DDL。
+- 21 表 DDL、固定数据与抽取语义未通过验收时，不进入 Milestone 3。
 
 ## 6. Milestone 3：DataX 直写 Hive ODS
 
@@ -296,13 +304,14 @@ tests/
 ### 进入条件
 
 - Milestone 1 的 HDFS、Hive、DataX 组合通过验证。
-- Milestone 2 的 OLTP DDL 和固定数据已确认。
+- Milestone 2 当前 21 表 OLTP DDL 和固定数据已确认并通过对应验收。
 - 全量、增量和硬删除处理方式已确定。
 
 ### 涉及模块
 
 ```text
 datax/jobs/
+datax/scripts/
 hive/ods/
 spark/sql/
 quality/checks/
@@ -349,11 +358,12 @@ tests/
 ### 涉及模块
 
 ```text
-hive/dim/ # 维度设计确认后创建
+hive/dim/ # 当前仅占位，维度设计确认后加入正式内容
 hive/dwd/
 hive/dws/
 hive/ads/
 spark/sql/
+spark/scripts/
 quality/checks/
 tests/
 docs/
@@ -386,12 +396,13 @@ docs/
 
 ### 目标
 
-完成 `P1_METRIC_001` 至 `P1_METRIC_030` 的离线口径、血缘、实现、固定样例和质量检查。
+完成 V2 采用指标的稳定发布编号、离线口径、血缘、实现、固定样例和质量检查。
 
 ### 进入条件
 
 - Milestone 4 的最小离线闭环通过。
-- 30 项指标的统计粒度、公式、时间归属、过滤、去重、精度、舍入和零分母规则已确认。
+- V2 待细化指标和检索编号到稳定发布 ID 的映射已确认。
+- 进入实现的指标均已确认统计粒度、公式、时间归属、过滤、去重、精度、舍入、修订和零分母规则。
 
 ### 涉及模块
 
@@ -407,7 +418,7 @@ docs/metrics.md
 
 ### 交付物
 
-- 30 项正式指标字典和稳定编号。
+- V2 正式指标字典和稳定发布编号。
 - 指标到 DWS、DWD/DIM、ODS 和源字段的血缘。
 - 比率和平均值对应的分子、分母及加权方式。
 - `data_quality_result` 结果结构。
@@ -416,17 +427,17 @@ docs/metrics.md
 
 ### 验收
 
-- 30 项指标均能追溯到源字段。
+- 所有进入实现的 V2 指标均能追溯到源字段。
 - 每项指标在固定样例中得到预期结果。
 - 唯一性、完整性、状态、范围、分区到达和守恒检查通过。
 - 质量规则失败能够返回失败状态。
 - 质量结果可重复执行，重复执行行为明确。
-- `P1_METRIC_031` 至 `040` 保持扩展候选，不提前实施。
+- 未冻结口径或未纳入本阶段的 V2 条目保持 `draft`，不提前实施。
 
 ### 阻断
 
 - 指标公式或粒度存在冲突时保持 draft，不生成正式指标 SQL。
-- 原材料序号 32 的指标不改名、不采用。
+- 不得使用旧指标编号或旧 19 表字段映射替代 V2 当前口径。
 
 ## 9. Milestone 6：Doris 离线服务与 DolphinScheduler
 
@@ -446,6 +457,7 @@ docs/metrics.md
 
 ```text
 doris/ddl/
+doris/sql/
 scheduler/dolphinscheduler/
 quality/checks/
 reconciliation/
@@ -504,6 +516,7 @@ DataX ODS Load
 
 ```text
 spark/sql/
+spark/scripts/
 tests/
 docs/benchmark/
 ```
@@ -538,19 +551,17 @@ docs/benchmark/
 ### 进入条件
 
 - 离线主线至少完成 Milestone 6。
-- 五项实时候选的离线口径稳定：
-  - `P1_METRIC_014` 加购人数。
-  - `P1_METRIC_015` 下单人数。
-  - `P1_METRIC_016` 支付成功人数。
-  - `P1_METRIC_025` 订单总额。
-  - `P1_METRIC_026` 订单数。
+- 首批实时指标的离线口径、稳定发布 ID 和源字段血缘已在 Milestone 5 冻结；具体集合在本阶段评审确定，不沿用旧编号默认值。
 
 ### 涉及模块
 
 ```text
 docs/
-kafka/     # 评审通过后创建
+kafka/     # 当前仅占位，评审通过后加入正式配置
+flink/cdc/
+flink/sql/
 flink/jobs/
+flink/scripts/
 doris/ddl/
 reconciliation/
 tests/
@@ -558,6 +569,7 @@ tests/
 
 ### 必须决策
 
+- 已确定正式业务作业形态为 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅用于技术验证。其余如下项仍须评审。
 - Topic 按表、按业务域还是统一设计。
 - Partition、副本、保留期、压缩和 Schema。
 - CDC、清洗和聚合的作业拆分。
@@ -571,8 +583,9 @@ tests/
 ### 交付物
 
 - 实时分层和物理存储设计。
+- 正式 Java DataStream Jar 的作业拆分、依赖与 YARN Application 提交/最终状态检查方案。
 - Topic 与 Schema 契约。
-- 五项指标的离实时统一口径。
+- 首批实时指标的离实时统一口径。
 - 故障恢复和对账测试方案。
 - 资源预算和退出/回滚方案。
 
@@ -592,7 +605,7 @@ tests/
 
 ### 目标
 
-实现 MySQL Binlog → Flink CDC → Kafka → Flink → Doris，并完成恢复和五项离实时对账。
+实现 MySQL Binlog → Flink CDC → Kafka → Flink → Doris，并完成恢复和首批指标离实时对账。
 
 ### 进入条件
 
@@ -603,7 +616,10 @@ tests/
 
 ```text
 kafka/
+flink/cdc/
+flink/sql/
 flink/jobs/
+flink/scripts/
 doris/ddl/
 reconciliation/
 quality/checks/
@@ -614,11 +630,12 @@ docs/
 ### 交付物
 
 - MySQL Snapshot 与 Binlog 采集。
+- Java DataStream 业务 Jar + YARN Application Mode 的参数化部署和 YARN final state 核对。
 - Kafka Raw 和标准事件 Topic。
-- Flink 清洗、去重、维度关联和五项指标计算。
+- Flink 清洗、去重、维度关联和首批指标计算。
 - HDFS/Hive 归档和 Doris 实时服务表。
 - Checkpoint、Savepoint、重启和故障恢复配置。
-- 五项指标的 `reconciliation_result`。
+- 首批指标的 `reconciliation_result`。
 - 实时延迟、积压、重复、丢失和写入失败检查。
 
 ### 验收
@@ -627,12 +644,13 @@ docs/
 - Kafka 能生产、消费、重放并验证副本恢复。
 - Flink 中断期间源端继续产生数据，恢复后结果符合确认的一致性目标。
 - Doris 重复写入和更新行为符合表模型。
-- 五项实时结果与 T+1 离线结果完成可解释对账。
+- 首批实时结果与 T+1 离线结果完成可解释对账。
 - 理论语义和实测结果分别记录。
 
 ### 阻断
 
 - 不能仅凭配置 Checkpoint 宣称端到端 Exactly-Once。
+- 不能仅凭 YARN Application 提交命令退出 0 宣称业务作业成功；必须核对最终状态及结果。
 - 无法解释重复、丢失、迟到或对账差异时，不得标记 verified。
 
 ## 13. Milestone 10：Project 1 面试发布与 Project 2 交接
@@ -699,10 +717,14 @@ scheduler/
 
 ## 15. 当前下一步
 
-Milestone 1、2 曾按 `DR-008` 并行推进。根据 `DR-026`，M1 Step 2～12 已在目标 ECS 完成兼容性与功能验收；Milestone 2 已于 2026-09-16 完成。当前工作流为：
+Milestone 1、2 按 `DR-008` 分轨推进。根据 `DR-026`，M1 Step 2～12 已在目标 ECS 完成兼容性与功能验收；M2 当前采用 2026-09-18 的 V2 业务与源模型设计。当前工作流为：
 
 1. M1：Hadoop、MySQL、Hive、Spark、DataX、Kafka、Flink/Flink CDC、Doris 和 Flink Doris Connector 已通过；当前执行 DolphinScheduler 3.4.2 门禁。
-2. M2：`M2-DEC-001` 至 `015` 均已确认，M2.1～M2.5 已完成。T7 在目标 MySQL 8.0.46 验证两套 19 表 DDL、固定 Seed 首次装载与幂等重跑、漂移拒绝、5 个约束失败用例、Generator 确定性装载、金额守恒、生成列、软删除、`update_time` 和 Cleanup，Milestone 2 状态为 `completed`。`M2-DEC-015` 与决策记录 `DR-015` 不同。
-3. 下一步：继续 M1 DolphinScheduler 3.4.2 门禁；M3 的 M1 组件前置和 M2 交付前置已满足，但在正式实施前仍须完成 ODS Schema、全量/增量、幂等发布、失败隔离和对账设计的进入检查。
+2. M2：V2 业务基线、指标体系、逻辑模型和 21 表候选 DDL 已形成，Generator 与验收辅助文件已入库；用户提供的 2026-09-19～20 摘要记录了隔离验收库的有限 CDC/造数结果。固定 Seed、正式库 DDL 核对、Generator 契约、90 天数据及 CDC/DataX 初始化接续未闭合，状态仍为 `in progress`。
+3. 下一步：继续 M1 DolphinScheduler 3.4.2 门禁；M2 核对现存 MySQL 结构与候选 DDL，确认日期/重跑/依赖契约并补固定数据，再完成正式库及离线接续验收。当前不得进入 M3 实施。
 
-M1 与 M2 的证据状态分别维护。M2 Runtime 通过不代表 M3 或 M9 正式业务链路已完成。M1 全部组件通过前仍不创建 `infra/versions.env`。
+旧方案文档与代码分别保留在 `docs/archive/`、`archive/legacy-m2-19-table/`，不与当前 M2 状态混用。`M2-03` 是部署前设计快照；后续隔离库结果不代表正式 21 表源库或 M9 业务链路完成。本次导入的 `.sh` 仅保存留痕，未在本机执行，也不记录其运行状态。M1 全部组件通过前仍不创建 `infra/versions.env`。
+
+## 16. 后续数据应用规划（不属于当前 M0～M10 交付）
+
+BI、Dashboard 和自然语言问数 Agent 暂列后续阶段候选方向。只有在 Project 1 稳定发布、六个只读契约可用，并另行确认仓库归属、权限、接口、目标用户、实现范围和验收标准后，才制定实施 Milestone。当前不创建前端/Agent 实现，也不把规划写成已交付能力。
