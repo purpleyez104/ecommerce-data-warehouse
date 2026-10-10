@@ -8,7 +8,7 @@
 
 本文件是 Project 1 在 Milestone 1 使用的集群事实入口。事实来源为：
 
-- 来源文件：`C:\Users\user\.codex\.chatgpt-projects\g-p-6a94df9d0890819184d69f8cc329aabf\alibaba-ecs-hadoop-cluster-rebuild-spec.md`
+- 来源：用户确认的本地 ECS/Hadoop 集群重建记录；原始文件保留在仓库外，不提交本机路径或 Codex 项目标识。
 - 来源快照日期：2026-09-04
 - SHA-256：`0556E06CBF754D01E4CCD451356E0EB15F6BE6A3E7B49E91632FA85313F25264`
 - 采用依据：用户确认该文件是本项目当前集群的实际搭建记录，其中 `CONFIRMED` 可以作为确认事实。

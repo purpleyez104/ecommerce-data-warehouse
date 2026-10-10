@@ -37,8 +37,9 @@ Thumbs.db
 *.swp
 *~
 
-
 .obsidian/
 _bmad*
-.agents
-.codex
+/.agents/
+/.codex/
+/.trellis/
+/datax/config/datax.env

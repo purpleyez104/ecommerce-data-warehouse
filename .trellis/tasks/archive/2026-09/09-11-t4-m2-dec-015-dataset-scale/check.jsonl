@@ -1,4 +1,0 @@
-{"file": "docs\\spec.md", "reason": "Verify central decision and runtime evidence boundaries remain accurate."}
-{"file": "docs\\plan.md", "reason": "Verify M2.3/M2.4 gates and pending states remain consistent."}
-{"file": "docs\\milestone-2-business-design.md", "reason": "Verify all 19 tables and M2-SC-001 through M2-SC-012 are covered."}
-{"file": "docs\\decision-register.md", "reason": "Verify DR-021 quantities, dates, failure split, and rollback boundary."}

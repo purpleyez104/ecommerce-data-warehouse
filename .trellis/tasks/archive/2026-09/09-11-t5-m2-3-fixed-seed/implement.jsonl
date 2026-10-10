@@ -1,4 +1,0 @@
-{"file": "mysql/seed/001_ecommerce_oltp_fixed_seed.sql", "reason": "T5 fixed 19-table seed, including product snapshot change and zero-denominator date coverage"}
-{"file": "mock/m2_fixed_seed_expected_results.json", "reason": "T5 business-key manifest, scenario mappings, failure expectations, invariants, and seed digest"}
-{"file": "tests/m2/invoke_fixed_seed_idempotency.ps1", "reason": "T5 no-write rerun and drift-detection entry with quote-aware row parsing"}
-{"file": "tests/m2/validate_fixed_seed_contract.ps1", "reason": "T5 static contract for keys, references, scenarios, invariants, failures, and rerun boundary"}

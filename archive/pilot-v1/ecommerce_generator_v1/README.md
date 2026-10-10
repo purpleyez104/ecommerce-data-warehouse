@@ -1,8 +1,8 @@
-> **整理说明（2026-09-20）**：该 README 原为生成器首次交付时编写，其中“尚未在 hadoop201 运行”的旧状态说明已过时。后续用户提供的终端结果确认：`smoke-v1-001` 10 单／34 明细、`hist-v1-001` 100 单／319 明细实际写入成功；100 单订单 CDC 创建 100/100、最终状态 69 PAID／31 CANCELED；4 项业务一致性异常为 0。该结果基于用户提供的终端输出，并非本地打包环境重连集群验证。所有历史局限（如离实时 Exactly-Once 未证明）仍然保留。原测试已移至 `tests/unit/`（仓库根目录），验收 SQL 已移至 `mysql/sql/acceptance.sql`（仓库根目录）。
+> **归档说明（2026-10-10）**：用户提供的历史终端结果确认：`smoke-v1-001` 10 单／34 明细、`hist-v1-001` 100 单／319 明细实际写入成功；100 单订单 CDC 创建 100/100、最终状态 69 PAID／31 CANCELED；4 项业务一致性异常为 0。该结果来自历史 Chat 证据，不代表当前在线状态或本次归档后的 Runtime。目录已转入 `archive/pilot-v1/ecommerce_generator_v1/` 并恢复原 package layout，仅用于历史复核；原 `mysql/sql/acceptance.sql` 已移除，新的权威批次验收 SQL尚未确认。
 
 # Python 电商业务数据生成器 V1
 
-**当前交付：可运行源码 + 离线测试通过；尚未连接用户的 hadoop201 执行真实 MySQL 写入。** 只用于既有 `ecommerce_oltp_m2_acceptance` 验收库；不执行建表、不改 21 表 DDL、不使用旧种子 SQL、不关闭外键。
+**当前状态：`PILOT / ACCEPTANCE / HISTORY`；本次归档后 `not_run`。** 只用于既有 `ecommerce_oltp_m2_acceptance` 验收库的历史复核；不执行建表、不改 21 表 DDL、不使用旧种子 SQL、不关闭外键，也不作为 V2 正式入口。
 
 ## 1. 工程范围
 
@@ -15,16 +15,14 @@
 
 ## 2. 安装（hadoop201，Python ≥3.10）
 
-本目录位于项目仓库的 `mock/generator/ecommerce_generator_v1/`；目录移动不改变生成器的业务或运行契约。
+本目录位于项目仓库的 `archive/pilot-v1/ecommerce_generator_v1/`。以下命令只用于隔离环境中的历史复核；执行结果必须重新记录，不能沿用旧 Chat 结果作为当前 Runtime。
 
 ```bash
-cd /data/projects/ecommerce-data-warehouse/mock/generator/ecommerce_generator_v1
+cd /data/projects/ecommerce-data-warehouse/archive/pilot-v1/ecommerce_generator_v1
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[test,behavior]'
-cd ../../..
-bash tests/run_unit.sh
-cd mock/generator/ecommerce_generator_v1
+python -m pytest -q tests
 ```
 
 没有安装第三方依赖时，可以设置 `PYTHONPATH=src` 运行纯 Python 的 Dry Run；实际 MySQL 写入需要 PyMySQL。不要将真实密码写入仓库、命令参数或上传给助手。
@@ -109,10 +107,10 @@ export M2_CART_TOPIC='behavior_cart_m2_v1'
 
 ## 7. 验收建议（在集群执行）
 
-先验证 Pytest，再做 `--preflight-only`，再做 10 单验收批次，核对 `biz_order`、`biz_order_item`、`biz_payment_attempt`、`biz_refund_*` 和事件表的关联与金额，最后检查 `cdc_m2_21tables_acceptance` Topic 是否收到这**一批**新业务键的真实 Debezium 事件；确认后执行 100 单和 live。Kafka 验收应按业务键+表+事件版本过滤，不能仅比较总 Offset。`mysql/sql/acceptance.sql`（仓库根目录）提供无需暴露业务字段的 SQL 核验模板。
+如需复核，先在隔离环境执行 Pytest、`--preflight-only` 和小批次验收。Kafka 验收应按业务键、表和事件版本过滤，不能仅比较总 Offset。原 `mysql/sql/acceptance.sql` 已移除，新的权威批次验收 SQL 尚未确认；不得用已删除的不完整 MySQL 骨架替代。
 
 ## 8. 当前真实验收状态
 
-- 本地：静态编译、Dry Run、单元测试（见本次交付的测试输出）可执行。
-- 远程：**尚未直接连接 hadoop201，因此没有实际执行 --apply、没有证明本生成器 SQL 在用户 MySQL 上通过、没有证明生成数据经 CDC 进入 Kafka。** 以前通过的是手工三表和 21 表小规模 CDC 验收，不得冒充生成器验收。
+- 历史证据：`smoke-v1-001` 与 `hist-v1-001` 曾在目标 ECS 写入并形成限定范围 CDC/ODS 结果；证据来自用户提供的终端输出。
+- 当前工作区：package layout 已恢复，但本次仅进行静态归档整理；在实际执行前不能声称当前源码能够安装、Dry Run、执行 Pytest 或连接 MySQL。
 - 设计边界和待补项目见 `docs/limitations.md`。
