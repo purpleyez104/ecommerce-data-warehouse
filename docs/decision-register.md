@@ -16,7 +16,7 @@
 | 编号 | 标题 | 状态 | 决策日期 | 影响范围 |
 | --- | --- | --- | --- | --- |
 | `DR-001` | DataX 直写 Hive ODS 对应 HDFS 分区 | `accepted` | 2026-09-04 | 离线架构、Milestone 1、3、6、质量与对账 |
-| `DR-002` | Agent 答复总结与记录确认门禁 | `accepted` | 2026-09-04 | 协作规则、变更日志、决策治理、Milestone 0 |
+| `DR-002` | Agent 答复总结与记录确认门禁 | `superseded` | 2026-09-04 | 协作规则、变更日志、决策治理、Milestone 0 |
 | `DR-003` | Milestone 0 验收与 Milestone 1 门禁开放 | `accepted` | 2026-09-04 | 项目状态、阶段顺序、Milestone 0-1 |
 | `DR-004` | Milestone 2 受限预设计例外 | `superseded` | 2026-09-04 | 阶段门禁、业务模型预设计、Milestone 1-2 |
 | `DR-005` | 采用当前 ECS 集群记录作为 Milestone 1 确认事实基线 | `accepted` | 2026-09-04 | 事实来源、证据状态、集群配置、Milestone 1-2 |
@@ -44,6 +44,10 @@
 | `DR-027` | M1 组件验收降低证据门槛并按风险分级 | `accepted` | 2026-09-14 | M1-CAS-02～07、Runtime 验收条件、Evidence Inbox、Trellis 收尾 |
 | `DR-028` | V2 业务与源模型成为当前 Milestone 2 实施基线 | `accepted` | 2026-09-18 | M2 当前事实、业务与指标口径、21 表候选源模型、M3 门禁、历史归档 |
 | `DR-029` | Flink 正式业务部署方式与后续数据应用边界 | `accepted` | 2026-09-20 | Flink 作业形态、M8/M9 验收、BI/Dashboard/Agent 路线、架构文档 |
+| `DR-030` | 新版全局工作流优先与项目旧协作规则降级 | `accepted` | 2026-09-23 | Codex 协作规则、项目级 Skill、Trellis、记录门禁、文档读取范围 |
+| `DR-031` | 离线 Pilot 收口与 V2 按层规模化开发路线 | `accepted` | 2026-09-27 | 正式源库、Generator、LOAD DATA、ODS/DWD 实施方式、验收 Gate、历史资产 |
+| `DR-032` | 实时 Pilot 收口与离实时统一 V2 开发路线 | `accepted` | 2026-09-27 | 正式业务源、CDC/Kafka、Flink 作业组织、事件版本、Checkpoint、Doris、离实时对账 |
+| `DR-033` | GitHub 发布仓库整理与 V2 候选资产边界 | `accepted` | 2026-10-10 | GitHub 发布目标、仓库工具文件、历史归档、V2 设计稿与 Generator 证据状态 |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -79,11 +83,11 @@ DataX HDFS Writer 的格式、依赖和文件行为尚未在目标 ECS 环境验
 
 ## DR-002：Agent 答复总结与记录确认门禁
 
-- 状态：`accepted`
+- 状态：`superseded`
 - 决策日期：2026-09-04
 - 决策人：用户
 - 影响范围：协作规则、变更日志、决策治理、Milestone 0
-- 替代决策：无
+- 替代决策：`DR-030`
 
 ### 背景
 
@@ -1226,6 +1230,191 @@ Milestone 2 状态为 `in progress`。21 表方案保持 `candidate`；正式 DD
 ### 回滚方式
 
 如后续正式 Jar 验收表明该部署方式不可行，保留失败证据并由新的连续决策选择替代作业形态，同步更新架构、规格、计划和测试；不得改写 M1 的 SQL Session 结果或伪造 Application 通过。若后续数据应用不再建设，保留本路线历史并在新决策中移除规划，不修改既有 Doris 验收事实。
+
+## DR-030：新版全局工作流优先与项目旧协作规则降级
+
+- 状态：`accepted`
+- 决策日期：2026-09-23
+- 决策人：用户
+- 影响范围：Codex 协作规则、项目级 Skill、Trellis、记录门禁、文档读取范围
+- 关联决策：替代 `DR-002` 的固定答复收尾门禁；补充 `DR-019`，保留其 Data Engineering 事实优先级、Codex inline、关闭自动 Commit 与空 Hook 注册结论
+
+### 背景
+
+新版全局 Codex 工作流根据任务复杂度选择最小流程：普通任务只读取当前 Change 相关的规则、代码、配置、Git 状态和测试；Trellis、BMad、Sub-agent、Worktree 与独立 Review 均为按需工具；用户明确要求实现、修复或修改时，已经授权任务范围内的普通代码、测试、项目文档和配置编辑。
+
+本次只读审计确认，项目仍保存三类旧协作规则：`AGENTS.md`、`README.md` 与 `docs/spec.md` 要求每次修改前完整读取三份大型文档，并在每次最终答复中询问是否写入 `CHANGELOG.md` 或决策记录；项目级 Trellis Skill 的触发描述覆盖普通 Coding Session、任意新任务、写完代码和结束会话；`.trellis/workflow.md` 将创建 Task、Planning、Spec Update、Commit 与收尾写成每个任务的必经阶段。这些通用流程要求会重复或覆盖新版全局工作流，但项目的业务语义、Milestone 门禁、状态与证据边界、安全要求仍具有项目特有价值。
+
+审计同时确认：仓库不存在 `AGENTS.override.md`；`.trellis/config.yaml` 当前为 `codex.dispatch_mode: inline`、`session_auto_commit: false`；`.codex/hooks.json` 未注册 Hook。这些配置没有触发自动 Sub-agent、自动 Commit 或自动 Trellis 流程。
+
+### 决策
+
+1. 新版全局工作流作为普通 Codex 协作的默认流程。项目 `AGENTS.md` 只补充业务语义、Milestone、数据链路、证据等级、安全和仓库特有约束，不重复维护通用 Agent 工作流。
+2. 普通任务只读取与当前 Change 直接相关的规则和文件。涉及 Milestone 状态或门禁、业务/指标语义、公共 Schema、Migration、跨层接口、共享配置、多 Module 影响或完整 Handoff Audit 时，才完整核对 `README.md`、`docs/spec.md` 与 `docs/plan.md`。
+3. 最终答复继续如实报告实际修改、实际验证和限制，但不再在每一轮固定询问是否写入 `CHANGELOG.md` 或 `docs/decision-register.md`。只有本轮形成可交付变更或正式决策，且用户尚未明确授权记录时，才按文件职责请求确认。由此替代 `DR-002`。
+4. Trellis 仅在用户明确要求、已有 Active Trellis Task 需要继续，或多任务、跨会话和持续状态追踪确有价值时使用。只有进入 Trellis-managed Task 后，`.trellis/workflow.md` 中的 Task、Planning、Spec、Check、Commit 和 Finish 阶段才生效；归档 Task、生成脚本、Agent Profile 和历史 PRD/Design/Implement 不是普通任务的当前治理规则。
+5. 项目级 `trellis-start`、`trellis-before-dev`、`trellis-brainstorm`、`trellis-check`、`trellis-finish-work`、`trellis-break-loop` 和 `trellis-update-spec` 的宽泛触发描述不能自动把普通 Coding Task 提升为 Trellis 流程。后续应收窄为明确调用 Trellis、存在适用 Active Task 或明确需要相应能力时触发；在文件更新完成前，以本决策的按需边界为准。
+6. 保留 `DR-019` 已确认的 Data Engineering 事实优先级，以及 `codex.dispatch_mode: inline`、`session_auto_commit: false` 和空 Hook 注册。启用自动 Commit、Hook、Channel Workflow 或自动 Sub-agent Dispatch 仍需要单独授权。
+7. 本决策不改变业务模型、指标口径、Milestone 状态、组件版本、运行证据或验收结论。本次仅写入治理决策；`AGENTS.md`、README、项目级 Skill、Trellis spec/config 注释和其他重复规则的实际清理属于后续实施，当前状态为 `planned`。
+
+### 理由
+
+把通用 Agent 流程集中在新版全局工作流，可以减少重复规则、无意义 Planning、固定确认和不必要的 Trellis 状态维护；保留项目特有的业务、证据与安全边界，又能防止普通轻量流程削弱数据仓库的关键门禁。Trellis 保持可用但不默认介入，既保留跨会话和复杂任务管理能力，也避免工具流程覆盖用户已经明确授权的普通实现请求。
+
+### 验证方法
+
+1. 静态核对当前全局 `AGENTS.md` 的模式路由、授权、Repository 接入和按需工具边界。
+2. 使用 `rg --files` 与只读目录检查确认仓库只有根 `AGENTS.md`，不存在 `AGENTS.override.md`，项目级 Skill 均为 Trellis 系列。
+3. 核对 `.trellis/config.yaml` 中 `session_auto_commit: false`、`codex.dispatch_mode: inline`，以及 `.codex/hooks.json` 中 Hook 注册为空。
+4. 核对 `AGENTS.md`、`README.md`、`docs/spec.md`、`.agents/skills/*/SKILL.md`、`.trellis/spec/` 与 `.trellis/workflow.md`，确认本决策列出的旧规则和宽泛触发范围确实存在。
+5. 对本文件运行 `git diff --check -- docs/decision-register.md`，并核对决策索引、`DR-002` 状态和 `DR-030` 正文一致。
+6. 上述检查只证明治理文本和配置现状，不证明后续规则清理已经完成，也不构成任何数据链路 Runtime 验收。
+
+### 影响与风险
+
+在后续清理完成前，旧 `AGENTS.md`、README、项目级 Skill 和 `.trellis/workflow.md` 仍可能向其他 Agent 暴露重复或冲突指令；接入时必须优先读取本决策并区分普通任务与 Trellis-managed Task。项目级 Trellis 文件可能由 `trellis update` 重新生成，收窄触发范围时需要确认可维护的自定义入口，避免升级后恢复宽泛触发。降低通用流程强度不得用于绕过 Schema、业务语义、数据安全、破坏性操作或 Runtime 证据门禁。
+
+### 回滚方式
+
+若按需工作流导致重要上下文遗漏、跨会话任务失控或项目事实未被正确加载，保留本决策和相关失败证据，由新的连续决策恢复明确且风险匹配的项目级读取、Planning 或 Trellis 门禁。不得直接删除 `DR-030`、改写 `DR-002` 或静默重新启用自动 Commit、Hook、Channel Workflow 和自动 Sub-agent Dispatch。
+
+
+## DR-031：离线 Pilot 收口与 V2 按层规模化开发路线
+
+- 状态：`accepted`
+- 决策日期：2026-09-27
+- 决策人：用户
+- 影响范围：Milestone 2～6、正式源库、Mock 数据生成、MySQL 初始化、ODS/DWD/DIM 实施方式、验收 Gate、Pilot 历史资产
+- 关联决策：延续 `DR-001` 的 DataX → HDFS/Hive ODS 路线与 `DR-028` 的 21 表 V2 业务源基线；不改变 `DR-026`、`DR-029` 的既有 Runtime 和实时边界
+
+### 背景
+
+100 单 `hist-v1-001` 已在限定环境完成 MySQL `biz_order` → DataX → HDFS/Hive ODS → Spark SQL on YARN → Hive DWD，并形成 ODS/DWD 100↔100、88 分区、69 `PAID`、31 `CANCELED`、8,372,600 payable cents、0 mismatch 的验收结果。该 Pilot 已证明 DataX MySQL Reader/HDFS Writer、ORC + Snappy、Hive 外表与分区、Stage → Validate → Publish、Spark SQL ODS→DWD、历史批量处理、失败保护，以及两条 Flink 长任务与 Spark 离线任务并发的可行性。
+
+继续按 `order → order_item → payment → refund` 逐表完成 ODS/DWD 小样本闭环，会重复验证已经证明的通用能力，并使正式 21 表数据源、跨表关系和分层模型长期停留在 Pilot 边界。用户因此确认离线开发从小样本 Pilot 切换到 V2 Source Data Build 与按层批量实施。
+
+### 决策
+
+1. `hist-v1-001`、100 单生成器、已验证的 `ods_order` / `dwd_order` 及相关脚本统一作为 `PILOT / ACCEPTANCE / HISTORY` 保留。它们的历史证据继续有效，但不再作为正式 V2 数据开发入口。
+2. 正式源库统一为 MySQL `ecommerce_oltp`。`ecommerce_oltp_m2_acceptance` 保留为 Pilot、CDC、R1/R2/M3 历史验收环境，不删除，也不作为正式离线开发源。
+3. 正式数仓沿用 `ecommerce_ods`、`ecommerce_dwd`、`ecommerce_dim`、`ecommerce_dws`、`ecommerce_ads`，不新增 `_v2` database。V2 正式装载前必须通过单独批准、可验证、可回滚的初始化方案隔离或重置现有 Pilot 数据，不允许混用。
+4. V2 数据生成固定为 Python Generator → CSV → MySQL `LOAD DATA`。Generator 只负责业务关系、状态流转、时间分布、主外键、金额平衡、优惠分摊、支付重试、退款、身份关系和边界场景；数据库装载由 `LOAD DATA` 负责。旧 100 单 Generator、Python 逐条 INSERT 和 `generate_and_insert.py` 不作为 V2 正式路径。
+5. 正式源模型继续采用 `DR-028` 的 7 个业务域、21 张 `biz_*` 业务表。生成器统一覆盖一期 21 表，不再为每张表单独补小样本。
+6. 工程实施从逐表纵向 Pilot 改为按层批量推进：21 表 Source → Source Gate → 批量 ODS → ODS Gate → DWD/DIM → Model Gate → DWS → ADS → Doris → 最终整链路验收。
+7. ODS 收敛为“一套代码 + 多表配置”：通用 DataX Job Generator、Stage Runner、Spark Validation 和 Publish；每表配置 source table、target table、columns、primary key、partition rule、extract rule 和 quality rule。
+8. DWD/DIM 的业务转换 SQL 按表维护；Spark 提交、日志、锁、失败保护、参数解析和 precheck 使用通用执行框架。
+9. 不再执行 `ods_order_item_create.sql` 的 Pilot 路线。该文件保持 F2 `CONFIRMED_CREATED / NOT EXECUTED`，不提升为 VERIFIED，也不自动成为 V2 正式 ODS 设计。
+10. 不取消测试。验收收敛为 Source Gate、ODS Gate、Model Gate 和最终整链路验收，减少重复逐表端到端步骤，同时保留失败非零、结果守恒和跨表一致性要求。
+
+### 验证方法
+
+1. Source Contract：核对 `ecommerce_oltp` 正式 21 表 DDL，并冻结每表数据量、时间范围、状态分布、跨表比例、CSV 字段、依赖和生成顺序。
+2. Source Gate：在固定 Generator 版本、seed 和显式时间范围下生成全部 CSV，经 `LOAD DATA` 装载后核对 21 表行数、业务键、主外键、金额平衡、状态关系与预期失败场景。
+3. ODS Gate：核对全部一期源表与 ODS 的行数、主键唯一性、关键字段、分区及核心跨表关系；发布失败必须返回非零且不得覆盖已验证分区。
+4. Model Gate：核对订单↔明细、订单↔支付、订单↔退款、商品关系、金额守恒和进入范围的核心指标。
+5. 最终验收：DWS、ADS、Doris 完成后执行逐层对账、首次运行、重跑、回补、重复输入和失败阻断验证。
+6. 当前只完成方向冻结；具体规模、时间范围、比例、DDL 核对、Generator、CSV、`LOAD DATA`、各 Gate 和数据库重置均须以未来文件与 Runtime 证据验收。
+
+### 影响与风险
+
+该决策停止继续扩展 Pilot，能够把工程投入集中到正式 21 表数据和跨表业务闭环，并让 ODS 通用框架成为主要复用点。风险是一次性批量范围扩大后，源 Contract、生成顺序、资源容量、MySQL 装载、ODS 配置或跨表质量问题可能集中暴露，因此必须先冻结规模与分布，再进入实现，不能以“大规模”名义虚构数据量或跳过 Gate。
+
+当前 `ecommerce_oltp` 的 21 表 DDL 尚待核对；V2 规模、时间范围、状态分布和跨表比例仍为 `DECISION_REQUIRED`。现有 `ecommerce_ods` / `ecommerce_dwd` Pilot 数据的精确重置对象、备份、回滚和验收方式也需单独确认，本决策不授权立即执行数据库清理。`BI / Agent` 是否进入当前 V2 交付仍与 `DR-029` 的后续规划边界存在待确认项，不阻塞 Source Data Build，但不得据此开始实现。
+
+### 回滚方式
+
+若 V2 Source Contract 或批量路径在当前资源下不可实施，保留本决策、全部 Pilot 验收资产、失败证据和已生成的只读数据，由新的连续决策调整规模、分批策略或 Gate，不删除 `ecommerce_oltp_m2_acceptance`，不把 Pilot 数据混入正式 V2 数据，也不静默恢复逐表 Pilot 作为正式主线。数据库初始化或重置只有在备份/隔离、精确目标、验证与回滚方案单独批准后执行。
+
+## DR-032：实时 Pilot 收口与离实时统一 V2 开发路线
+
+- 状态：`accepted`
+- 决策日期：2026-09-27
+- 决策人：用户
+- 影响范围：Milestone 2、8、9，正式业务源、CDC/Kafka、Flink 作业组织、事件版本、Checkpoint、Doris 初始化、实时指标与离实时对账
+- 关联决策：延续 `DR-028` 的 21 表业务基线、`DR-029` 的 Java DataStream Jar + YARN Application Mode 和 `DR-031` 的 Shared V2 Source Data Build；替代 `R4 Payment DWD` 作为当前下一步，但不撤销 R1～R3 的历史 Runtime 事实
+
+### 背景
+
+实时 R1～R3 已在 `ecommerce_oltp_m2_acceptance` → `ods_cdc_m2_clean_v1` → Order / OrderItem DWD → Doris 的限定范围证明 21 表 Snapshot、Binlog 增量、Checkpoint 恢复和正常顺序 Upsert。继续按 Payment、Refund、Coupon 逐表复制完整验收，会维持离线与实时两套业务源，并形成大量长期 YARN Application；Pilot 的 `all-to-zero` 与单一 `kafka_offset` Sequence 也不能直接扩展到正式多分区 V2。
+
+### 决策
+
+1. R1～R3 统一定位为 `PILOT / ACCEPTANCE / HISTORY`。`OrderDwdJob`、`OrderItemDwdJob` 不删除，作为 `VERIFIED PROTOTYPE / FRAMEWORK REFERENCE` 保留；`R4 Payment DWD` 暂停。
+2. 离线与实时唯一正式业务源均为 MySQL `ecommerce_oltp`，共享 7 域 21 表业务模型、Source Gate 与 Metrics Contract。`ecommerce_oltp_m2_acceptance` 不删除，但不再作为正式开发源。
+3. 历史初始化采用 Python Generator → 21 CSV → `LOAD DATA`；实时增量由独立 Incremental Business Generator 通过 MySQL Transaction 产生 Binlog，禁止直接写 Kafka。
+4. 正式 CDC 初始化顺序为 Source Gate → 停止源写入 → Flink CDC Initial Snapshot → Kafka Snapshot Gate → 冻结 Snapshot 基线 → 启动 Incremental Business Generator → 持续增量。
+5. 正式 CDC 覆盖一期 21 表。`ods_cdc_m2_clean_v1` 与旧污染 Topic 不复用；先做 Topic Inventory，再冻结 Formal Topic Namespace。
+6. `all-to-zero` 只保留为 Pilot 策略。正式 Key/Partition 保证 Same Business Key → Same Partition → Ordered Events；具体 Partition 数待数据规模冻结。
+7. `kafka_offset` Sequence 只保留为单 Partition Pilot 策略。正式 `event_version` 须结合 CDC source metadata、Binlog/transaction metadata、source timestamp、partition+offset 或业务更新时间另行冻结。
+8. Flink 工程按业务域组织 Domain Applications；Kafka Source、CDC Parser、Router、Metadata、Checkpoint、Error Handling、Doris Sink、YARN 提交、日志和恢复框架通用化，业务 Transform 分业务维护。不再一张表一个长期 Application。
+9. V2 实时验收收敛为 CDC Gate、Realtime Model Gate、Recovery Gate、实时指标验收与 Offline ↔ Realtime Reconciliation，不逐表重复完整 Initial + Incremental + Recovery 大验收。
+10. Pilot Checkpoint Root 不用于 V2。正式 CDC、DWD/DIM、DWS/ADS 分别使用隔离的 Checkpoint Root。
+11. 正式 V2 启动前，Doris Pilot 数据必须按另行批准、可验证、可回滚的方案清除或隔离；继续使用正式 database 命名，不创建 `ecommerce_serving_v2`。本决策不授权立即执行数据库清理。
+12. 当前共同下一步为 Shared V2 Source Data Build；Realtime V2 在 SOURCE GATE 通过后再进入 Formal CDC Contract、21 表 Snapshot、CDC Gate 与 Domain DWD/DIM。
+
+### 理由
+
+统一业务源、模型和指标合同可以避免离线与实时长期使用不同数据基线和口径。Domain Application 与通用运行框架减少长期 YARN Application 数量和重复工程，同时保留业务转换逻辑的可读性。集中 Gate 保留必要的完整性、恢复和对账验证，又避免把已由 Pilot 证明的通用能力逐表重复执行。
+
+### 验证方法
+
+1. Shared Source Gate：固定 Generator 版本、seed 和显式时间范围，核对 21 CSV 与 `ecommerce_oltp` 的行数、主外键、金额、状态、时间和跨表关系。
+2. CDC Gate：核对 21 表 Snapshot 行数、主键、`source.db/table`、CDC op、Key/Partition、`event_version`，并验证代表性 INSERT/UPDATE/关键 DELETE。
+3. Realtime Model Gate：核对 Order↔OrderItem、Order↔Payment、Order↔Refund、Coupon、Product、Identity 的状态、金额、Upsert 和重复通知语义。
+4. Incremental Simulation：增量生成器经 MySQL Transaction 产生支付失败→成功、取消、退款、券、身份和商品变化，不直接写 Kafka。
+5. Recovery Gate：集中验证 JobManager/TaskManager Failure、Checkpoint Restore、Kafka Resume、Doris 无重复与无数据丢失。
+6. 指标验收：同一截止时间下执行 Offline ↔ Realtime Reconciliation，并在确认的延迟范围内解释差异。
+7. 当前只完成方向冻结；以上内容只有在文件、命令、运行环境和结果对账齐全后才能标记 `VERIFIED`。
+
+### 影响与风险
+
+实时链路短期停止 Payment Pilot，等待 Shared Source Data Build。正式 Topic 名、Partition 数、Key、`event_version`、Checkpoint Root、Domain Job 边界、Doris 重置对象及离实时差异阈值仍为 `DECISION_REQUIRED`。按域合并作业会扩大单个 Job 的影响面，需要通过资源预算、路由隔离、失败恢复和可观测结果验证，不能仅凭设计宣称更可靠或更高性能。
+
+### 回滚方式
+
+若 Shared Source Contract、Domain Application 或正式多分区版本设计在当前资源下不可实施，保留 R1～R3 Pilot 资产、acceptance 环境、旧 Topic、Checkpoint 和全部失败证据，由新的连续决策调整数据规模、分域边界、Partition 或 Gate。不得删除历史资产、把 Pilot 数据混入正式 V2、复用旧 State 启动新 Job，或静默恢复逐表 Pilot 作为正式主线。
+
+## DR-033：GitHub 发布仓库整理与 V2 候选资产边界
+
+- 状态：`accepted`
+- 决策日期：2026-10-10
+- 决策人：用户
+- 影响范围：GitHub 发布目标、Repository 文件边界、Trellis/Codex 工具文件、历史 M2/Pilot 资产、V2 设计稿、Generator、DataX 配置示例
+- 关联决策：落实 `DR-030` 的项目旧协作文件清理，并保持 `DR-031`、`DR-032` 的 V2 Source Gate 与证据边界不变
+
+### 背景
+
+当前工作区混有项目代码、历史实现、项目级 Agent/Trellis 运行文件、重复设计稿、不完整 MySQL 骨架和多个 Git Remote/Branch。用户要求整理为可发布到 GitHub 的干净仓库，并确认旧用户名 `Z40003` 已不再适用；同时批准从公开仓库移除 `.agents/`、`.codex/`、`.trellis/`，保留 2026-09-28 的 V2 Generator 与设计稿，但只能按候选资产整合。
+
+### 决策
+
+1. GitHub 发布目标使用 `purpleyez104/ecommerce-data-warehouse`；旧用户名 `Z40003` 不再作为发布目标。当前本地 `origin` 仍指向旧地址，本次不修改 Remote、不 Push，也不处理 PR、Branch、Worktree 或 Stash，后续须在单独授权的 Git 治理步骤中收口。
+2. 公开仓库删除项目内 `.agents/`、`.codex/`、`.trellis/`，并通过根 `.gitignore` 防止重新纳入；根 `AGENTS.md` 继续作为项目协作规则入口。
+3. 2026-09-28 的 V2 数据规格、实施计划、指标与 Benchmark 设计分别整理到 `docs/design/`、`docs/business/`、`docs/benchmark/`。整体证据状态为 `candidate / DESIGNED / not_run`，不得覆盖 `README.md`、`docs/spec.md`、`docs/plan.md` 的正式阶段门禁，也不得把设计目标写成 Runtime 结果。
+4. `mock/generator/business_generator/` 与 `mock/generator/behavior_generator/` 作为 V2 候选实现保留，状态为 `candidate / implemented / not_run`。正式数据规模、CSV Contract、权威 DDL 映射、`LOAD DATA`、Source Gate 与目标环境 Runtime 仍须后续验收。
+5. 旧 21 表 Pilot Generator 归档到 `archive/pilot-v1/ecommerce_generator_v1/`，旧 19 表设计归档恢复到 `docs/archive/milestone-2-business-design.md`；历史证据继续保留，但不作为当前 V2 正式入口。
+6. 删除不完整的 `mysql/ecommerce_oltp_v1/` 骨架和已被正式文档覆盖的两份简短设计碎片。当前仓库尚无权威、可部署的 21 表 DDL，相关门禁继续保持 `DECISION_REQUIRED`。
+7. DataX 只提交 `datax.env.example`，真实 `datax.env` 保持本地且被 Git 忽略；配置缺失必须显式失败，不得提交密码或把示例配置描述为已运行配置。
+
+### 理由
+
+将本地 Agent 工具、重复草稿、不完整实现和正式工程资产分开，可以降低公开仓库噪声及误用风险。保留 V2 候选稿与 Generator 能避免丢失已有设计和实现投入，而显式降低证据状态可以防止候选内容覆盖正式 Spec、Milestone 门禁和真实运行结论。历史 Pilot 与旧 M2 资产集中归档，既支持追溯，也避免继续作为当前开发入口。
+
+### 验证方法
+
+1. 使用 `git status --short`、`git ls-files` 和路径检查确认项目内 `.agents/`、`.codex/`、`.trellis/` 已删除且 `.gitignore` 保留对应规则。
+2. 检查 README、Spec、Plan、建模导航与 File Baseline，确认新路径存在、旧路径无残留引用，状态统一为 `candidate / implemented / not_run` 或 History。
+3. 运行 V2 Business / Behavior Generator 的 Targeted Unit Test；测试结果只证明本地代码契约，不证明 Source Gate 或目标环境 Runtime。
+4. 对 Markdown 链接、UTF-8/LF、尾随空白、Secret 模式和 `git diff --check` 执行静态检查。
+5. 检查 `git remote -v`、Branch、Worktree 与 PR 只做只读核对，确认本次未执行 Remote 修改、Push、Merge、Branch/Worktree 删除或 History Rewrite。
+
+### 影响与风险
+
+删除项目级 Trellis/Codex 文件后，仓库不再携带对应本地工作流实现；协作仍由根 `AGENTS.md` 和正式项目文档约束。候选设计稿内部可能保留“冻结”等原始措辞，因此文件顶部必须持续声明其候选证据边界。当前 Git Remote、旧 PR 与多 Branch 尚未收口，提交或发布前仍需单独治理；权威 21 表 DDL、`LOAD DATA` 与 Source Gate 也仍未完成。
+
+### 回滚方式
+
+若后续确需项目级 Agent/Trellis 配置，通过新的连续决策选择最小必要文件重新引入，不恢复整套历史生成文件。若 V2 候选稿或 Generator 与正式 Contract 冲突，保留本决策和差异证据，由后续决策修订或归档候选资产，不静默提升状态。Git Remote、Branch、PR 和 Worktree 只在用户单独确认后修改；历史归档不得因整理而删除。
 
 ## 记录模板
 

@@ -2,7 +2,7 @@
 
 状态：当前 ECS 与已验收组件拓扑记录；未实施的服务仍为规划。更新时间：2026-09-20。
 
-本文件展开 [最终工程架构](final-architecture-v1.0.md)的部署视图。运行事实以[集群事实基线](cluster-baseline.md)、[兼容性矩阵](compatibility-matrix.md)和 `DR-026` 为证据来源；不因出现在拓扑图中就把后续业务作业标记为已部署。
+本文件展开 [最终工程架构](architecture/final-architecture-v1.0.md)的部署视图。运行事实以[集群事实基线](cluster-baseline.md)、[兼容性矩阵](compatibility-matrix.md)和 `DR-026` 为证据来源；不因出现在拓扑图中就把后续业务作业标记为已部署。
 
 ## 节点与角色
 
@@ -29,7 +29,7 @@ MySQL (hadoop201) ──DataX (workers)──> HDFS/Hive ODS ──Spark on YARN
 
 已通过的 MySQL→DataX→HDFS→Hive→Spark、MySQL Binlog→Flink CDC→Kafka→Flink→Kafka、Kafka→Flink→Doris 均为限定范围的技术验收。Doris 4.0.8 FE/BE、SQL 和受控重启恢复已通过。正式 21 表数据、Hive ODS、实时 Topic、Flink 业务 Jar、Doris 服务表和离实时对账仍须按 Milestone 2～9 分别验收。
 
-Flink 正式业务作业的目标部署方式为 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅保留作 Kafka SQL 技术验证。Application 提交命令退出 0 只代表提交成功，调度和验收必须核对 YARN final state。详见[实时链路规范](realtime-pipeline-design.md)。
+Flink 正式业务作业的目标部署方式为 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅保留作 Kafka SQL 技术验证。Application 提交命令退出 0 只代表提交成功，调度和验收必须核对 YARN final state。详见[实时链路规范](design/realtime-pipeline-design.md)。
 
 ## 资源与变更门禁
 

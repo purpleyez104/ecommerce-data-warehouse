@@ -2,7 +2,7 @@
 
 > 文档状态：业务规则基线／设计归档；2026-09-18 整理。来源：本项目对话中用户逐轮确认的业务决策。此文件不是业务系统已经上线的证明。
 > 使用优先级：明确的用户确认 > 较新阶段的同项设计 > 较旧候选方案。旧虚拟机的 19 表候选 DDL、Seed、Generator 不作为本版本依据。
-> 关联文档：[指标 V2.0](../metrics.md) · [逻辑模型 V2.0](../source/logical-model-v2.md) · [物理模型 V1.0](../source/physical-model-v1.md)。
+> 关联文档：[指标 V2.0](metrics.md) · [逻辑模型 V2.0](../source/logical-model-v2.md) · [物理模型 V1.0](../source/physical-model-v1.md)。
 
 ## 1. 目标、业务性质与边界
 

@@ -12,7 +12,7 @@
 
 ## 当前阶段门禁
 
-Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。Milestone 1“基础设施与兼容性”和 Milestone 2“业务模型与数据生成”状态均为 `in progress`。当前 ECS 集群记录中的 `CONFIRMED` 已由用户确认为本项目事实；Ubuntu、网络、磁盘、`yee` 用户和 Hadoop 3.4.1 运行拓扑不重新初始化。根据 `DR-026`，M1 Step 2～12 已完成 Runtime 验收，Milestone 1 当前唯一剩余门禁为 DolphinScheduler 3.4.2。推进 Milestone 1 时：
+Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。当前交付 V1“小规模离实时链路与展示仓库”为 `in progress`，交付 V2“规模与工程能力扩展”为 `planned`。Milestone 1、2、3、8、9 为 `in progress`，其中 M3 仅限 V1 固定小数据切片；M8/M9 的 `in progress` 依据是用户确认实时链路正在建设，精确完成范围待实时 Chat 与当前运行证据核对。R1 冻结记录只是限定范围的事实快照，不是项目阶段或 M8/M9 状态依据。当前 ECS 集群记录中的 `CONFIRMED` 已由用户确认为本项目事实；Ubuntu、网络、磁盘、`yee` 用户和 Hadoop 3.4.1 运行拓扑不重新初始化。根据 `DR-026`，M1 Step 2～12 已完成 Runtime 验收，Milestone 1 当前唯一剩余门禁为 DolphinScheduler 3.4.2。推进 Milestone 1 时：
 
 - 严格按 `docs/plan.md` 的主机、网络、JDK 和组件前置顺序实施，不跳过兼容性与资源门禁。
 - 不得以 Milestone 1 的名义创建业务表、数据模型、指标 SQL、离线任务或实时作业；Milestone 2 的本地产物只按 `DR-008` 和 M2 小计划门禁创建。
@@ -20,21 +20,21 @@ Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审
 - Milestone 1 的变更只创建其确实需要维护的环境、基础设施、兼容性、安装排障和验证内容，不夹带 M2 实现。
 - 禁止格式化已存在的 NameNode；验证脚本只能删除自己创建且经过前缀和运行编号约束的临时对象。
 
-`DR-008` 允许 Milestone 1 与 Milestone 2 分轨推进。当前 M2 以 `docs/business/business-baseline-v2.md`、`docs/metrics.md`、`docs/source/logical-model-v2.md` 和 `docs/source/physical-model-v1.md` 为设计输入。21 表候选 DDL 的 `M2-03` 静态快照属于部署前事实；用户提供的 2026-09-19～20 摘要记录了后来隔离验收库的有限 21 表 CDC 和 10/100 单结果，不证明当前在线状态或正式库结构。新 Generator 文件已入库，但固定 Seed、显式日期/重跑契约、精确依赖版本、90 天数据和离线接续未完成；M2 仍为 `in progress`，M3 仍阻断。`docs/acceptance/env-05-cdc-acceptance.md` 只证明单个隔离测试表和指定故障场景，不得单独外推到正式 21 表。
+`DR-008` 允许 Milestone 1 与 Milestone 2 分轨推进。当前 M2 以 `docs/business/business-baseline-v2.md`、`docs/business/metrics.md`、`docs/source/logical-model-v2.md` 和 `docs/source/physical-model-v1.md` 为设计输入。21 表候选 DDL 的 `M2-03` 静态快照属于部署前事实；`docs/acceptance/r1_snapshot_acceptance_frozen.md` 只证明指定隔离库到开发 Topic 的 21 表初始快照 1,178 / 1,178 及 100 单订单主键/最终状态对账，不证明当前在线状态、增量 CDC 或正式库结构。新 Generator 文件已入库，但固定 Seed、显式日期/重跑契约、精确依赖版本、90 天数据和离线接续未完成；M2 仍为 `in progress`。M3 只允许在输入、表范围、抽取契约、预期结果和回滚边界均明确的 V1 小数据切片内实施；不得据此宣称 M3 完成或扩大到全表范围。`docs/acceptance/env-05-cdc-acceptance.md` 只证明单个隔离测试表和指定故障场景，不得单独外推到正式 21 表。
 
-旧方案完整保留在 `docs/archive/milestone-2-business-design.md`，仅作为历史证据，不与当前 M2 状态混用。M1 与 M2 的并行不解除直接运行依赖；当前 Milestone 3 的 M2 交付门禁未满足。
+旧 19 表代码保留在 `archive/legacy-m2-19-table/`，对应旧设计归档保留在 `docs/archive/milestone-2-business-design.md`；二者均不作为当前 V2 实现依据。M1 与 M2 的并行不解除直接运行依赖；M2 剩余门禁仍阻止 M3 全范围完成，但不阻止已冻结边界的 V1 小数据切片。
 
 `completed` 只表示对应 Milestone 的进入条件、交付物和验收项已满足，不替代 `draft`、`candidate`、`planned`、`implemented`、`verified` 等内容证据状态。M0 完成不证明任何组件已经安装或数据链路已经运行。
 
-除 `DR-008` 明确允许的 M1/M2 并行方式外，所有后续 Milestone 必须满足 `docs/plan.md` 的进入条件后才能开始。上一阶段存在未解决阻断项时，不得提前开发下一阶段内容。
+完整 Milestone 仍必须满足 `docs/plan.md` 的全部进入条件和验收。用户已确认的 V1 纵向切片可在局部输入、契约、预期结果和回滚边界均明确后开始；上一阶段的未解决项仍阻止扩大范围或把当前切片标记为 `verified` / `completed`。
 
 ## 项目范围与实施顺序
 
 这是从零搭建的 Project 1 最终仓库，目标是形成真实运行、可验证、可复现、可解释的电商离实时一体化数据仓库。Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。
 
-实施顺序必须保持为：文档基线 → 基础设施与兼容性 → OLTP 模型与固定数据 → DataX 直写 Hive ODS → 离线数仓 MVP → V2 正式指标与质量 → Doris 离线服务与 DolphinScheduler → Spark 性能实验 → 实时设计评审 → 实时链路 → Project 1 发布。
+完整 Milestone 的依赖顺序保持为：文档基线 → 基础设施与兼容性 → OLTP 模型与固定数据 → DataX 直写 Hive ODS → 离线数仓 MVP → V2 正式指标与质量 → Doris 离线服务与 DolphinScheduler → Spark 性能实验 → 实时设计评审 → 实时链路 → Project 1 发布。交付 V1 可在明确边界内同时推进一条离线最小纵向链路和一条实时最小纵向链路；这不改变各 Milestone 的完整验收条件。
 
-优先完成稳定的最小离线闭环。实时链路当前仅为 `planned`；正式 Flink 业务作业已选定 Java DataStream Jar + YARN Application Mode，但在 Milestone 8 评审前，不得自行确定 Topic、Partition、Schema、窗口、Watermark、迟到、去重、状态 TTL、实时维度、Checkpoint 或 Doris 实时表模型，也不得生成正式 Flink 业务作业。BI、Dashboard、Agent 暂列后续规划，不计入当前 M0～M10 已交付能力。
+当前 V1 同时追求离线与实时最小闭环：离线从 MySQL → DataX → Hive ODS 切片起步，实时链路的精确已完成范围由当前代码、集群运行和对账证据确认，不从 R1 快照编号推导。正式 Flink 业务作业已选定 Java DataStream Jar + YARN Application Mode，但未经 Milestone 8 契约评审不得扩大 Topic、Partition、Schema、窗口、Watermark、迟到、去重、状态 TTL、实时维度、Checkpoint 或 Doris 实时表模型；已有 candidate 不得提升为 `verified`。BI、Dashboard、Agent 暂列后续规划，不计入当前 M0～M10 已交付能力。
 
 Project 2 不属于本仓库的实现范围。它只能在 Project 1 稳定后消费 `P1-METADATA-01`、`P1-LINEAGE-01`、`P1-METRIC-01`、`P1-QUALITY-01`、`P1-RECONCILIATION-01` 和 `P1-TASK-01` 六个只读契约；不得回写数据、重新定义指标、推断不存在的血缘或重复实现质量执行引擎。
 
@@ -66,7 +66,7 @@ MySQL ecommerce_oltp
 
 DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，输出格式为 ORC + Snappy；不建设独立持久化的中间数据层。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储，ODS 装载负责分区注册、审计字段、幂等发布和失败隔离。DataX 不负责决定正式金额精度、状态枚举和最终字段类型。ODS 保留源语义，DWD 保存原子事实，DIM 保存一致维度，DWS 保存可复用度量以及比率的分子和分母，ADS 负责最终指标表达。DolphinScheduler 只能在任务独立运行通过后接入，负责参数、依赖、重试、回补、质量阻断、装载和对账，不承载业务计算逻辑。
 
-仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。旧 19 表的 Seed、Generator、脚本和测试位于 `archive/legacy-m2-19-table/`，不得作为当前 V2 实现；`mock/generator/ecommerce_generator_v1/` 是新包的文件级实现，不表示正式批任务已验收。`hive/dim/`、`kafka/` 和部分 Flink/DataX/Spark/Doris 子目录已按用户批准建立为 `placeholder`，但可执行内容仍须满足 `README.md` 与 `docs/plan.md` 的对应 Milestone 门禁；`reconciliation/` 仍在结果结构稳定后创建，`tests/` 仅按已进入阶段的验证范围扩展。
+仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。旧 19 表的 Seed、Generator、脚本和测试位于 `archive/legacy-m2-19-table/`；旧 21 表 Pilot Generator 位于 `archive/pilot-v1/ecommerce_generator_v1/`，均不得作为当前 V2 正式入口。`mock/generator/business_generator/` 与 `mock/generator/behavior_generator/` 为 `candidate / implemented / not_run`，文件存在和本地测试不替代正式 Contract、Source Gate 或 Runtime 验收。`hive/dim/`、`kafka/` 和部分 Flink/DataX/Spark/Doris 子目录已按用户批准建立为 `placeholder`，但可执行内容仍须满足 `README.md` 与 `docs/plan.md` 的对应 Milestone 门禁；`reconciliation/` 仍在结果结构稳定后创建，`tests/` 仅按已进入阶段的验证范围扩展。
 
 ## 业务语义与待决策项
 
@@ -144,3 +144,125 @@ Agent 每次最终答复都必须包含以下内容：
 使用 Conventional Commits，例如 `docs: define initial project scope`、`feat(ods): add order ingestion`。提交和合并请求应说明目标、影响范围、验证命令及结果、未决事项、已知限制和回滚方式。
 
 禁止提交密码、密钥、Token、`.env`、真实生产地址、个人数据或原始运行日志。仓库只保留环境变量名、去敏示例和安全默认值，不硬编码密码、IP 或 Token。组件端口默认只允许 VPC 私网访问；公网暴露必须单独评审。MySQL CDC、Doris、Hive、调度器和 Project 2 使用各自的最小权限身份，其中 Project 2 必须只读。
+
+
+## Project State & Handoff Rules
+
+本项目采用：
+
+**Development Chat → Work Handoff → Repository**
+
+协作模式。
+
+详细流程见：
+
+`docs/workflow/README.md`
+
+当前状态维护于：
+
+```text
+docs/status/
+├── offline-current.md
+├── realtime-current.md
+└── file-baseline.md
+```
+
+### Source of Truth
+
+项目事实优先级：
+
+1. 最新 Handoff 中有证据支持的 `VERIFIED`
+2. File Fact Ledger / 明确执行与验收结果
+3. `docs/status/`
+4. 当前正式工程文件
+5. 最新业务与指标 Contract
+6. architecture / decision-register
+7. 旧 plan / milestone / Step / 历史草稿
+
+后续 VERIFIED 事实可以覆盖早期设计和旧计划。
+
+不得为了适配旧 `plan.md` 修改真实工程状态。
+
+### Status
+
+统一使用：
+
+- `VERIFIED`：真实执行并验收成功
+- `DOING`：正在推进
+- `DESIGNED`：已确认但未验证
+- `HISTORY`：已被替代
+- `UNKNOWN`：证据不足
+
+必须遵守：
+
+`FILE EXISTS ≠ VERIFIED`
+
+聊天中出现的代码、文件名或建议路径，也不代表文件真实存在或已执行。
+
+### Chat Responsibilities
+
+Development Chat 负责：
+
+- 开发、执行、排错、验收
+- 维护 File Fact Ledger
+- 判断当前工程状态
+- 阶段结束后生成 Work Handoff Package
+
+生成 Handoff 前必须先更新 File Fact Ledger。
+
+只有确认真实创建或执行的文件，才能作为真实工程资产进入交接包。
+
+### Work Responsibilities
+
+Work 负责：
+
+- 根据 Handoff 更新仓库
+- 更新 `docs/status/`
+- 维护 File Baseline
+- 更新 Handoff 明确要求的文档
+
+Work 不得自行：
+
+- 根据旧 plan 推断开发进度
+- 修改指标或业务设计
+- 创建没有事实依据的文件
+- 根据文件名猜测用途
+- 大规模重构、移动或重命名目录
+
+发现额外问题时记录为 `Deferred Issue`。
+
+### Stage Workflow
+
+每个开发阶段结束后：
+
+```text
+开发
+→ 验收
+→ 更新 File Fact Ledger
+→ 生成 Handoff
+→ Work 更新仓库和 Status
+→ 进入 NEXT
+```
+
+每次 Handoff 只处理本阶段新增或变化的内容。
+
+### Conflict Handling
+
+如果 Handoff、Status、仓库文件或历史文档之间存在冲突：
+
+- 不得猜测
+- 标记为 `CONFLICT`
+- 无法确认的内容保持 `UNKNOWN`
+
+### Repository Stability
+
+除非 Handoff 或用户明确要求，不得：
+
+- 大规模重构目录
+- 删除历史文件
+- 批量重命名
+- 顺手修改无关阶段
+
+项目当前优先级是：
+
+**保证工程事实可信，并持续推进开发。**

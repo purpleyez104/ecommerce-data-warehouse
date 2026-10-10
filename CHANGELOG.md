@@ -8,6 +8,13 @@
 
 ### 新增
 
+- 新增 `DR-033`，确认 GitHub 发布目标使用新用户名 `purpleyez104`，项目内 Trellis/Codex 工具目录不进入公开仓库；2026-09-28 V2 数据规格、实施计划、指标与 Benchmark 作为 `candidate` 设计输入保留，不覆盖正式 Spec、Plan 或 Runtime 证据。
+- 整合 V2 Business / Behavior Generator，统一记录为 `candidate / implemented / not_run`；文件和 Targeted Unit Test 不能替代正式数据规模、CSV Contract、`LOAD DATA`、Source Gate 或目标环境 Runtime 验收。
+- 新增 `DR-032`，将实时 R1～R3 定位为 Pilot / Acceptance / History，暂停 `R4 Payment DWD`，确认离实时共享 `ecommerce_oltp`、21 表 Source Contract、Generator 与 Metrics Contract；Realtime V2 在 SOURCE GATE 后进入 Formal CDC、Domain DWD/DIM、集中 Gate 与离实时对账。该变更仅冻结方向，不表示 V2 CDC 或模型已实现。
+- 新增 `DR-031`，确认离线 100 单链路完成 Pilot / Acceptance 使命并转为 History，正式离线入口切换为 21 表 V2 Source Data Build；固定 Python → CSV → `LOAD DATA`、按层批量实施、通用 ODS Framework 与 Source/ODS/Model Gate 边界。具体数据规模、数据库重置与 BI/Agent 归属仍为待确认项，不构成 Runtime 完成。
+- 新增 `biz_order` ODS 历史切片验收记录、`hist-v1-001` 固定样本摘要、87 个剩余 HDFS 分区的一次性发布重建稿及 Spark SQL 九列固定基线质量入口；Runtime 事实限定为用户提供的 2026-09-22 Chat 记录，新脚本状态为 `implemented / not_run`，M3 保持 `in_progress`。
+- 新增 R1 实时链路验收记录，保存商品事件 `op=c/d`、订单 DWD Java Job 构建与首次装载、Doris 100 单汇总的历史证据及未验证边界；该记录不代表当前作业在线、Checkpoint、订单 UPDATE、恢复或端到端 Exactly-Once 已通过。
+- 新增实际执行过的 Doris `dwd_order` 建表 SQL，以及冻结 100 单的 MySQL/Doris 只读逐行对账脚本；脚本入库状态为 `implemented / not_run`，现有 Doris 表不得重复创建或通过 DROP/重建覆盖。
 - 新增 `DR-028`，确认 V2 业务基线、合并后的 `docs/metrics.md`、逻辑模型和 21 张 `biz_*` 字段级候选物理设计成为当前 Milestone 2 实施基线；归档方案及其运行证据继续保留，但不再满足当前 M2/M3 门禁。
 - 新增 T7 M2.5 Linux Bash Runtime 验收入口：在目标 MySQL 8.0.46 使用两个受控隔离 Database 联合执行 19 表 DDL、固定 Seed、Generator、约束失败和业务语义检查，并生成去敏的完整结果摘要。
 - 新增 T7 MySQL Runtime 验收结果：两套 19 表 DDL、固定 Seed 首次装载与同内容重跑、漂移拒绝、5 个约束失败用例、Generator 确定性装载、金额守恒、生成列、软删除和 `update_time` 语义均通过，两个隔离 Database 均已清理。
@@ -36,6 +43,13 @@
 
 ### 变更
 
+- 规范化文档结构：V2 数据规格与实施计划候选稿归入 `docs/design/`，Benchmark 规范归入 `docs/benchmark/spec.md`，指标唯一入口归入 `docs/business/metrics.md`；恢复 `docs/archive/milestone-2-business-design.md` 作为旧 19 表历史设计归档。
+- 将旧 21 表 Pilot Generator 归档到 `archive/pilot-v1/ecommerce_generator_v1/` 并恢复原 package layout；其状态保持 `PILOT / ACCEPTANCE / HISTORY`，不作为 V2 正式入口。
+- DataX 仓库配置改为 `datax/config/datax.env.example`，本地 `datax.env` 被 Git 忽略；候选 Job Generator 展开嵌套环境变量、生成严格合法 JSON，并由 Targeted Test 覆盖；运行脚本在配置缺失时显式失败，并统一使用 `DATAX_LOG_DIR`。上述检查不替代 DataX/HDFS/Hive Runtime 验收。
+- 实时开发从逐表 Pilot 切换为 V2 正式业务路线：`ecommerce_oltp_m2_acceptance`、`ods_cdc_m2_clean_v1`、`all-to-zero`、Pilot `kafka_offset` Sequence 与旧 Checkpoint 仅保留为 History；Order / OrderItem Job 保留为 Verified Prototype。正式 Topic、Partition、`event_version`、Domain Job、增量生成器和 Doris 初始化仍待实现与验证。
+- 离线开发从逐表 Pilot 切换为 V2 按层批量路线：正式源库使用 `ecommerce_oltp`，保留 `ecommerce_oltp_m2_acceptance` 作为历史验收环境；停止执行 F2 `ods_order_item_create.sql`，旧 Generator 不再作为正式入口。当前只进入 21 表 DDL 核对和数据规格冻结，尚未创建新 Generator、CSV、`LOAD DATA`、Source Gate 或 V2 ODS。
+- 同步 README、规格、阶段计划、DataX 与测试导航：记录 `hist-v1-001` 的 100 单、319 明细、82 支付尝试、69 `PAID`、31 `CANCELED`、88 分区及三项金额基线，并区分历史 Runtime、仓库实现和本轮 `not_run` 边界。
+- 同步 README、规格、阶段计划、架构、实时设计、业务源、建模导航和测试入口中的实时链路状态：M8/M9 保持 `in progress`，订单 DWD 首次装载仅为限定范围历史 Runtime 事实，逐行对账、Checkpoint、订单 UPDATE 和恢复仍待验收。
 - Milestone 2 调整为 `in progress`：当前采用自营商城 V2 业务规则、六域指标体系、21 张 `biz_*` 候选源表和独立行为事件流；正式 DDL、Seed、Generator、正式表 CDC/离线接续及 Runtime 尚未完成，Milestone 3 因此继续阻断。
 - 将 `docs/metrics/metrics-v2.md` 合并到 `docs/metrics.md`，保留原 V2 指标正文，仅调整移动后的相对链接并补充实现状态边界；仓库内指标入口统一为 `docs/metrics.md`。
 - Milestone 2 更新为 `completed`：M2.1～M2.5 的进入条件、交付物和验收项均已满足；Candidate DDL、固定 Seed 与 Generator 的 T7 验收范围由 `implemented` 提升为 `verified`，不代表 M3 ODS 或后续数据链路完成。
@@ -78,4 +92,7 @@
 
 ### 移除
 
+- 从公开仓库移除 `.agents/`、`.codex/`、`.trellis/` 项目工具文件，保留根 `AGENTS.md` 作为协作规则入口。
+- 移除不完整且库名冲突的 `mysql/ecommerce_oltp_v1/` 骨架，以及已被正式设计文档覆盖的 `docs/design/mock-data-design.md`、`docs/design/mysql-source-design.md` 碎片；当前权威 21 表 DDL 入口仍为 `DECISION_REQUIRED`。
+- 移除仍依赖旧 Pilot Generator、已删除 DDL 或旧验收 SQL 的重复脚本与测试入口；旧 Generator 的代码和测试只在 `archive/pilot-v1/ecommerce_generator_v1/` 中保留。
 - 从正式离线架构中移除独立的 HDFS landing/staging Text/CSV 中间数据层。
