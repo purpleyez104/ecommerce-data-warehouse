@@ -1,5 +1,5 @@
 # 验收样本
 
-本目录用于保存当前 V2 的小规模、可人工核对、去敏验收样本及其预期结果。
+本目录用于保存当前 V1 的小规模、可人工核对、去敏验收样本及其预期结果。
 
-固定 Seed 和完整预期结果当前仍为 `planned`；目录存在不表示样本已经形成或通过 Runtime 验收。历史 19 表样本位于 `archive/legacy-m2-19-table/`，不得迁回当前 V2。
+旧 Pilot Generator 已归档到 `archive/pilot-v1/ecommerce_generator_v1/`；本目录不再保存可执行 Generator。

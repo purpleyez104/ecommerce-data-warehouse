@@ -1,0 +1,14 @@
+{
+  "dataset_version": "v2.3-behavior-smoke",
+  "history_start": "2025-12-01T00:00:00",
+  "history_end": "2025-12-07T23:59:59.999",
+  "timezone": "Asia/Shanghai",
+  "promotion_dates": ["2025-12-06"],
+  "entity_counts": {
+    "biz_user": 40,
+    "biz_visitor": 80,
+    "biz_identity_mapping": 24,
+    "biz_sku": 40
+  },
+  "behavior_events": 500
+}

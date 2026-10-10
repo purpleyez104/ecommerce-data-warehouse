@@ -1,0 +1,30 @@
+{
+  "dataset_version": "v2.3-bootstrap",
+  "history_start": "2025-12-01T00:00:00",
+  "history_end": "2026-02-28T23:59:59.999",
+  "timezone": "Asia/Shanghai",
+  "promotion_dates": ["2025-12-12", "2026-01-01", "2026-02-14"],
+  "counts": {
+    "biz_user": 40000,
+    "biz_visitor": 80000,
+    "biz_identity_mapping": 24000,
+    "biz_category": 60,
+    "biz_spu": 1200,
+    "biz_sku": 4000,
+    "biz_product_change_event": 2000,
+    "biz_cart": 50000,
+    "biz_cart_item": 110000,
+    "biz_cart_merge_record": 8000,
+    "biz_order": 100000,
+    "biz_order_item": 285000,
+    "biz_order_status_event": 199000,
+    "biz_payment_attempt": 95300,
+    "biz_payment_event": 95300,
+    "biz_refund_request": 9000,
+    "biz_refund_transaction": 9540,
+    "biz_refund_event": 27360,
+    "biz_coupon_template": 30,
+    "biz_coupon": 60000,
+    "biz_coupon_event": 130000
+  }
+}

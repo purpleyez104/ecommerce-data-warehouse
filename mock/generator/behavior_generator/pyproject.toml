@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecommerce-behavior-generator-v2"
+version = "0.1.0"
+description = "Standalone deterministic V2 behavior event generator"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+ecommerce-behavior-generator = "behavior_generator.generator:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
