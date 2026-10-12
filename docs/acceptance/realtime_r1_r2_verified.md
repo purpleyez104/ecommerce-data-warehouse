@@ -13,11 +13,11 @@
 
 ## 仓库操作入口
 
-- 首次编译：在 `flink/jobs/r1/r1-order-dwd-job/` 执行 `bash build.sh`。
+- 首次编译的历史 ECS 路径为 `flink/jobs/r1/r1-order-dwd-job/`；当前仓库工程归档在 `archive/pilot-v1/realtime/flink/order-dwd-job/`。
 - 首次装载：同目录的 `bash run.sh` 仅适用于目标 Doris 表为空、独立 Checkpoint 尚不存在且无重复写入者的场景；不得用于当前已验收表。
 - CDC 恢复：本次从 `hdfs://hadoop201:8020/user/hive/warehouse/ecommerce/flink/checkpoints/cdc_r1_clean_v1/0400e22ef4fa90549e56b94698fe5a81/chk-328/_metadata` 以 `NO_CLAIM` 恢复成功。这是历史记录，不是下一次重启的默认路径。
 - DWD 恢复：本次从 `hdfs://hadoop201:8020/user/hive/warehouse/ecommerce/flink/checkpoints/order_dwd_r1_v1/7bc74b857c2db20af92a4c7ed49320d4/chk-114/_metadata` 以 `NO_CLAIM` 恢复成功。这是历史记录，不是下一次重启的默认路径。
-- 对账：`scripts/realtime/check_order_dwd_consistency.sh` 是只读 R2 候选脚本，尚未在 ECS 执行；它仅校验 101 单基线与订单核心字段。
+- 对账：`archive/pilot-v1/realtime/acceptance/check_order_dwd_consistency.sh` 是只读 R2 候选脚本，尚未在 ECS 执行；它仅校验 101 单基线与订单核心字段。
 
 ## 保留的未知与边界
 

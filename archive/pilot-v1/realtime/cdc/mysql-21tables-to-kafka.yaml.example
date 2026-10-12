@@ -1,11 +1,11 @@
-# 示例配置：无密码，不可直接提交。正式验收文件仅存 hadoop201 私密目录。
+# 示例配置：不含真实密码，不可直接提交。正式验收文件仅存 hadoop201 私密目录。
 # 本文件基于对话中的成功配置重构，并非从 hadoop201 下载的原始 YAML。
 source:
   type: mysql
   hostname: hadoop201
   port: 3306
   username: cdc_user
-  password: "REPLACE_LOCALLY_IN_PRIVATE_COPY"
+  password: "${MYSQL_PASSWORD}"
   tables: ecommerce_oltp_m2_acceptance.biz_cart,ecommerce_oltp_m2_acceptance.biz_cart_item,ecommerce_oltp_m2_acceptance.biz_cart_merge_record,ecommerce_oltp_m2_acceptance.biz_category,ecommerce_oltp_m2_acceptance.biz_coupon,ecommerce_oltp_m2_acceptance.biz_coupon_event,ecommerce_oltp_m2_acceptance.biz_coupon_template,ecommerce_oltp_m2_acceptance.biz_identity_mapping,ecommerce_oltp_m2_acceptance.biz_order,ecommerce_oltp_m2_acceptance.biz_order_item,ecommerce_oltp_m2_acceptance.biz_order_status_event,ecommerce_oltp_m2_acceptance.biz_payment_attempt,ecommerce_oltp_m2_acceptance.biz_payment_event,ecommerce_oltp_m2_acceptance.biz_product_change_event,ecommerce_oltp_m2_acceptance.biz_refund_event,ecommerce_oltp_m2_acceptance.biz_refund_request,ecommerce_oltp_m2_acceptance.biz_refund_transaction,ecommerce_oltp_m2_acceptance.biz_sku,ecommerce_oltp_m2_acceptance.biz_spu,ecommerce_oltp_m2_acceptance.biz_user,ecommerce_oltp_m2_acceptance.biz_visitor
   server-id: 5701-5704
   server-time-zone: Asia/Shanghai

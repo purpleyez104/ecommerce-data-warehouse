@@ -1,6 +1,8 @@
 # R1 Order DWD first load
 
-Status: historical limited-scope Runtime completed; current cluster state unknown. See [R1 realtime acceptance](../../../../docs/acceptance/r1-realtime-acceptance.md).
+Status: historical limited-scope Runtime completed; current cluster state unknown. See [R1 realtime acceptance](../../../../../docs/acceptance/r1-realtime-acceptance.md).
+
+Current repository location: `archive/pilot-v1/realtime/flink/order-dwd-job/`. The commands below preserve the original ECS execution path as historical provenance; they are not current deployment instructions.
 
 The job was built and submitted in the target ECS environment. YARN Application `application_1790055138808_0001` was observed `RUNNING` at 2026-09-22 13:44 Asia/Shanghai, and Doris contained 100 orders (`PAID=69`, `CANCELED=31`, 100 distinct IDs). This is historical evidence, not proof that the application is currently running. The repository contains source and scripts, **not** compiled JARs or credentials.
 
@@ -29,4 +31,4 @@ After RUNNING and completed checkpoint, inspect:
 mysql --protocol=TCP -h hadoop201 -P 9030 -u root -e "SELECT COUNT(*) AS rows, SUM(order_status='PAID') AS paid, SUM(order_status='CANCELED') AS canceled, COUNT(DISTINCT order_id) AS ids FROM ecommerce_serving.dwd_order;"
 ```
 
-The historical first load produced rows=100, paid=69, canceled=31, ids=100. Run `tests/realtime/check_dwd_order_consistency.sh` for the pending row-level comparison. That script is `implemented / not_run` until executed on the target ECS. The first load does not prove `biz_order` UPDATE handling, completed checkpoints or recovery. `event_key=CDC_R1_...` on unrelated `biz_product_change_event` must not appear in `dwd_order`.
+The historical first load produced rows=100, paid=69, canceled=31, ids=100. The pending row-level comparison is archived at `archive/pilot-v1/realtime/acceptance/check_dwd_order_consistency.sh`. That script is `implemented / not_run` until executed on the target ECS. The first load does not prove `biz_order` UPDATE handling, completed checkpoints or recovery. `event_key=CDC_R1_...` on unrelated `biz_product_change_event` must not appear in `dwd_order`.

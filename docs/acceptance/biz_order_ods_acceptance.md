@@ -40,16 +40,16 @@ MySQL ecommerce_oltp_m2_acceptance.biz_order
 ## 3. 证据来源与等级
 
 - Runtime 事实来源是用户提供的 2026-09-22 Chat 终端输出；本仓库没有冒充保存原始 ECS 日志、实际 DataX Job、当次分区清单或当次 Spark SQL 文件。
-- 当前仓库中的 `datax/scripts/`、`datax/templates/` 与 `hive/ods/ddl/ods_order.sql` 用于解释现有实现边界，但不冒充当次实际执行文件。
-- `scripts/offline/publish_order_ods_partitions.sh` 是对当时剩余 87 个 HDFS 分区移动步骤的发布重建稿。它要求外部提供经审计的 87 行日期清单；最终 88 个 ODS 分区是历史 Runtime 结果，不能由重建稿的文件存在反推。
-- `quality/checks/check_ods_order_quality.sh` 固化九列 Spark 汇总基线及审计/日期规则；当前仅为仓库文件级 `implemented`，未在 ECS 执行。
+- 当前仓库中的 `datax/scripts/`、`datax/templates/` 与 `archive/pilot-v1/offline/reference/ods_order.sql` 用于解释历史实现边界，但不冒充当次实际执行文件。
+- `archive/pilot-v1/offline/reference/publish_order_ods_partitions.sh` 是对当时剩余 87 个 HDFS 分区移动步骤的发布重建稿。它要求外部提供经审计的 87 行日期清单；最终 88 个 ODS 分区是历史 Runtime 结果，不能由重建稿的文件存在反推。
+- `archive/pilot-v1/offline/reference/check_ods_order_quality.sh` 固化九列 Spark 汇总基线及审计/日期规则；当前仅为仓库文件级 `implemented`，未在 ECS 执行。
 
 ## 4. 可复用入口
 
 发布重建稿必须先准备一个恰好包含 87 个唯一合法日期的清单，再显式传入 HDFS 源根目录和目标根目录：
 
 ```bash
-bash scripts/offline/publish_order_ods_partitions.sh \
+bash archive/pilot-v1/offline/reference/publish_order_ods_partitions.sh \
   <source_root> \
   <target_root> \
   <audited_87_date_manifest>
@@ -60,7 +60,7 @@ bash scripts/offline/publish_order_ods_partitions.sh \
 在目标 ECS 确认 Hive 表仍对应固定切片后，可执行只读质量入口：
 
 ```bash
-bash quality/checks/check_ods_order_quality.sh
+bash archive/pilot-v1/offline/reference/check_ods_order_quality.sh
 ```
 
 预期退出码为 `0`，并输出 `ODS_ORDER_QUALITY: PASS`。Spark 执行失败、结果不是唯一九列数值行或任一固定值不符时返回非零且不输出 PASS。执行输出由操作者保存在私有证据目录，去敏摘要评审后再进入仓库。

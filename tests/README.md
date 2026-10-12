@@ -8,8 +8,8 @@
 - `scripts/check_snapshot_21.py`：读取最初 32 条 CDC 快照（仅初始基线适用）。
 - `scripts/check_empty_table_probes.py`：两张原空表的 INSERT / DELETE 事件匹配。
 - `scripts/check_order_batch_cdc.py`：按 run-id 核对创建事件及最终订单状态，不核对其他表。
-- `realtime/check_dwd_order_consistency.sh`：只读比较冻结 100 单的 MySQL/Doris 汇总、订单主键、状态及三个金额字段；当前为 `implemented / not_run`。
-- `../quality/checks/check_ods_order_quality.sh`：以 Spark SQL 只读核对 `hist-v1-001` 的订单数、状态、88 个分区、三项金额及审计/日期规则；当前为 `implemented / not_run`。
+- `../archive/pilot-v1/realtime/acceptance/check_dwd_order_consistency.sh`：只读比较冻结 100 单的 MySQL/Doris 汇总、订单主键、状态及三个金额字段；当前为 `implemented / not_run`。
+- `../archive/pilot-v1/offline/reference/check_ods_order_quality.sh`：以 Spark SQL 只读核对 `hist-v1-001` 的订单数、状态、88 个分区、三项金额及审计/日期规则；当前为 `implemented / not_run`。
 - `fault_injection/`：破坏性故障注入，**默认不执行**，需要隔离环境与人工批准。
 
 ## 使用示例
@@ -35,7 +35,7 @@ kafka-console-consumer.sh --bootstrap-server hadoop201:9092 \
 订单 DWD 逐行对账须在目标 ECS、确认仍使用冻结 100 单基线后执行：
 
 ```bash
-bash tests/realtime/check_dwd_order_consistency.sh
+bash archive/pilot-v1/realtime/acceptance/check_dwd_order_consistency.sh
 ```
 
 只有退出码为 `0` 且输出 `ORDER_DWD_CONSISTENCY: PASS` 才表示脚本覆盖的主键、状态及金额字段一致；不代表订单 UPDATE、Checkpoint、恢复或端到端 Exactly-Once 已通过。
@@ -43,7 +43,7 @@ bash tests/realtime/check_dwd_order_consistency.sh
 订单 ODS 固定基线检查须在目标 ECS、确认 Hive 表仍对应 `hist-v1-001` 后执行：
 
 ```bash
-bash quality/checks/check_ods_order_quality.sh
+bash archive/pilot-v1/offline/reference/check_ods_order_quality.sh
 ```
 
 只有退出码为 `0` 且输出 `ODS_ORDER_QUALITY: PASS` 才表示九列固定基线一致。该入口不负责 DataX 抽取、HDFS 分区移动或 Hive 分区注册；验收来源和限制见 `docs/acceptance/biz_order_ods_acceptance.md`。

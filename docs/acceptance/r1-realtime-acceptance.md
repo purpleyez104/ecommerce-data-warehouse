@@ -57,7 +57,7 @@ R2 已从 `chk-328` 恢复并观察到恢复后 6 次 completed Checkpoint；存
 
 ## 4. 订单 DWD
 
-仓库工程路径为 `flink/jobs/r1/r1-order-dwd-job/`。实时链路 Chat 记录 `build.sh` 编译成功并生成 `build/r1-order-dwd.jar`；构建产物不进入 Git。
+历史 ECS 工程路径为 `flink/jobs/r1/r1-order-dwd-job/`；当前仓库工程归档于 `archive/pilot-v1/realtime/flink/order-dwd-job/`。实时链路 Chat 记录 `build.sh` 编译成功并生成 `build/r1-order-dwd.jar`；构建产物不进入 Git，归档移动不表示重新构建或执行。
 
 历史首次装载的 YARN Application 为 `application_1790055138808_0001`。R2 后从 `chk-114` 恢复为 `application_1790128568803_0002`，并观察到 Flink Job `8d7eef522ff607f5ff9ca07839c916b1` 为 `RUNNING`、恢复后 3 次 completed Checkpoint；当前 Application 状态仍为 `unknown`。
 
@@ -83,7 +83,7 @@ hdfs://hadoop201:8020/user/hive/warehouse/ecommerce/flink/checkpoints/order_dwd_
 | `CANCELED` | R1 为 31；R2 探针后为 32 |
 | 不同订单 ID | R1 为 100；R2 探针后为 101 |
 
-R2 已核对测试订单的最终状态与 Doris Upsert 汇总；仓库可复核入口 `scripts/realtime/check_order_dwd_consistency.sh` 为 `implemented / not_run`，尚未形成 101 单逐行核心字段的 ECS Runtime 结论。该入口不涵盖全字段、事务、乱序或恢复一致性。实际执行过的建表语句保存于 `doris/ddl/dwd_order_create.sql`；现有表不得重复创建或通过 DROP/重建覆盖已验收数据。
+R2 已核对测试订单的最终状态与 Doris Upsert 汇总；仓库可复核入口 `archive/pilot-v1/realtime/acceptance/check_order_dwd_consistency.sh` 为 `implemented / not_run`，尚未形成 101 单逐行核心字段的 ECS Runtime 结论。该入口不涵盖全字段、事务、乱序或恢复一致性。实际执行过的建表语句归档于 `archive/pilot-v1/realtime/doris/dwd_order_create.sql`；现有表不得重复创建或通过 DROP/重建覆盖已验收数据。
 
 ## 6. 验收结论
 
@@ -112,9 +112,9 @@ R2 已核对测试订单的最终状态与 Doris Upsert 汇总；仓库可复核
 R1 冻结 100 单对账入口为：
 
 ```bash
-bash tests/realtime/check_dwd_order_consistency.sh
+bash archive/pilot-v1/realtime/acceptance/check_dwd_order_consistency.sh
 ```
 
-该脚本写入仓库时状态为 `implemented / not_run`。R2 的 101 单只读入口为 `scripts/realtime/check_order_dwd_consistency.sh`，同为 `implemented / not_run`；只有在目标 ECS 返回退出码 `0` 并输出相应 PASS 标识后，才能追加对应 Runtime 结论。
+该脚本写入仓库时状态为 `implemented / not_run`。R2 的 101 单只读入口为 `archive/pilot-v1/realtime/acceptance/check_order_dwd_consistency.sh`，同为 `implemented / not_run`；只有在目标 ECS 返回退出码 `0` 并输出相应 PASS 标识后，才能追加对应 Runtime 结论。
 
 在当前状态未知时，不得删除 Topic、Checkpoint、消费者组或 Doris 表，不得重新提交同一写入作业。订单 UPDATE 验收必须选择符合 `CREATED → PAID/CANCELED` 状态机的隔离业务操作，并在执行任何数据写入前单独确认输入、预期结果和回滚边界。
