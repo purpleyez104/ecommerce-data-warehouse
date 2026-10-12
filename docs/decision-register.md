@@ -48,6 +48,8 @@
 | `DR-031` | 离线 Pilot 收口与 V2 按层规模化开发路线 | `accepted` | 2026-09-27 | 正式源库、Generator、LOAD DATA、ODS/DWD 实施方式、验收 Gate、历史资产 |
 | `DR-032` | 实时 Pilot 收口与离实时统一 V2 开发路线 | `accepted` | 2026-09-27 | 正式业务源、CDC/Kafka、Flink 作业组织、事件版本、Checkpoint、Doris、离实时对账 |
 | `DR-033` | GitHub 发布仓库整理与 V2 候选资产边界 | `accepted` | 2026-10-10 | GitHub 发布目标、仓库工具文件、历史归档、V2 设计稿与 Generator 证据状态 |
+| `DR-034` | V2 正式数据规模、21 表候选 Contract 与本地生成基线 | `accepted` | 2026-10-12 | 正式规模、性能实验规模、候选 DDL、CSV Contract、Generator、Source Gate |
+| `DR-035` | Business Entity Manifest 与 Behavior 实体绑定 Contract | `accepted` | 2026-10-12 | Business / Behavior Generator、身份映射、Session、事件幂等、正式规模验证 |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -1415,6 +1417,93 @@ Milestone 2 状态为 `in progress`。21 表方案保持 `candidate`；正式 DD
 ### 回滚方式
 
 若后续确需项目级 Agent/Trellis 配置，通过新的连续决策选择最小必要文件重新引入，不恢复整套历史生成文件。若 V2 候选稿或 Generator 与正式 Contract 冲突，保留本决策和差异证据，由后续决策修订或归档候选资产，不静默提升状态。Git Remote、Branch、PR 和 Worktree 只在用户单独确认后修改；历史归档不得因整理而删除。
+
+## DR-034：V2 正式数据规模、21 表候选 Contract 与本地生成基线
+
+- 状态：`accepted`
+- 决策日期：2026-10-12
+- 决策人：用户
+- 影响范围：Milestone 2～3、21 表 MySQL 源模型、Business / Behavior Generator、CSV Contract、`LOAD DATA`、Source Gate、性能实验
+- 关联决策：延续 `DR-028` 的 21 表业务模型、`DR-031` 的 Python → CSV → `LOAD DATA` 路线和 `DR-032` 的离实时统一 Source Gate；更新 `DR-033` 中“尚无 21 表候选 DDL”的时点事实
+
+### 背景
+
+用户确认新 Generator 不建设独立 Smoke 数据规模档位：正式数据规模承担业务与指标验收，性能实验规模在正式规模通过后单独执行。目标 MySQL 只读检查显示，正式库 `ecommerce_oltp` 仅有 3 张技术测试表，没有 21 张 `biz_*`；历史验收库有同名 21 表和 Pilot 数据，可作为字段参考但不能直接代表正式库。
+
+历史验收结构与当前业务、指标和物理模型主体一致，但 CSV Contract 缺少 4 个审计字段，订单和优惠券之间的双向外键会形成循环装载依赖。旧候选稿的约 12,000 条商品变更事件也与“4,000 SKU 中约 25% 变化、每 SKU 1～3 个版本”不相容。
+
+### 决策
+
+1. 数据规模只保留两档：正式数据规模为 90 天、100,000 笔订单、约 285,000 条订单明细、约百万级 OLTP 记录和 3,000,000～5,000,000 条行为事件；性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件。仓库中的 `smoke.json` 仅作快速单元测试 Fixture。
+2. 新增 `mysql/ddl/001_ecommerce_oltp.sql` 作为 21 表候选 DDL。Business CSV Contract 补充 `biz_order_item.updated_at`、`biz_payment_attempt.created_at`、`biz_refund_request.created_at`、`biz_refund_transaction.created_at`；MySQL 生成列不进入 CSV。
+3. 订单和优惠券采用单向物理 FK：保留 `biz_order.coupon_id → biz_coupon.coupon_id`；`biz_coupon.locked_order_id`、`used_order_id` 只建索引，反向关系由 Generator 与 Source Gate 校验，避免循环 FK 阻碍 21 CSV 装载。
+4. `biz_product_change_event` 正式目标调整为约 2,000 行，保持约 25% SKU 变化、每个变化 SKU 1～3 个版本的业务分布。
+5. 修复订单注册、支付、优惠券、退款、购物车和行为采集的跨表身份/状态时间问题；固定参数下必须满足相同输出、`event_time ≤ ingest_time ≤ history_end`、订单不早于用户注册、券不晚于锁定发放且券用户与订单用户一致。
+6. 本地正式规模生成通过只提升 Generator 在记录参数下的证据状态，不提升候选 DDL、MySQL 装载、Source Gate、CDC 或 ODS 状态。Behavior 在正式交付前必须读取 Business 实体快照/Manifest，不得只根据相同数量重新构造实体空间；该门禁后由 `DR-035` 闭合。
+7. 本决策不授权数据库 DDL/DML、`LOAD DATA`、正式库清理或 Pilot 数据迁移；这些操作继续要求单独批准。
+
+### 理由
+
+单一正式规模可以直接验证业务规则和指标可计算性，避免维护没有交付价值的第三档数据。单向 FK 保留订单用券的核心数据库约束，同时消除批量装载循环；反向状态仍通过集中 Source Gate 验证。约 2,000 条商品变更事件能够与 SKU 变化比例和版本数同时成立。先在本地完成确定性正式规模生成，可以在数据库变更前暴露时间、身份和规模问题，但不能替代数据库约束和跨表 SQL 验收。
+
+### 验证方法
+
+1. 静态比较候选 DDL 与 `TABLE_COLUMNS`：21 表集合一致、可写字段差异为 0；生成列仅保留在 DDL。
+2. 检查 DDL 不含 `DROP`、`TRUNCATE`、`DELETE`、`INSERT` 或 `IF NOT EXISTS`，不存在向后 FK 依赖和优惠券反向循环 FK。
+3. Business Targeted Unit Test 验证确定性、金额守恒、支付时序、订单注册、优惠券用户/事件时序和历史窗口；Behavior Targeted Unit Test 验证确定性、事件类型及 `event_time ≤ ingest_time ≤ history_end`。
+4. 2026-10-12 本地正式规模实测：Business 生成 21 张 CSV、100,000 笔订单、285,000 条订单明细、合计 1,329,480 行、147,089,462 bytes，90 天时间越界为 0，耗时 65.743 秒。
+5. 同日本地 Behavior 正式下限实测：3,000,000 条事件、925,398,094 bytes，五类事件均有数据，耗时 422.308 秒。
+6. 后续 Runtime 验收必须在单独授权后部署候选 DDL、执行版本化 `LOAD DATA`，并以 Source Gate 核对行数、PK/FK、状态、金额、时间、优惠券反向关系、失败非零和幂等重跑。
+
+### 影响与风险
+
+候选 DDL、CSV 字段和正式规模已经形成可执行基线，Generator 的已知身份与时间错误已修复。本地生成耗时受当前 Windows 环境、Python 版本和磁盘影响，不能作为服务器导入吞吐或性能实验结论。DR-034 形成时 Behavior 尚未复用 Business Entity Manifest，该项后由 `DR-035` 闭合；数据库 CHECK/FK、优惠券最低消费、完整状态分布、跨表比例、`LOAD DATA` 幂等和 Source Gate 仍未验证。性能实验规模仍为 `DESIGNED / not_run`。
+
+### 回滚方式
+
+若候选 DDL 在隔离部署或 Source Gate 中失败，保留本决策、本地生成结果和失败证据，回滚本次候选 DDL、CSV Contract 与 Generator 修改，不修改或删除历史 acceptance 环境。若单向 FK 无法满足业务一致性，通过新的连续决策调整 Source Gate 或关系设计，不静默恢复循环 FK。任何已授权的数据库实验必须使用独立目标、明确备份/回滚和可验证 Cleanup；不得覆盖现有正式库或混入 Pilot 数据。
+
+## DR-035：Business Entity Manifest 与 Behavior 实体绑定 Contract
+
+- 状态：`accepted`
+- 决策日期：2026-10-12
+- 决策人：用户
+- 影响范围：Milestone 2、Business / Behavior Generator、身份映射、Session、历史 Behavior、Continuous Behavior
+- 关联决策：落实 `DR-034` 中 Behavior 必须复用 Business 实体空间的门禁；保持 `DR-031`、`DR-032` 的 Source Gate 和数据库授权边界不变
+
+### 背景
+
+此前 Business 与 Behavior 只共享配置中的实体数量。即使双方都生成相同范围的整数 ID，也不能证明用户、访客、身份版本、SKU 和有效时间来自同一数据集；Behavior 还可能在身份映射生效前填入 `user_id`。直接把身份映射记录中的登录 `session_id` 用于全部后续行为，又会把跨 90 天事件错误合并为单一 Session。
+
+### 决策
+
+1. Business Generator 每次输出 `entity_manifest.json`，当前 `entity_manifest_version=1`。Manifest 记录数据版本、Generator 版本、Seed、时区、历史范围，以及用户注册时间、访客首次出现时间、身份映射有效区间和 SKU 实体关系。
+2. `dataset_manifest.json` 记录 Entity Manifest 的文件名、版本和 SHA-256，使 Behavior 结果能够绑定到精确的 Business 实体快照。
+3. Behavior Bootstrap 与 Continuous CLI 都必须显式传入 `--entity-manifest`。缺失文件、未知版本、时区/历史范围不匹配、实体数量不匹配、重复 ID、未知引用或倒置的身份有效区间必须 fail-fast。
+4. Behavior 的 `user_id`、`visitor_id`、`sku_id` 和 `identity_version` 只从 Manifest 读取；配置中的 `entity_counts` 仅作契约核对，不再用于重新构造 ID。
+5. 同一运行批次内按访客对事件时间排序；连续 30 分钟无活动才开启新 Session。`event_id` 使用数据版本、Seed 和运行时间范围派生的命名空间，避免不同范围批次仅按行号生成重复 ID。
+6. 当前正式规模证据覆盖 Bootstrap Historical Behavior。Continuous 跨批次 Session 延续仍需在正式 Kafka/Checkpoint Contract 中设计和验证，不由本决策提升为 `verified`。
+7. 本决策不授权数据库 DDL/DML、`LOAD DATA`、Source Gate、Kafka 写入或目标 ECS 变更。
+
+### 理由
+
+显式 Entity Manifest 将“数量相同”提升为可验证的同一实体快照，并保留身份映射的有效时间。SHA-256 让 Behavior Manifest 能定位精确输入。按访客小批排序可实现 30 分钟 Session 规则，同时避免把 300 万事件整体载入内存；把数据库装载留在独立门禁可保持当前改动可逆。
+
+### 验证方法
+
+1. Business Targeted Test 验证 Entity Manifest 确定性、实体数量和 Dataset Manifest SHA-256；Behavior Targeted Test 验证未知版本 fail-fast、确定性、实体引用和 30 分钟 Session 边界。
+2. 当前代码 Smoke 端到端 CLI 实测：Business 1,418 行、Behavior 500 条事件、48 条映射事件、383 个 Session，双方 Entity Manifest SHA-256 一致。
+3. 2026-10-12 最终本地正式规模复跑：Business 21 张 CSV、1,329,480 行、147,089,462 bytes，耗时 61.365 秒；Entity Manifest 为 11,470,325 bytes。
+4. 同轮 Behavior 生成 3,000,000 条事件、938,435,690 bytes、256,992 条映射事件、2,785,149 个 Session，耗时 316.287 秒。
+5. 对 3,000,000 条事件执行全量审计，预期且实测 `bad_references=0`、`bad_sessions=0`、`duplicate_event_ids=0`，Entity Manifest SHA-256 绑定通过。
+
+### 影响与风险
+
+Behavior CLI 新增必填参数，旧调用命令必须同步。Behavior 文件按访客分组并在组内按事件时间排序，不承诺文件全局时间有序；下游必须继续以 `event_time` 为业务时间。Entity Manifest 当前约 11 MB，可由本地 Python 直接加载，但目标 ECS 性能尚未验证。Continuous 跨批次 Session 延续、Kafka Key/Partition、Schema 和 Checkpoint 仍是后续门禁。MySQL CHECK/FK、状态分布、跨表比例和 `LOAD DATA` 幂等仍未验证。
+
+### 回滚方式
+
+若 Manifest v1 与后续 Source Contract 冲突，保留当前正式规模结果和失败证据，通过新的连续决策发布新版本；Behavior 对未知版本继续 fail-fast，不静默兼容。若目标环境无法接受当前单文件 Manifest，保持字段语义与 SHA-256 绑定，改用分片或流式读取实现。不得回退到只按配置数量构造第二套实体空间，也不得借此修改或清理任何数据库。
 
 ## 记录模板
 

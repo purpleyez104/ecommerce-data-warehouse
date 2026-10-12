@@ -2,7 +2,7 @@
 
 版本：`0.5-draft`
 状态：离线与实时 Pilot `completed / HISTORY`；Shared V2 Source Data Build `in progress`；Realtime V2 `DESIGNED / waiting for SOURCE GATE`。Milestone 0 `completed`；Milestone 1、2、3、8、9 `in progress`；Milestone 4～7 `pending`
-更新时间：2026-09-27
+更新时间：2026-10-11
 Repository：`ecommerce-data-warehouse`
 
 ## 0. 文档使用范围
@@ -77,7 +77,7 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 | 交付阶段 | 状态 | 目标 | 证据边界 |
 | --- | --- | --- | --- |
 | V1 小规模链路与展示仓库 | `in progress` | 以固定、可人工核对的小数据集，跑通离线和实时最小纵向链路；形成可复现命令、脚本/SQL、验收记录、架构说明和简历证据 | 只陈述已真实执行的范围、数据量、结果和限制；不用小数据结果外推大规模、高吞吐或端到端 Exactly-Once |
-| V2 规模与工程能力扩展 | `in progress`（当前限 Source Data Build） | 以 21 表正式源模型冻结数据规格，建设 Python → CSV → `LOAD DATA` 与 Source Gate，后续按层推进 ODS、DWD/DIM、DWS、ADS 和 Doris | 当前未冻结具体规模；数据量、性能和完整链路结论必须绑定环境、版本、固定输入和实测证据 |
+| V2 规模与工程能力扩展 | `in progress`（当前限 Source Data Build） | 以 21 表正式源模型冻结数据规格，建设 Python → CSV → `LOAD DATA` 与 Source Gate，后续按层推进 ODS、DWD/DIM、DWS、ADS 和 Doris | 正式数据规模为 90 天、100,000 笔订单、约 285,000 条订单明细、约 100 万条 OLTP 记录和 3,000,000～5,000,000 条行为事件；性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件。实际数据量、性能和完整链路结论仍须绑定环境、版本、固定输入和实测结果 |
 
 “交付 V1/V2”是项目建设阶段，不替代文档中已有的“V2 业务基线”、“V2 指标体系”等模型或口径版本标识。
 
@@ -107,11 +107,11 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 
 分析范围覆盖交易与资金、流量与转化、商品、用户、退款与售后、营销。交易状态由模拟业务服务写入 MySQL，业务交易 CDC 只来自 MySQL Binlog；页面、商品和购物行为由独立行为源写入 Kafka，不得由生成器直接写 Kafka 冒充 CDC。
 
-当前源模型目标为 21 张 `biz_*` MySQL 表及独立行为事件流。逻辑模型见 `docs/source/logical-model-v2.md`，字段级候选物理设计见 `docs/source/physical-model-v1.md`。候选设计及仓库 DDL 不保证与现存 MySQL 结构一致；隔离库历史验收不得外推为正式库或完整链路验收。
+当前源模型目标为 21 张 `biz_*` MySQL 表及独立行为事件流。逻辑模型见 `docs/source/logical-model-v2.md`，字段级候选物理设计见 `docs/source/physical-model-v1.md`。2026-10-11 已只读确认正式库尚无 21 张业务表，并以历史验收库结构、业务基线和指标口径形成新的仓库候选 DDL；该候选稿尚未部署，隔离库历史验收不得外推为正式库或完整链路验收。
 
 ### 3.2 当前非目标
 
-- 第一期不建设完整库存域或库存流水；SKU 最小库存属性与是否扣减仍需在正式 DDL 前确认。
+- 第一期不建设完整库存域或库存流水；SKU 最小库存属性与是否扣减仍需在候选 DDL 部署前确认。
 - 当前阶段不确定实时 Topic、窗口、Watermark、迟到、状态 TTL、维度关联和 Doris 实时表模型。
 - 不建设生产级 Hadoop HA，也不将三节点开发环境描述为高可用集群。
 - 不引入阿里云专有中间件、Kafka ZooKeeper 模式、Spark Standalone、Flink Standalone、Kubernetes、HBase、Redis、Elasticsearch、ClickHouse、Iceberg、Hudi 或 Paimon。
@@ -155,7 +155,7 @@ Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提
 
 行为事件不计入 21 张 MySQL 表，逻辑上包含页面浏览、商品曝光、商品点击、加购和移除，至少保留稳定事件键、事件时间、采集时间、访客/用户、会话及按事件适用的 SKU、页面和数量字段。精确 Kafka Schema、Topic key 和保留策略仍待实施设计。
 
-21 表设计仍为 `candidate`：仓库候选 DDL 与 `docs/source/M2-03-物理设计与静态审查.md` 记录的是当时已生成、静态通过但未执行的设计快照。2026-09-21 的 R1 冻结记录证明 `ecommerce_oltp_m2_acceptance` 到 `ods_cdc_m2_clean_v1` 的固定快照区间内 21 表合计 1,178 行与 1,178 条事件一致，且 100 笔订单主键与最终状态对账通过；该限定范围结果不是仓库 DDL 与当前 MySQL 逐字一致、增量 CDC 或正式源库通过的证明。Business / Behavior Generator 文件已入库，但整体仍为 `candidate / implemented / not_run`；正式数据规模、CSV Contract、DDL 映射、`LOAD DATA`、Source Gate、DataX/CDC 初始化接续及正式源库验收均未完成。正式实施前仍需收敛 SKU 库存属性、订单身份、回调去重、状态 JSON、循环 FK、状态枚举与零元订单等问题。
+21 表设计仍为 `candidate`。2026-10-11 只读核对表明：正式库 `ecommerce_oltp` 仅有 3 张技术测试表，没有 21 张 `biz_*`；历史验收库 `ecommerce_oltp_m2_acceptance` 有同名 21 表。仓库已形成 `mysql/ddl/001_ecommerce_oltp.sql` 候选稿，并将 21 CSV Contract 补齐 4 个审计时间字段。订单/优惠券采用 `biz_order.coupon_id` 单向物理 FK，券表反向订单引用改由索引与 Source Gate 校验；生成列不进入 CSV。2026-10-12 已完成本地正式规模 Business 21 表 1,329,480 行、版本化 Entity Manifest 与 Behavior 3,000,000 事件绑定验证，但 `LOAD DATA`、Source Gate、DataX/CDC 初始化接续及正式库验收尚未完成。正式部署前仍需收敛 SKU 库存属性、订单身份、回调去重、状态 JSON、状态枚举与零元订单等问题。
 
 ### 3.6 历史材料边界
 
@@ -177,9 +177,9 @@ Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提
 | --- | --- | --- |
 | V2 业务规则 | baseline | `docs/business/business-baseline-v2.md`；不是业务系统上线证明 |
 | V2 逻辑模型 | design archive | `docs/source/logical-model-v2.md`；不是 SQL 或部署证据 |
-| 21 表候选物理模型 | `candidate` | 字段设计与 `M2-03` 静态快照存在；原完整候选 DDL 与不完整骨架已从当前实现区移除，现存 MySQL DDL 仍未完成逐字核对 |
+| 21 表候选物理模型 | `candidate / implemented / not_run` | 已只读核对正式库与历史验收库，新增 `mysql/ddl/001_ecommerce_oltp.sql`；尚未部署或通过 Source Gate |
 | 旧 Pilot Generator | `PILOT / ACCEPTANCE / HISTORY` | `archive/pilot-v1/ecommerce_generator_v1/`；保留历史，不作为 V2 正式入口 |
-| V2 Business / Behavior Generator | `candidate / implemented / not_run` | `mock/generator/business_generator/`、`mock/generator/behavior_generator/`；尚未完成正式 Contract、`LOAD DATA`、Source Gate 或目标环境 Runtime 验收 |
+| V2 Business / Behavior Generator | `verified`（仅本地正式规模生成与 Entity Manifest 绑定） | `mock/generator/business_generator/`、`mock/generator/behavior_generator/`；21 CSV 字段已与候选 DDL 对齐，Business 1,329,480 行与 Behavior 3,000,000 事件已生成；Entity Manifest SHA-256、实体引用、Session 和事件唯一性通过，`LOAD DATA`、Source Gate 和目标环境 Runtime 尚未完成 |
 | R1 21 表初始快照 | `verified`（冻结范围） | `docs/acceptance/r1_snapshot_acceptance_frozen.md`；1,178 / 1,178 表级计数及 100 单主键/最终状态对账，不含增量、全字段或 Exactly-Once |
 | R1～R3 Order / OrderItem DWD | `verified`（历史限定范围） | 商品事件 `op=c/d`、Java Job 构建与提交、CDC / Order DWD Checkpoint 恢复、正常顺序 Upsert，以及 Doris 101 单 / 320 明细汇总；不含全字段/乱序、物理 DELETE、更新故障恢复或 Exactly-Once |
 | `biz_order` ODS 历史切片 | `verified`（历史限定范围） | 用户提供的 2026-09-22 Chat：100 单、69 `PAID`、31 `CANCELED`、88 分区及金额汇总；发布重建稿和质量入口为 `implemented / not_run`，不含增量、重跑/回补或 M3 完整验收 |
@@ -209,7 +209,7 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 | CDC 与实时计算 | Flink CDC、Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 用于技术验证 | 组件兼容性 verified；R1～R3 Snapshot、商品事件 `c/d`、Order / OrderItem 正常顺序 Upsert 和 CDC / Order DWD Checkpoint 恢复在限定范围内 verified；这些结果现为 Pilot History，正式 V2 尚未实现，M8/M9 保持 `in progress` |
 | 分析服务 | Doris | verified；4.0.8 FE/BE、SQL 与受控重启已通过 |
 | 工作流调度 | DolphinScheduler | candidate；3.4.2 尚未完成 M1 验收 |
-| 数据生成和质量工具 | Python、SQL | 旧 Generator 已转为 Pilot History；V2 Business / Behavior Generator 为 `candidate / implemented / not_run`，Incremental Business Generator、正式批处理 Contract、`LOAD DATA`、Source Gate 与 Runtime 均未完成 |
+| 数据生成和质量工具 | Python、SQL | 旧 Generator 已转为 Pilot History；V2 Business / Behavior Generator 已完成本地正式规模生成与 Entity Manifest 绑定，Incremental Business Generator、`LOAD DATA`、Source Gate 与目标环境 Runtime 均未完成 |
 
 开发方式：
 
@@ -217,7 +217,7 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 - 正式 Flink 业务 ETL 与聚合作业采用 Java DataStream Jar + YARN Application Mode；Flink SQL Client + YARN Session 仅保留为 Kafka SQL 技术验证，不作为正式业务部署模式。该选择不提前确定窗口、状态或指标实现。
 - Python 用于固定 seed 数据生成器和轻量质量工具。
 - `archive/pilot-v1/ecommerce_generator_v1/` 仅保留 Pilot History；即使 package layout 已恢复，也不得作为 V2 正式入口或用历史运行结果证明当前代码通过 Runtime。
-- `mock/generator/business_generator/` 与 `mock/generator/behavior_generator/` 的文件级状态为 `candidate / implemented / not_run`。正式规模、CSV Contract、DDL 映射、装载顺序与 Source Gate 未冻结前，不得提升为正式数据源交付。
+- `mock/generator/business_generator/` 与 `mock/generator/behavior_generator/` 已完成本地正式规模生成、Entity Manifest 绑定与 Targeted Test。21 CSV 字段已完成候选 DDL 映射，但装载顺序与 Source Gate 未冻结前，不得提升为正式数据源交付。
 - 不得使用多种语言重复实现同一个生产任务。
 
 技术能力依据：
@@ -391,10 +391,10 @@ Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architectu
 
 ## 9. 数据生成、任务参数与幂等
 
-采用双数据集，并与交付版本对应：
+采用两档数据规模，不再使用 V1/V2 作为规模名称，也不为新 Generator 建设独立 Smoke 档位：
 
-- V1 验收数据集：规模小、固定 seed、显式业务日期，逐层结果可人工核对。
-- V2 基准数据集：规模、并发和实时产生速率可配置，具体数值在资源实测后决定，不反向破坏 V1 的固定验收样本。
+- 正式数据规模：90 天、100,000 笔订单、约 285,000 条订单明细、约 100 万条 OLTP 记录和 3,000,000～5,000,000 条行为事件；使用显式 seed、业务起止时间和生成时间。
+- 性能实验规模：约 900,000 笔订单和 9,000,000 条行为事件；只在正式数据规模完成业务验收后生成，用于 Spark、Kafka、Flink、Doris 等专项性能实验，不替代正式数据规模的业务验收。
 
 验收数据必须覆盖：
 
@@ -410,7 +410,7 @@ Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architectu
 
 所有批任务必须显式接收业务日期或起止时间，不得依赖执行机器当前日期推断数据范围。装载和转换应支持首次运行、同日重跑、连续回补和失败退出。
 
-现有 `archive/pilot-v1/ecommerce_generator_v1/` 已转为 Pilot History，不再作为 V2 正式入口。新的 V2 Business / Behavior Generator 已作为候选实现入库，但必须先完成并确认 21 表数据量、时间范围、状态分布、跨表比例、CSV 字段、依赖和生成顺序，才能进入正式 Source Build。Business Generator 不包含逐条 INSERT 职责，MySQL 装载仍须由版本化、可失败退出的 `LOAD DATA` 入口承担。
+现有 `archive/pilot-v1/ecommerce_generator_v1/` 已转为 Pilot History，不再作为 V2 正式入口。新的 V2 Business / Behavior Generator 已完成本地正式规模生成与 Entity Manifest 绑定；下一步通过数据库 Source Gate 确认状态分布、跨表比例、CSV 依赖和装载顺序。Business Generator 不包含逐条 INSERT 职责，MySQL 装载仍须由版本化、可失败退出的 `LOAD DATA` 入口承担。
 
 ## 10. 指标范围与编号
 
@@ -501,7 +501,7 @@ Milestone 0～10 仍用于跟踪模块责任和完整验收。交付 V1 采用�
 
 BI/Dashboard/Agent 仅为 M0～M10 之后的数据应用规划，不在本阶段顺序中插入新的实施门禁；其归属、安全、接口和验收需另行评审。Project 2 当前的只读边界不变。
 
-2026-09-27 用户确认离线 100 单 Pilot 已完成使命并转为 History，离线开发入口切换到 V2 Source Data Build。当前先核对正式 21 表 DDL，并冻结数据规模、时间、状态与跨表分布；Generator、CSV、`LOAD DATA`、Source Gate、批量 ODS 和后续模型均尚未实现。M3 继续保留 Pilot 的限定 Runtime 证据，但 V2 ODS Gate 尚未开始；M4～M6 不因 Pilot 通过而提升。实时 M8/M9 的独立状态与证据边界保持不变。
+2026-09-27 用户确认离线 100 单 Pilot 已完成使命并转为 History，离线开发入口切换到 V2 Source Data Build。2026-10-11 用户进一步确认正式数据规模和性能实验规模，并明确跳过新 Generator 的独立 Smoke 档位；同日已完成目标 MySQL 只读结构核对、候选 21 表 DDL 生成和 CSV 字段同步。2026-10-12 已完成关系/时间修复、Targeted Test、本地正式规模生成与 Entity Manifest 绑定。下一步是 `LOAD DATA` 和 Source Gate。批量 ODS 和后续模型均尚未实现。M3 继续保留 Pilot 的限定 Runtime 证据，但 V2 ODS Gate 尚未开始；M4～M6 不因本地 Generator 通过而提升。实时 M8/M9 的独立状态与证据边界保持不变。
 
 ## 14. 验收标准
 
@@ -535,7 +535,7 @@ V1 可以在完整 V2 扩展前形成可展示版本，但必须同时满足：
 4. README 能导航到架构、运行入口、验收记录、已知限制和回滚方式；新环境的复现步骤不依赖 `.local-notes/`。
 5. 简历仅写已有代码、命令、日志摘要、截图或对账结果支持的能力和数字；V2 规划不写成 V1 成果。
 
-V2 启动前，必须基于 V1 的实际运行数据确认扩展优先级、目标数据量、瓶颈、验收指标和资源上限；未确认项保持 `DECISION_REQUIRED`。
+规模扩展前，必须先让正式数据规模通过业务验收，再结合实际运行数据确认瓶颈、验收指标和资源上限；性能实验规模不能在正式数据规模尚未通过时提前替代业务验收。
 
 ## 15. 状态、安全与配置规则
 
@@ -564,20 +564,20 @@ V2 启动前，必须基于 V1 的实际运行数据确认扩展优先级、目�
 
 历史 M2 决策与实现已经整体归档，不自动决定当前 V2 的 21 表实现。当前仍需确认：
 - 当前实时链路已确认实际开发 Topic、订单 DWD 代码/构建/提交、Doris 表模型、两作业 Checkpoint 恢复与正常顺序订单 Upsert；仍须确认当前 YARN/Flink/BE 状态、21 表全字段、乱序/物理 DELETE、R2 更新恢复、完整对账及正式 Topic/Schema。完成这些验收和 M8 评审前不得将 M9 提升为完整 `verified` 或扩展到其他实时表和指标。
-- `ecommerce_oltp` 当前正式 21 表 DDL 与候选设计的逐项差异；当前仓库尚无权威、可部署的 21 表 DDL 入口。
-- V2 21 表的数据量、时间范围、状态分布、跨表比例，以及 21 张 CSV 的字段、依赖和生成顺序。
+- 候选 21 表 DDL 的隔离执行结果及其与正式库部署后的逐项差异；当前仓库候选入口尚未通过 Runtime 验收。
+- V2 21 表的状态分布、跨表比例、依赖和生成顺序；21 张 CSV 字段已与候选 DDL 对齐，数据量与 90 天时间范围已于 2026-10-11 确认。
 - 新 Python CSV Generator 的确定性 seed、显式时间范围、重跑语义、精确依赖版本、输出 Contract 和失败行为。
 - `LOAD DATA` 的文件格式、装载顺序、事务/失败边界、重跑与 Source Gate 入口。
 - `ecommerce_ods`、`ecommerce_dwd` 中 Pilot 数据的精确隔离/重置对象、备份、验证和回滚方式；未经单独授权不得执行清理。
 - `BI / Agent` 是否进入当前 V2 正式交付，还是继续遵循 `DR-029` 作为 M0～M10 之后规划。
-- 当前 MySQL 的 `SHOW CREATE TABLE` 与仓库候选 DDL 的差异，以及隔离验收结果如何映射到正式源库门禁。
+- 候选 DDL 在正式库的隔离部署、回滚与 Source Gate 方法，以及历史验收结果如何映射到正式源库门禁。
 - SKU 最小库存属性及第一期是否执行简单扣减。
 - 订单匿名/注册身份互斥规则、guest checkout 边界和精确 CHECK。
-- 支付/退款回调去重保留范围、状态 JSON 演进契约、订单与优惠券循环 FK 建立顺序。
+- 支付/退款回调去重保留范围、状态 JSON 演进契约；订单/优惠券已采用单向 FK，仍须确认 Source Gate 的反向引用校验规则。
 - 21 表完整状态枚举、NOT NULL/default、外键策略、生成列、锁顺序与零元订单处理。
 - V2 指标检索编号是否直接作为稳定发布 ID，以及复购率、部分退款比例、券核销率、细分漏斗和 30 日退款率的待细化口径。
 - 拉链维度及实时维度历史策略。
-- 基准数据规模、并发和实时事件速率。
+- 性能实验的并发模型、实时事件速率、资源上限和具体执行参数；性能实验规模本身已于 2026-10-11 确认。
 - HDFS/Hive、Kafka 和 Doris 的保留周期。
 - Topic 划分、Partition、Schema 和重放策略。
 - Flink 作业拆分、窗口、Watermark、允许迟到、去重键、状态 TTL 和补偿规则。

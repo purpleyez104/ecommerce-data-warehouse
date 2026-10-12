@@ -8,8 +8,13 @@
 
 ### 新增
 
+- 新增 `DR-035` 与版本化 Business Entity Manifest：记录用户、访客、身份映射、SKU 及时间边界，并由 Dataset Manifest 保存 SHA-256；Behavior CLI 强制读取并在不兼容时 fail-fast。
+- 新增 Behavior 正式规模实体绑定验收：3,000,000 条事件的实体引用、30 分钟 Session 边界和 `event_id` 唯一性全量检查均为 0 违规；该结果不代表 MySQL Source Gate 或目标 ECS Runtime。
+- 新增 `DR-034`，确认正式数据规模、21 表候选 DDL/CSV Contract、订单到优惠券的单向物理 FK、约 2,000 条商品变更事件，以及本地正式规模验证与 Source Gate 边界。
+- 新增 `mysql/ddl/001_ecommerce_oltp.sql`：根据目标 MySQL 只读结构、业务基线、指标口径和候选物理模型整理 21 张 `biz_*` 候选表；DDL 不执行破坏性语句，尚未部署或通过 Source Gate。
+- 新增 V2 Generator 本地正式规模结果：Business 生成 21 张 CSV、1,329,480 行、147,089,462 bytes；最终 Behavior Entity Manifest 绑定批次生成 3,000,000 条 JSONL、938,435,690 bytes。结果只证明本地固定参数生成，不代表 MySQL 装载或目标 ECS Runtime。
 - 新增 `DR-033`，确认 GitHub 发布目标使用新用户名 `purpleyez104`，项目内 Trellis/Codex 工具目录不进入公开仓库；2026-09-28 V2 数据规格、实施计划、指标与 Benchmark 作为 `candidate` 设计输入保留，不覆盖正式 Spec、Plan 或 Runtime 证据。
-- 整合 V2 Business / Behavior Generator，统一记录为 `candidate / implemented / not_run`；文件和 Targeted Unit Test 不能替代正式数据规模、CSV Contract、`LOAD DATA`、Source Gate 或目标环境 Runtime 验收。
+- 整合 V2 Business / Behavior Generator，统一记录为 `candidate / implemented`；当前本地正式规模为 `VERIFIED_EXECUTED`，但不能替代 `LOAD DATA`、Source Gate 或目标环境 Runtime 验收。
 - 新增 `DR-032`，将实时 R1～R3 定位为 Pilot / Acceptance / History，暂停 `R4 Payment DWD`，确认离实时共享 `ecommerce_oltp`、21 表 Source Contract、Generator 与 Metrics Contract；Realtime V2 在 SOURCE GATE 后进入 Formal CDC、Domain DWD/DIM、集中 Gate 与离实时对账。该变更仅冻结方向，不表示 V2 CDC 或模型已实现。
 - 新增 `DR-031`，确认离线 100 单链路完成 Pilot / Acceptance 使命并转为 History，正式离线入口切换为 21 表 V2 Source Data Build；固定 Python → CSV → `LOAD DATA`、按层批量实施、通用 ODS Framework 与 Source/ODS/Model Gate 边界。具体数据规模、数据库重置与 BI/Agent 归属仍为待确认项，不构成 Runtime 完成。
 - 新增 `biz_order` ODS 历史切片验收记录、`hist-v1-001` 固定样本摘要、87 个剩余 HDFS 分区的一次性发布重建稿及 Spark SQL 九列固定基线质量入口；Runtime 事实限定为用户提供的 2026-09-22 Chat 记录，新脚本状态为 `implemented / not_run`，M3 保持 `in_progress`。
@@ -43,6 +48,11 @@
 
 ### 变更
 
+- Behavior Generator 不再根据配置数量构造第二套 ID 空间；配置计数仅用于与 Business Entity Manifest 核对。事件按同一访客的 `event_time` 排序后依据 30 分钟无活动边界生成 Session，`event_id` 使用数据版本、Seed 和时间范围派生的批次命名空间。
+- 更新 README、Spec、Plan、业务源设计及离实时 Status：Entity Manifest 门禁已完成，当前下一步收敛为版本化 `LOAD DATA` 和 Shared Source Gate；数据库部署与装载仍需单独授权。
+- 将 Business Generator 的 21 CSV Contract 与候选 DDL 对齐，补充订单明细、支付尝试和退款对象的 4 个审计时间字段；生成列继续由 MySQL 计算，不进入 CSV。
+- 商品变更事件规模由旧候选稿约 12,000 调整为约 2,000，以符合 4,000 SKU 中约 25% 发生变化、每个变化 SKU 1～3 个版本的约束；`smoke.json` 明确只作单元测试 Fixture，不作为独立规模档位。
+- 更新 README、Spec、Plan、业务源设计和 Offline Status：正式规模 Generator 已完成本地生成；该阶段识别出的 Business Entity Manifest 门禁随后由 `DR-035` 闭合。
 - 规范化文档结构：V2 数据规格与实施计划候选稿归入 `docs/design/`，Benchmark 规范归入 `docs/benchmark/spec.md`，指标唯一入口归入 `docs/business/metrics.md`；恢复 `docs/archive/milestone-2-business-design.md` 作为旧 19 表历史设计归档。
 - 将旧 21 表 Pilot Generator 归档到 `archive/pilot-v1/ecommerce_generator_v1/` 并恢复原 package layout；其状态保持 `PILOT / ACCEPTANCE / HISTORY`，不作为 V2 正式入口。
 - DataX 仓库配置改为 `datax/config/datax.env.example`，本地 `datax.env` 被 Git 忽略；候选 Job Generator 展开嵌套环境变量、生成严格合法 JSON，并由 Targeted Test 覆盖；运行脚本在配置缺失时显式失败，并统一使用 `DATAX_LOG_DIR`。上述检查不替代 DataX/HDFS/Hive Runtime 验收。
@@ -84,6 +94,7 @@
 
 ### 修复
 
+- 修复 V2 Generator 的支付成功早于尝试、订单早于用户注册、优惠券用户与订单不一致、券发放晚于锁定，以及购物车/优惠券/退款/行为采集时间超出 `history_end` 的问题；新增跨表身份、状态时序和历史窗口回归断言。
 - 修复 T7 Cleanup 安全边界：只清理由当前进程成功创建并登记的合法前缀 Database；目标已存在时不执行 `DROP DATABASE`，单库创建后失败仅清理该库，任一 DROP 失败会返回非零并将结果摘要标记为 `failed`。
 - 修复 M1 Evidence 公共库的脱敏误伤、未初始化 API 继续执行及 Cleanup Owner 延迟拒绝问题：非密码参数保持不变，需初始化的 Public API 统一以退出码 `2` 拒绝，Owner 在注册与执行阶段双重校验。
 - 修复 VM 现场采集器对历史 `/data/module/datax-current` 入口的漏检，并新增 Java 8、Java 进程实际可执行文件、Hive 并存版本和三节点 Hive 软链接漂移证据。
@@ -92,6 +103,7 @@
 
 ### 移除
 
+- 删除服务器工作目录中的旧 19 表 Generator 和旧 21 表 Pilot Generator 副本；仓库内 `archive/legacy-m2-19-table/` 与 `archive/pilot-v1/` 历史归档继续保留。
 - 从公开仓库移除 `.agents/`、`.codex/`、`.trellis/` 项目工具文件，保留根 `AGENTS.md` 作为协作规则入口。
 - 移除不完整且库名冲突的 `mysql/ecommerce_oltp_v1/` 骨架，以及已被正式设计文档覆盖的 `docs/design/mock-data-design.md`、`docs/design/mysql-source-design.md` 碎片；当前权威 21 表 DDL 入口仍为 `DECISION_REQUIRED`。
 - 移除仍依赖旧 Pilot Generator、已删除 DDL 或旧验收 SQL 的重复脚本与测试入口；旧 Generator 的代码和测试只在 `archive/pilot-v1/ecommerce_generator_v1/` 中保留。

@@ -1,7 +1,7 @@
 # File Baseline
 
-更新时间：2026-09-27
-扫描范围：Offline Current Baseline、Realtime R3 Handoff、Realtime V2 方向决策点名路径及当前 worktree
+更新时间：2026-10-12
+扫描范围：Offline Current Baseline、Realtime R3 Handoff、Realtime V2 方向决策点名路径、V2 Generator/DDL 及当前 worktree
 证据口径：`VERIFIED_EXECUTED / CONFIRMED_CREATED / CHAT_GENERATED / MENTIONED_ONLY / SUPERSEDED / UNKNOWN`
 
 `FILE EXISTS ≠ VERIFIED`。Runtime 验证与当前 worktree 文件存在性分别记录；ECS 上已执行但尚未同步到 worktree 的文件，不根据名称或建议路径自行重建。
@@ -35,9 +35,9 @@
 | `build_dwd_order_history.sh` | Engineering | `/data/projects/ecommerce-data-warehouse/scripts/offline/m4/build_dwd_order_history.sh` | DWD 历史批量入口 | 缺失 |
 | `check_dwd_order_history_consistency.sql` | Acceptance | `/data/projects/ecommerce-data-warehouse/tests/offline/check_dwd_order_history_consistency.sql` | DWD 历史全量对账 | 缺失 |
 | `inspect-source-contract.sh` | Acceptance | `/data/projects/ecommerce-data-warehouse/tests/realtime/inspect-source-contract.sh` | 实时 Source Contract 验收 | 缺失 |
-| `OrderDwdJob.java` | Engineering | `/data/projects/ecommerce-data-warehouse/flink/jobs/r1/r1-order-dwd-job/src/com/ecommerce/r1/OrderDwdJob.java` | Order DWD | 存在；与服务器已执行版本的逐字一致性未单独证明 |
-| R1 `build.sh` | Engineering | `/data/projects/ecommerce-data-warehouse/flink/jobs/r1/r1-order-dwd-job/build.sh` | Java 11 target 编译 Order DWD | 存在；与服务器已执行版本的逐字一致性未单独证明 |
-| R1 `run.sh` | Engineering | `/data/projects/ecommerce-data-warehouse/flink/jobs/r1/r1-order-dwd-job/run.sh` | YARN Application Mode 提交 Order DWD | 存在；与服务器已执行版本的逐字一致性未单独证明 |
+| `OrderDwdJob.java` | Engineering | `/data/projects/ecommerce-data-warehouse/flink/jobs/r1/r1-order-dwd-job/src/com/ecommerce/r1/OrderDwdJob.java` | Order DWD | 归档于 `archive/pilot-v1/realtime/flink/order-dwd-job/`；与服务器已执行版本的逐字一致性未单独证明 |
+| R1 `build.sh` | Engineering | `/data/projects/ecommerce-data-warehouse/flink/jobs/r1/r1-order-dwd-job/build.sh` | Java 11 target 编译 Order DWD | 归档于 `archive/pilot-v1/realtime/flink/order-dwd-job/`；与服务器已执行版本的逐字一致性未单独证明 |
+| R1 `run.sh` | Engineering | `/data/projects/ecommerce-data-warehouse/flink/jobs/r1/r1-order-dwd-job/run.sh` | YARN Application Mode 提交 Order DWD | 归档于 `archive/pilot-v1/realtime/flink/order-dwd-job/`；与服务器已执行版本的逐字一致性未单独证明 |
 | `r1-order-dwd.jar` | Build Artifact | `/data/projects/ecommerce-data-warehouse/flink/jobs/r1/r1-order-dwd-job/build/r1-order-dwd.jar` | 已运行的 Order DWD 构建产物 | 不因 Runtime 验证自动纳入 Git |
 | `OrderItemDwdJob.java` | Engineering | `/data/projects/ecommerce-data-warehouse/flink/jobs/r3/r3-order-item-dwd-job/src/com/ecommerce/r3/OrderItemDwdJob.java` | OrderItem DWD | 缺失；Handoff 未附正文，不自行重建 |
 | R3 `build.sh` | Engineering | `/data/projects/ecommerce-data-warehouse/flink/jobs/r3/r3-order-item-dwd-job/build.sh` | Java 11 target 编译 OrderItem DWD | 缺失；Handoff 未附正文，不自行重建 |
@@ -81,20 +81,21 @@
 | 范围 | 路径 | 文件事实 | Runtime 边界 |
 | --- | --- | --- | --- |
 | DataX 候选入口 | `datax/config/`、`datax/scripts/`、`datax/templates/` | `CONFIRMED_CREATED` | 不是 `hist-v1-001` 当次实际执行文件；本轮 `not_run` |
-| Hive ODS DDL | `hive/ods/ddl/ods_order.sql` | `CONFIRMED_CREATED` | 本轮 `not_run` |
-| ODS 发布重建稿 | `scripts/offline/publish_order_ods_partitions.sh` | `CONFIRMED_CREATED` | `implemented / not_run`；不含实际 ECS 路径 |
-| ODS 质量入口 | `quality/checks/check_ods_order_quality.sh` | `CONFIRMED_CREATED` | `implemented / not_run` |
-| 订单 DWD Job | `flink/jobs/r1/r1-order-dwd-job/` | 当前 worktree 存在 | 历史 Chat 证明服务器同路径 Job 已构建和运行；当前文件与当次执行内容的逐字一致性未单独证明 |
+| Hive ODS DDL | `archive/pilot-v1/offline/reference/ods_order.sql` | `CONFIRMED_CREATED` | 本轮 `not_run`；仅作 Pilot History |
+| ODS 发布重建稿 | `archive/pilot-v1/offline/reference/publish_order_ods_partitions.sh` | `CONFIRMED_CREATED` | `implemented / not_run`；不含实际 ECS 路径 |
+| ODS 质量入口 | `archive/pilot-v1/offline/reference/check_ods_order_quality.sh` | `CONFIRMED_CREATED` | `implemented / not_run` |
+| 订单 DWD Job | `archive/pilot-v1/realtime/flink/order-dwd-job/` | 当前 worktree 存在 | 历史 Chat 证明服务器原路径 Job 已构建和运行；当前文件与当次执行内容的逐字一致性未单独证明 |
 | 订单明细 DWD Job | `flink/jobs/r3/r3-order-item-dwd-job/` | 当前 worktree 缺失 | 服务器同路径 Job 已构建、运行并完成 Initial Load / Incremental Upsert；未附原文件内容，不能安全同步 |
-| Doris 订单 DWD DDL | `doris/ddl/dwd_order_create.sql` | `CONFIRMED_CREATED` | 历史 Doris 表有验收事实；当前文件未重新执行 |
-| 实时只读对账 | `scripts/realtime/check_order_dwd_consistency.sh`、`tests/realtime/check_dwd_order_consistency.sh` | `CONFIRMED_CREATED` | `implemented / not_run` |
+| Doris 订单 DWD DDL | `archive/pilot-v1/realtime/doris/dwd_order_create.sql` | `CONFIRMED_CREATED` | 历史 Doris 表有验收事实；当前文件未重新执行 |
+| 实时只读对账 | `archive/pilot-v1/realtime/acceptance/check_order_dwd_consistency.sh`、`archive/pilot-v1/realtime/acceptance/check_dwd_order_consistency.sh` | `CONFIRMED_CREATED` | `implemented / not_run` |
 | 旧 Pilot Generator | `archive/pilot-v1/ecommerce_generator_v1/` | 已归档并恢复原 package layout | `PILOT / ACCEPTANCE / HISTORY`；不作为新的 V2 Python → CSV Generator 实现基础或正式入口 |
-| V2 Business / Behavior Generator | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | `CONFIRMED_CREATED` | `candidate / implemented / not_run`；正式 Contract、`LOAD DATA`、Source Gate 与目标环境 Runtime 未完成 |
+| V2 21 表候选 DDL | `mysql/ddl/001_ecommerce_oltp.sql` | `CONFIRMED_CREATED` | 21 表及 CSV 字段静态一致；`implemented / not_run`，未部署或执行 Source Gate |
+| V2 Business / Behavior Generator | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | `VERIFIED_EXECUTED`（本地正式规模） | Business 21 表 1,329,480 行、Behavior 3,000,000 事件已生成；Entity Manifest 绑定及全量引用/Session/事件唯一性检查通过；不代表 `LOAD DATA`、Source Gate 或目标 ECS Runtime |
 
 ## V2 Source Data Build 文件边界
 
-- V2 Business / Behavior Generator 已创建，状态为 `candidate / implemented / not_run`；不能从文件存在性或本地 Unit Test 推导 Source Gate 或目标环境 Runtime 已通过。
-- 21 张 CSV 的字段、依赖、生成顺序、数据规模、时间范围、状态分布和跨表比例尚待冻结。
+- V2 Business / Behavior Generator 已完成本地正式规模生成与 Targeted Test；该证据只覆盖记录参数下的文件生成，不能推导 Source Gate 或目标环境 Runtime 已通过。
+- 正式数据规模、90 天时间范围、21 张 CSV 字段及 Behavior 对 Business Entity Manifest 的复用已确认并完成本地正式规模验证；数据库装载依赖/顺序、状态分布和跨表比例仍待 Source Gate 核验或冻结。
 - `LOAD DATA` 初始化脚本、Source Gate 与 V2 正式 ODS 批量配置均尚未创建或验证。
 - Formal CDC 配置、正式 Kafka Topic、`event_version`、Domain Flink Applications、Incremental Business Generator、正式 Checkpoint Root 与 V2 Doris 初始化脚本均尚未创建或验证。
 - 旧 Pilot 文件继续保存历史证据；后续若需要复用通用算法，必须逐项确认来源与 V2 Contract，不得整体继承旧生成器或逐条 INSERT 路径。
@@ -121,6 +122,8 @@
 - `docs/realtime-pipeline-design.md` → `docs/design/realtime-pipeline-design.md`
 - `docs/metrics.md` → `docs/business/metrics.md`
 - `mock/generator/ecommerce_generator_v1/` → `archive/pilot-v1/ecommerce_generator_v1/`（Pilot History；原 package layout 已恢复）
+- `hive/ods/ddl/ods_order.sql`、`scripts/offline/publish_order_ods_partitions.sh`、`quality/checks/check_ods_order_quality.sh` → `archive/pilot-v1/offline/reference/`
+- `flink/jobs/r1/r1-order-dwd-job/`、Pilot CDC/Kafka/Doris/对账文件 → `archive/pilot-v1/realtime/`
 
 ## HISTORY / SUPERSEDED
 
@@ -143,8 +146,8 @@
 ## CONFLICT / UNKNOWN
 
 1. Handoff 中 10 个 `VERIFIED_EXECUTED` 正式 ODS/DWD 文件均未出现在当前 worktree；未附原文件内容，不能安全同步。
-2. `hive/ods/ddl/ods_order.sql` 与 ECS 已执行的 `hive/ods/sql/offline_m3_01_ods_order.sql` 名称和路径不同；未做内容等价性判断。
-3. `scripts/offline/publish_order_ods_partitions.sh` 与已执行的 `/home/yee/publish_m3_ods.sh` 不是同一已确认版本；不得互相替代。
+2. `archive/pilot-v1/offline/reference/ods_order.sql` 与 ECS 已执行的 `hive/ods/sql/offline_m3_01_ods_order.sql` 名称和路径不同；未做内容等价性判断。
+3. `archive/pilot-v1/offline/reference/publish_order_ods_partitions.sh` 与已执行的 `/home/yee/publish_m3_ods.sh` 不是同一已确认版本；不得互相替代。
 4. `offline_m3_source_preflight.sh`、`offline_m3_02_make_order_job.py`、`offline_m3_03_stage_orders.sh` 修正版和 `m3_cleanup_nonbaseline_orders.sql` 的实际路径仍为 `UNKNOWN`。
 5. `ods_order_item_create.sql` 当前只有 Chat 创建路径，未确认进入 ECS repository 或本 worktree；现已决定停止执行并保持 F2 历史状态。
 6. `offline-m4-01-dwd-order.md` 与 `capacity-scheduler.xml.bak-20260923-am` 是否真实创建仍为 `UNKNOWN`。
