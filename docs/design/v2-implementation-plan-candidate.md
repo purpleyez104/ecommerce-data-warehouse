@@ -779,6 +779,8 @@ Business Transactions
 ≈1M OLTP rows
 ```
 
+本项目不为新 Generator 建设独立 Smoke 数据档位。服务器现有 Generator 先直接按上述正式数据规模核验；不符合时按最小范围修改后重新生成。
+
 同时产生：
 
 ```text
@@ -2054,7 +2056,7 @@ core metrics consistent
 
 # 17. Phase G｜Benchmark
 
-链路稳定以后执行。
+链路稳定且正式数据规模通过业务验收以后执行。性能实验使用独立数据档位：约 900,000 笔订单和 9,000,000 条行为事件；沿用相同 Contract，但使用独立 `dataset_version` 与输出目录。
 
 记录：
 

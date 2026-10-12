@@ -860,7 +860,7 @@ Status         : VARCHAR(32)
 
 ---
 
-# 13. V2 历史数据规模
+# 13. 正式数据规模
 
 核心规模：
 
@@ -881,7 +881,7 @@ Status         : VARCHAR(32)
 | biz_category             |             60 |
 | biz_spu                  |          1,200 |
 | biz_sku                  |          4,000 |
-| biz_product_change_event |        ≈12,000 |
+| biz_product_change_event |         ≈2,000 |
 | biz_cart                 |        ≈50,000 |
 | biz_cart_item            |       ≈110,000 |
 | biz_cart_merge_record    |         ≈8,000 |
@@ -897,7 +897,7 @@ Status         : VARCHAR(32)
 | biz_coupon               |         60,000 |
 | biz_coupon_event         |     ≈130,000 级 |
 
-事件表允许根据业务状态流转自然浮动。
+事件表允许根据业务状态流转自然浮动。`biz_product_change_event` 采用约 25% SKU 发生变化、每个变化 SKU 1～3 个版本的约束；4,000 SKU 下约 2,000 行与该约束相容，旧稿的约 12,000 行目标已移除。
 
 ---
 
@@ -928,6 +928,19 @@ CLICK
 ```text
 3M～5M events
 ```
+
+正式数据规模不再附带独立的约 100 单 Smoke 数据档位。历史 Pilot 数据继续保留，但不作为新 Generator 的生成目标。
+
+## 14.1 性能实验规模
+
+正式数据规模通过业务验收后，使用同一 Contract 生成独立性能实验数据：
+
+```text
+orders          ≈ 900,000
+behavior_events = 9,000,000
+```
+
+性能实验数据必须使用独立 `dataset_version` 和输出目录，并保持相同的 90 天时间范围、业务状态机、金额守恒、实体关系和 Behavior Event Contract。该档位只用于性能实验，不替代正式数据规模的 Source Gate。
 
 Behavior Generator 同样存在两个运行阶段：
 

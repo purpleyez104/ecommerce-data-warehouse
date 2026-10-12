@@ -1,9 +1,9 @@
 # 电商业务源物理设计规格 V1.0｜21 张 MySQL 表
 
-> 状态：**M2-02 字段级候选物理设计／非 DDL／未部署**，2026-09-18。此版本采用本对话已确认的 21 张 `biz_*` 方案，不沿用服务器旧 19 表 `001_ecommerce_oltp_candidate.sql` 或旧 Generator。任何既有文件不覆盖、不删除。
+> 状态：**M2-02 字段级候选物理设计／DDL candidate／未部署**。2026-10-11 已只读核对目标 MySQL：正式库 `ecommerce_oltp` 仅有 3 张技术测试表，未存在 21 张 `biz_*`；历史验收库有同名 21 表。仓库据此与业务、指标文档生成 `mysql/ddl/001_ecommerce_oltp.sql` 候选稿，但尚未执行或完成 Runtime 验收。
 > 上游：[业务基线](../business/business-baseline-v2.md) · [指标字典](../business/metrics.md) · [逻辑模型](logical-model-v2.md)。已通过的 ENV-05 是**隔离测试表**的 CDC 验证，不等于这 21 张正式源表已经 CDC 验收。
 
-> 后续状态提示（2026-09-20）：以上为 2026-09-18 的设计时点描述；候选 DDL 静态快照见 [M2-03](M2-03-物理设计与静态审查.md)，后来隔离验收库的有限 21 表 CDC 与批次结果、仍未闭合的正式库/离线门禁见 [业务源设计](../design/business-source-design.md)。本文件保留原字段设计，不把历史验收反写为字段冻结或正式部署。
+> 后续状态提示：历史候选 DDL 静态快照见 [M2-03](M2-03-物理设计与静态审查.md)，隔离验收库的有限 21 表 CDC 与批次结果见[业务源设计](../design/business-source-design.md)。2026-10-11 的核对只支持形成新候选稿，不把历史验收反写为正式部署。
 
 ## 1. 物理统一规范
 
@@ -21,7 +21,7 @@
 | CDC | 仅业务表 Binlog CDC；不启 Outbox，不允许应用双写业务状态到 Kafka |
 | 分组 | 用户身份 3 + 商品 4 + 购物车 3 + 订单 3 + 支付 2 + 退款 3 + 券 3 = **21** |
 
-标注约定：PK 主键，UK 唯一键，FK 逻辑/物理外键建议，IDX 查询索引；跨表守恒和并发竞争不能被普通 CHECK/外键替代，须由业务事务及验收测试保证。完整 null/default/ON UPDATE 与索引 DDL 尚未生成。
+标注约定：PK 主键，UK 唯一键，FK 逻辑/物理外键建议，IDX 查询索引；跨表守恒和并发竞争不能被普通 CHECK/外键替代，须由业务事务及验收测试保证。完整 null/default、CHECK、索引及外键已进入候选 DDL，仍须静态复核与隔离 Runtime 验收。
 
 ## 2. 字段清单（逐表）
 
@@ -72,7 +72,7 @@ UK `(visitor_id, identity_version)` 为前版建议；还须由业务校验身�
 
 **05 `biz_spu`｜SPU 当前状态**：`spu_id BIGINT PK`；`spu_code VARCHAR(64) UK`；`category_id BIGINT FK→biz_category`；`brand_code VARCHAR(64)`；`brand_name VARCHAR(128)`；`spu_name VARCHAR(255)`；`spu_status VARCHAR(32)`；`created_at/updated_at DATETIME(3)`。IDX `(category_id)`。本 21 表不增加独立品牌表。
 
-**06 `biz_sku`｜销售 SKU 当前状态**：`sku_id BIGINT PK`；`sku_code VARCHAR(64) UK`；`spu_id BIGINT FK→biz_spu`；`sku_name VARCHAR(255)`；`sale_price_cents BIGINT CHECK >=0`；`sku_status VARCHAR(32)`（ON_SALE/OFF_SALE）；`created_at/updated_at DATETIME(3)`。IDX `(spu_id)`；`(updated_at)` 按增量场景决定。**库存能力缺口**：已确认业务要求 SKU 有独立库存，但此 21 表最新字段草案未给库存字段；正式 DDL 前需补充/确认最小库存属性及扣减范围，不能在本文冒称已落实。
+**06 `biz_sku`｜销售 SKU 当前状态**：`sku_id BIGINT PK`；`sku_code VARCHAR(64) UK`；`spu_id BIGINT FK→biz_spu`；`sku_name VARCHAR(255)`；`sale_price_cents BIGINT CHECK >=0`；`sku_status VARCHAR(32)`（ON_SALE/OFF_SALE）；`created_at/updated_at DATETIME(3)`。IDX `(spu_id)`；`(updated_at)` 按增量场景决定。**库存能力缺口**：已确认业务要求 SKU 有独立库存，但此 21 表最新字段草案未给库存字段；候选 DDL 部署前需补充/确认最小库存属性及扣减范围，不能在本文冒称已落实。
 
 **07 `biz_product_change_event`｜商品变更不可变事件**：`change_id BIGINT PK`；`event_key VARCHAR(64) UK`；`target_type VARCHAR(32)`（CATEGORY/SPU/SKU）；`target_id BIGINT`；`change_type VARCHAR(32)`（价格/类目/品牌/状态）；`before_data JSON`；`after_data JSON`；`effective_at DATETIME(3)`；`recorded_at DATETIME(3)`。IDX `(target_type,target_id,effective_at)`；多态 target_id 不能用单一 FK 实现，业务事务校验目标存在且 before/after 匹配。
 
@@ -92,7 +92,7 @@ UK `(visitor_id, identity_version)` 为前版建议；还须由业务校验身�
 |---|---|---|
 | order_id | BIGINT | PK |
 | order_no | VARCHAR(64) | UK |
-| user_id, visitor_id | BIGINT NULL | 分别关联注册/匿名身份；结算归属互斥或组合规则在正式 DDL 前收敛 |
+| user_id, visitor_id | BIGINT NULL | 分别关联注册/匿名身份；结算归属互斥或组合规则在候选 DDL 部署前收敛 |
 | coupon_id | BIGINT NULL | 可选券，最多一张 |
 | order_status | VARCHAR(32) | CREATED / PAID / CANCELED |
 | gross_amount_cents | BIGINT | 原价总额 >=0 |
@@ -103,7 +103,7 @@ UK `(visitor_id, identity_version)` 为前版建议；还须由业务校验身�
 | paid_at, canceled_at | DATETIME(3) NULL | 对应有效终态时间 |
 | updated_at | DATETIME(3) | 审计/增量 |
 
-IDX `(user_id,created_at)`、`(order_status,created_at)`；若匿名订单支持按访客查询，则评审 `(visitor_id,created_at)`。注意该候选稿没有确认匿名是否允许不登录完成支付，**不得把某种 guest-checkout 策略当作既定事实**。coupon FK 与券中的订单关联形成潜在建表顺序循环，需要先创建可空列再补 FK 或明确单向引用。
+IDX `(user_id,created_at)`、`(order_status,created_at)`；若匿名订单支持按访客查询，则评审 `(visitor_id,created_at)`。注意该候选稿没有确认匿名是否允许不登录完成支付，**不得把某种 guest-checkout 策略当作既定事实**。正式候选 DDL 采用单向物理约束：`biz_order.coupon_id → biz_coupon.coupon_id`；券表中的 `locked_order_id`、`used_order_id` 仅建索引，反向一致性由 Generator 与 Source Gate 校验，避免循环 FK 阻碍 21 CSV 装载。
 
 **12 `biz_order_item`｜订单 SKU 成交快照**
 
@@ -123,7 +123,7 @@ IDX `(user_id,created_at)`、`(order_status,created_at)`；若匿名订单支持
 | refund_reserved_cents | BIGINT | 处理中锁定退款额度 |
 | refunded_cents | BIGINT | 累计已成功退款 |
 | refunded_quantity | INT | 明确成功退货件数 |
-| created_at | DATETIME(3) | 明细创建时间 |
+| created_at, updated_at | DATETIME(3) | 明细创建及最近退款状态更新时间 |
 
 CHECK 非负、`refunded_cents+refund_reserved_cents<=payable_amount_cents`、成功退款数量不大于购买数量；整单 1~5 条和金额守恒需要事务跨表校验。数量不从退款金额推断。商品维度使用本行成交快照。
 
@@ -131,15 +131,15 @@ CHECK 非负、`refunded_cents+refund_reserved_cents<=payable_amount_cents`、�
 
 ### 2.5 支付（2）
 
-**14 `biz_payment_attempt`｜执行尝试与稳定资金 ID**：`payment_attempt_id BIGINT PK`；`order_id BIGINT FK`；`attempt_no INT`；`funding_txn_id VARCHAR(64) UK`；`amount_cents BIGINT`；`payment_status VARCHAR(32)`（INIT/FAILED/SUCCESS）；`initiated_at DATETIME(3)`；`succeeded_at DATETIME(3) NULL`；`updated_at DATETIME(3)`。UK `(order_id,attempt_no)`；候选生成列 `successful_order_id = CASE WHEN payment_status='SUCCESS' THEN order_id ELSE NULL END` 配 UK，依靠唯一值和 NULL 可重复性质约束每单最多一次有效 SUCCESS。金额须与订单应付一致、业务时间合法、订单行锁与状态事件事务一致；单纯唯一索引不处理跨表金额/超时。
+**14 `biz_payment_attempt`｜执行尝试与稳定资金 ID**：`payment_attempt_id BIGINT PK`；`order_id BIGINT FK`；`attempt_no INT`；`funding_txn_id VARCHAR(64) UK`；`amount_cents BIGINT`；`payment_status VARCHAR(32)`（INIT/FAILED/SUCCESS）；`initiated_at DATETIME(3)`；`succeeded_at DATETIME(3) NULL`；`created_at/updated_at DATETIME(3)`。UK `(order_id,attempt_no)`；候选生成列 `successful_order_id = CASE WHEN payment_status='SUCCESS' THEN order_id ELSE NULL END` 配 UK，依靠唯一值和 NULL 可重复性质约束每单最多一次有效 SUCCESS。金额须与订单应付一致、业务时间合法、订单行锁与状态事件事务一致；单纯唯一索引不处理跨表金额/超时。
 
 **15 `biz_payment_event`｜支付关键事件/通知去重**：`payment_event_id BIGINT PK`；`event_key VARCHAR(64) UK`；`payment_attempt_id BIGINT FK`；`callback_event_id VARCHAR(64) NULL UK`；`from_status VARCHAR(32)`；`to_status VARCHAR(32)`；`occurred_at DATETIME(3)`；`recorded_at DATETIME(3)`。IDX `(payment_attempt_id,occurred_at)`；NULL 回调 ID 的语义及重放事件规则实施前审核；已成功资金不可重复入账。
 
 ### 2.6 退款（3）
 
-**16 `biz_refund_request`｜明细退款申请**：`refund_request_id BIGINT PK`；`refund_request_no VARCHAR(64) UK`；`order_id BIGINT FK`；`order_item_id BIGINT FK`；`requested_amount_cents BIGINT`；`refund_quantity INT NULL`；`refund_status VARCHAR(32)`（REQUESTED/PROCESSING/SUCCESS/FAILED）；`requested_at DATETIME(3)`；`completed_at DATETIME(3) NULL`；`updated_at DATETIME(3)`。IDX `(order_item_id,refund_status)`；须校验该明细确属对应 order_id。金额预留、成功、失败释放在事务内更新明细，禁止超额；纯金额补偿 quantity=NULL。
+**16 `biz_refund_request`｜明细退款申请**：`refund_request_id BIGINT PK`；`refund_request_no VARCHAR(64) UK`；`order_id BIGINT FK`；`order_item_id BIGINT FK`；`requested_amount_cents BIGINT`；`refund_quantity INT NULL`；`refund_status VARCHAR(32)`（REQUESTED/PROCESSING/SUCCESS/FAILED）；`requested_at DATETIME(3)`；`completed_at DATETIME(3) NULL`；`created_at/updated_at DATETIME(3)`。IDX `(order_item_id,refund_status)`；须校验该明细确属对应 order_id。金额预留、成功、失败释放在事务内更新明细，禁止超额；纯金额补偿 quantity=NULL。
 
-**17 `biz_refund_transaction`｜退款资金执行尝试**：`refund_txn_id BIGINT PK`；`refund_request_id BIGINT FK`；`attempt_no INT`；`funding_refund_txn_id VARCHAR(64) UK`；`refund_amount_cents BIGINT`；`refund_txn_status VARCHAR(32)`（INIT/FAILED/SUCCESS）；`initiated_at DATETIME(3)`；`succeeded_at DATETIME(3) NULL`；`updated_at DATETIME(3)`。UK `(refund_request_id,attempt_no)`；候选条件生成列/唯一索引限定一申请最多一 SUCCESS；成功金额必须=申请金额；失败尝试保留但不累计。
+**17 `biz_refund_transaction`｜退款资金执行尝试**：`refund_txn_id BIGINT PK`；`refund_request_id BIGINT FK`；`attempt_no INT`；`funding_refund_txn_id VARCHAR(64) UK`；`refund_amount_cents BIGINT`；`refund_txn_status VARCHAR(32)`（INIT/FAILED/SUCCESS）；`initiated_at DATETIME(3)`；`succeeded_at DATETIME(3) NULL`；`created_at/updated_at DATETIME(3)`。UK `(refund_request_id,attempt_no)`；候选条件生成列/唯一索引限定一申请最多一 SUCCESS；成功金额必须=申请金额；失败尝试保留但不累计。
 
 **18 `biz_refund_event`｜退款申请/执行历史**：`refund_event_id BIGINT PK`；`event_key VARCHAR(64) UK`；`refund_request_id BIGINT FK`；`refund_txn_id BIGINT NULL FK`；`event_type VARCHAR(32)`（REQUEST/PROCESS/SUCCESS/FAIL）；`from_status VARCHAR(32) NULL`；`to_status VARCHAR(32)`；`occurred_at DATETIME(3)`；`recorded_at DATETIME(3)`；IDX `(refund_request_id,occurred_at)`。
 
@@ -147,7 +147,7 @@ CHECK 非负、`refunded_cents+refund_reserved_cents<=payable_amount_cents`、�
 
 **19 `biz_coupon_template`｜固定金额订单券模板**：`template_id BIGINT PK`；`template_code VARCHAR(64) UK`；`template_name VARCHAR(128)`；`face_value_cents BIGINT`；`min_spend_cents BIGINT`；`valid_from/valid_to DATETIME(3)`；`issue_limit INT`；`template_status VARCHAR(32)`（ACTIVE/DISABLED）；`created_at/updated_at DATETIME(3)`。CHECK 金额/上限合法及有效期顺序；发放上限跨行并发需事务控制。
 
-**20 `biz_coupon`｜已发放券实例**：`coupon_id BIGINT PK`；`coupon_code VARCHAR(64) UK`；`template_id BIGINT FK`；`user_id BIGINT FK`；`coupon_status VARCHAR(32)`（UNUSED/LOCKED/USED/EXPIRED）；`locked_order_id BIGINT NULL`；`used_order_id BIGINT NULL`；`issued_at/expires_at DATETIME(3)`；`locked_at/used_at DATETIME(3) NULL`；`updated_at DATETIME(3)`。IDX `(user_id,coupon_status,expires_at)`；锁券与订单创建、用券与支付成功、释放与取消须同事务。退款不返券。locked_order_id/used_order_id 与订单券 FK 可能循环，DDL 应按依赖顺序处理。
+**20 `biz_coupon`｜已发放券实例**：`coupon_id BIGINT PK`；`coupon_code VARCHAR(64) UK`；`template_id BIGINT FK`；`user_id BIGINT FK`；`coupon_status VARCHAR(32)`（UNUSED/LOCKED/USED/EXPIRED）；`locked_order_id BIGINT NULL`；`used_order_id BIGINT NULL`；`issued_at/expires_at DATETIME(3)`；`locked_at/used_at DATETIME(3) NULL`；`updated_at DATETIME(3)`。IDX `(user_id,coupon_status,expires_at)`、`(locked_order_id)`、`(used_order_id)`；锁券与订单创建、用券与支付成功、释放与取消须同事务。退款不返券。两个反向订单字段不建物理 FK，以 `biz_order.coupon_id` 的单向 FK 和 Source Gate 跨表校验保证一致性。
 
 **21 `biz_coupon_event`｜券历史**：`coupon_event_id BIGINT PK`；`event_key VARCHAR(64) UK`；`coupon_id BIGINT FK`；`order_id BIGINT NULL`；`event_type VARCHAR(32)`（ISSUE/LOCK/USE/UNLOCK/EXPIRE）；`from_status VARCHAR(32) NULL`；`to_status VARCHAR(32)`；`occurred_at DATETIME(3)`；`recorded_at DATETIME(3)`；IDX `(coupon_id,occurred_at)`。
 
@@ -192,19 +192,19 @@ CHECK 非负、`refunded_cents+refund_reserved_cents<=payable_amount_cents`、�
 | 3 | 隔离创建用户/商品/券/车等基础对象 | 主键唯一及商品/身份约束合格 |
 | 4 | 订单+优惠分摊+取消/支付 | 金额守恒、15分钟竞态、最多一次成功 |
 | 5 | 退款申请/资金重试及事件历史 | 无超额、单申请完整结果、状态事件同事务 |
-| 6 | 约100单固定种子、反例测试 | 可复现，正常/异常案例全覆盖 |
+| 6 | 正式数据规模的确定性生成与反例测试 | 显式 Seed 可复现，正常/异常案例全覆盖；不建设独立 Smoke 数据档位 |
 | 7 | 行为三组 Topic/事件契约 | event_id、身份、session、跨 Topic 时间一致 |
 | 8 | 正式表快照/CDC接续与离实时对账 | 检查缺失、重复、历史修订和故障恢复 |
-| 9 | 90日标准模拟与压测 | 达到已确认目标规模前不声称已达标 |
+| 9 | 正式数据规模与性能实验 | 正式规模先完成业务验收；约 90 万订单、900 万行为事件的性能实验独立执行，不预设性能结论 |
 
-**尚未实施**：正式 DDL、正式源表、Python 新版 Generator、21 表 CDC、DataX 与 CDC 全链路对账、3 组正式行为 Topic、正式指标计算。
+**已实现但未运行验收**：21 表候选 DDL、Python Business / Behavior Generator，以及与候选 DDL 对齐的 21 CSV 字段 Contract。**尚未实施或验收**：正式源表部署、`LOAD DATA`、Source Gate、21 表 CDC、DataX 与 CDC 全链路对账、3 组正式行为 Topic、正式指标计算。
 
 ## 7. 最终 DDL 必须先收敛的项目
 
 - SKU 库存最小属性与库存是否仅展示，不改变一期不做完整库存流水的边界。
 - 订单匿名/注册身份归属 CHECK、用户券与访客支付业务的兼容关系；不要擅自增加 guest checkout 规则。
-- 状态字段所有合法枚举、NOT NULL/默认值、时间一致性、外键 ON DELETE/UPDATE 策略及 FK 建立顺序（特别是订单与优惠券相互关联）。
+- 状态字段所有合法枚举、NOT NULL/默认值、时间一致性及外键 ON DELETE/UPDATE 策略；订单与优惠券已选定单向物理 FK，反向引用由 Source Gate 校验。
 - 条件唯一索引对应生成列的精确 DDL、资金/回调幂等语义、跨表并发锁顺序。
 - 券优惠额度与订单应付的零元订单处理（若现有业务规则未覆盖，需单独决策）；30日退款分母的精确资金截点由指标文档指明未决。
 - JSON 商品变更事件强制核心字段与 Schema 版本、Topic key/schema/retention/ISR，历史 CDC 与离线初始化对齐规则。
-- 当前仅完成候选规格设计；旧候选 SQL 和测试脚本**不得**被视为此文档的自动实现。
+- 当前候选 DDL 和 Generator Contract 已进入仓库，但未部署、未装载、未通过 Source Gate；旧候选 SQL 和测试脚本**不得**被视为此文档的自动实现。
