@@ -25,3 +25,29 @@ TABLE_COLUMNS = {
 }
 
 TABLE_ORDER = list(TABLE_COLUMNS)
+
+# Foreign-key-safe order for MySQL bootstrap loading.  Consumers must import
+# this contract instead of maintaining a second ordering.
+LOAD_TABLE_ORDER = [
+    "biz_user",
+    "biz_visitor",
+    "biz_identity_mapping",
+    "biz_category",
+    "biz_spu",
+    "biz_sku",
+    "biz_product_change_event",
+    "biz_cart",
+    "biz_cart_item",
+    "biz_cart_merge_record",
+    "biz_coupon_template",
+    "biz_coupon",
+    "biz_order",
+    "biz_order_item",
+    "biz_order_status_event",
+    "biz_payment_attempt",
+    "biz_payment_event",
+    "biz_refund_request",
+    "biz_refund_transaction",
+    "biz_refund_event",
+    "biz_coupon_event",
+]

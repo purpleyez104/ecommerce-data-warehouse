@@ -1505,6 +1505,49 @@ Behavior CLI 新增必填参数，旧调用命令必须同步。Behavior 文件�
 
 若 Manifest v1 与后续 Source Contract 冲突，保留当前正式规模结果和失败证据，通过新的连续决策发布新版本；Behavior 对未知版本继续 fail-fast，不静默兼容。若目标环境无法接受当前单文件 Manifest，保持字段语义与 SHA-256 绑定，改用分片或流式读取实现。不得回退到只按配置数量构造第二套实体空间，也不得借此修改或清理任何数据库。
 
+## DR-036：V2 版本化 LOAD DATA 与 Shared Source Gate Contract
+
+- 状态：`accepted`
+- 决策日期：2026-10-12
+- 决策人：用户
+- 影响范围：Milestone 2～3、Business Generator、21 表 CSV/Dataset/Entity Manifest、MySQL Source Load、Shared Source Gate、离线 ODS 与 Formal CDC 进入门禁
+- 关联决策：落实 `DR-031` 的 Python → CSV → `LOAD DATA` 路线、`DR-032` 的离实时共享 Source Gate、`DR-034` 的 21 表候选 DDL/正式规模以及 `DR-035` 的 Business Entity Manifest 绑定
+
+### 背景
+
+Business Generator 已能产生 21 张 CSV、Dataset Manifest 与 Entity Manifest，但此前没有可审计的正式装载入口，也没有提交前后可复用的 Shared Source Gate。仅凭文件生成和本地字段测试，不能证明输入 bundle 完整、装载顺序满足 FK、目标库为空、MySQL 转换无 warning，或订单、支付、退款、优惠券与事件状态在装载后仍一致。
+
+### 决策
+
+1. Dataset Manifest 当前版本固定为 `dataset_manifest_version=1`；每张 CSV 记录规范文件名、行数、字节数和 SHA-256，并绑定 Entity Manifest v1 的 basename、版本与 SHA-256。
+2. Loader 与测试共享 `business_generator.contracts.LOAD_TABLE_ORDER` 作为唯一 FK-safe 装载顺序，不在脚本或测试中复制第二份生产顺序；测试以独立 FK dependency edge 验证拓扑。
+3. `--dry-run` 只执行本地 preflight，不读取数据库凭据或调用 MySQL。Preflight 必须严格检查 21 CSV 集合、表头、非空字段、Manifest schema/identity/time/statistics、size/row/hash、PK/FK/软引用、Entity 完整属性和订单/优惠券反向关系。
+4. 真实装载只使用 `LOAD DATA LOCAL INFILE`，不使用 Python 逐条 `INSERT`。Schema/列检查、目标 21 表总行数为零、advisory lock、21 次 LOAD、每次 warning 阻断和首次 Source Gate 在同一 MySQL Session 与事务中完成，通过后才 `COMMIT`。
+5. Shared Source Gate 固定输出 `rule_id<TAB>violation_count`，覆盖 21 表计数、业务键、引用、多态商品目标、购物车合并、订单金额、支付、退款、券与订单当前状态/反向关系、事件迁移/连续性和 Manifest 订单状态分布。独立 runner 只在规则全集完整、唯一且全部为零时成功。
+6. 密码只进入 mode `0600` 的临时 `defaults-extra-file`，不进入 argv、SQL、Manifest 或日志；数据库名、用户、端口和换行输入在 client 调用前 fail-fast。
+7. 装载入口不执行 `DROP`、`TRUNCATE`、`DELETE`，失败后不自动清理或重跑非空目标；所有缺失、漂移、MySQL/Gate 错误均返回非零并阻断下游。
+8. 当前实现状态为 `implemented / not_run`。本决策不授权 DDL 部署、真实 `LOAD DATA`、Source Gate Runtime、正式库清理或 CDC/ODS 启动；这些 Database Operation 继续要求单独批准。
+9. guest checkout 与注册用户优惠券兼容、identity mapping 区间冲突、事件与事实字段的精确时间绑定、cart merge JSON 守恒和 product change JSON schema 暂不凭经验补全，待对应 Contract 冻结后再扩展 Gate。
+
+### 理由
+
+在数据库变更前完成可重复、可失败退出的 bundle preflight，可以尽早隔离文件和契约错误；单 Session、事务和提交前 Gate 可避免在正常失败路径下提交半套数据。共享装载顺序与严格输出协议减少 loader、Gate 和测试之间的漂移。保留 Runtime 授权门禁及未决业务语义，避免把静态/fake-client 结果提升为数据库事实或擅自增加业务规则。
+
+### 验证方法
+
+1. 执行 `E:/Software/Git/bin/bash.exe -c 'export PATH=/usr/bin:/mingw64/bin:$PATH; bash tests/run_unit.sh'`；当前本地实测 Business Generator 1、Behavior Generator 2、DataX 3、MySQL load/gate 17，共 23 项通过。
+2. 以 `smoke.json`、固定 Seed `20260928` 和显式 `generated_at` 生成临时 bundle，再执行 `bash mysql/scripts/load_v2_csv.sh --dry-run --bundle <bundle>`；当前实测返回 21 表有效 JSON 计划且未调用 MySQL。
+3. 执行 `bash -n`、`python -m py_compile` 和 `git diff --check`；当前均通过，只证明本地语法、契约、fake-client 与失败路径范围。
+4. 获得 Database Operation 授权后，在受控目标验证候选 DDL、真实 LOAD、warning=0、Source Gate 全零、失败回滚、锁竞争和独立 runner；完成前不得标记为 `verified`。
+
+### 影响与风险
+
+Loader、Validator、Source Gate 与测试已形成版本化入口，下游可以在未来 Runtime Gate 通过后复用同一 Source Contract。当前没有真实执行 MySQL SQL，因而 MySQL 8.0.46 的 SQL 语法、`LOCAL INFILE`、事务回滚、advisory lock 和所有规则计算仍未验证。Schema preflight 当前核对非生成列名与顺序，目标表仍须由批准的候选 DDL 部署。并发修改已校验 bundle 的低概率 TOCTOU 风险未通过复制正式规模数据规避，运行期间必须保持输入目录只读和稳定。
+
+### 回滚方式
+
+在尚未进行 Database Operation 时，通过新的 Git revert 提交撤销 Loader、Validator、Gate、测试和 Generator Contract 修改，保留本决策及失败证据，不重写历史。若未来真实装载失败，保留失败日志与目标现场，停止下游，不自动清理或重跑；由单独批准的回滚方案处理目标库。不得删除历史 Pilot/legacy 资产、降低 Manifest 版本或绕过 Source Gate。
+
 ## 记录模板
 
 复制以下模板新增记录；不要直接修改模板内容。

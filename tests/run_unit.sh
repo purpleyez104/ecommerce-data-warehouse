@@ -23,3 +23,6 @@ PYTHONPATH="$repo/mock/generator/behavior_generator/src${PYTHONPATH:+:$PYTHONPAT
   -s mock/generator/behavior_generator/tests -p 'test_*.py' -v
 
 "$python_bin" -m unittest discover -s tests/datax -p 'test_*.py' -v
+
+PYTHONPATH="$repo/mock/generator/business_generator/src${PYTHONPATH:+:$PYTHONPATH}" \
+  "$python_bin" -m unittest discover -s tests/mysql -p 'test_*.py' -v

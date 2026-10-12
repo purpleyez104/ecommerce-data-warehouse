@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from business_generator.config import load_config
-from business_generator.contracts import TABLE_COLUMNS
+from business_generator.contracts import LOAD_TABLE_ORDER, TABLE_COLUMNS
 from business_generator.generator import generate as generate_business
 
 
@@ -86,7 +86,14 @@ class GeneratorTests(unittest.TestCase):
                             if value and column.endswith("_at") and column != "expires_at":
                                 self.assertLessEqual(value, history_end, f"{table}.{column} exceeds history_end")
             manifest = json.loads((first / "dataset_manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["dataset_manifest_version"], 1)
             self.assertEqual(len(manifest["tables"]), 21)
+            self.assertLess(LOAD_TABLE_ORDER.index("biz_coupon"), LOAD_TABLE_ORDER.index("biz_order"))
+            for entry in manifest["tables"]:
+                csv_path = first / entry["file"]
+                self.assertEqual(entry["file"], f'{entry["table_name"]}.csv')
+                self.assertEqual(entry["csv_file_size_bytes"], csv_path.stat().st_size)
+                self.assertEqual(entry["sha256"], digest(csv_path))
             self.assertEqual(manifest["business_statistics"]["paid_orders"], 70)
             entities = json.loads((first / "entity_manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(entities["entity_manifest_version"], 1)
@@ -95,6 +102,28 @@ class GeneratorTests(unittest.TestCase):
             self.assertEqual(len(entities["entities"]["identity_mappings"]), cfg.raw["counts"]["biz_identity_mapping"])
             self.assertEqual(len(entities["entities"]["skus"]), cfg.raw["counts"]["biz_sku"])
             self.assertEqual(manifest["entity_manifest"]["sha256"], digest(first / "entity_manifest.json"))
+            with (first / "biz_coupon.csv").open(encoding="utf-8", newline="") as handle:
+                for coupon in csv.DictReader(handle):
+                    if coupon["coupon_status"] == "USED":
+                        self.assertFalse(coupon["locked_order_id"])
+                        self.assertFalse(coupon["locked_at"])
+                        self.assertTrue(coupon["used_order_id"])
+                        self.assertTrue(coupon["used_at"])
+            with (first / "biz_refund_event.csv").open(encoding="utf-8", newline="") as handle:
+                refund_events = list(csv.DictReader(handle))
+            self.assertNotIn("INIT", {row["to_status"] for row in refund_events})
+            events_by_request = {}
+            for event in refund_events:
+                events_by_request.setdefault(int(event["refund_request_id"]), []).append(event)
+            for refund in refunds:
+                request_id = int(refund["refund_request_id"])
+                events = sorted(events_by_request[request_id], key=lambda row: (row["occurred_at"], int(row["refund_event_id"])))
+                self.assertEqual(events[0]["from_status"], "")
+                for previous, current in zip(events, events[1:]):
+                    self.assertEqual(current["from_status"], previous["to_status"], request_id)
+                self.assertEqual(events[-1]["to_status"], refund["refund_status"])
+            refund_event_manifest = next(entry for entry in manifest["tables"] if entry["table_name"] == "biz_refund_event")
+            self.assertEqual(refund_event_manifest["row_count"], len(refund_events))
 
 if __name__ == "__main__":
     unittest.main()

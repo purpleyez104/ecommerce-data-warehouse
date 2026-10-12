@@ -8,6 +8,8 @@
 
 ### 新增
 
+- 新增 V2 21 表版本化 CSV bundle preflight、FK-safe `LOAD DATA LOCAL INFILE` 单 Session 装载入口与 Shared Source Gate；本地覆盖 Manifest/Entity/CSV 完整性、目标空库与列保护、warning 阻断、计数/引用/金额/状态/事件链规则和严格 TSV 协议。当前状态为 `implemented / not_run`，尚未连接 MySQL、部署 DDL、装载数据或执行 Runtime Gate。
+- 新增 `DR-036`，确认 Dataset Manifest v1、共享 `LOAD_TABLE_ORDER`、事务内首次 Gate、提交后独立 Gate 以及失败非零、不自动清理的 Source Load Contract；真实 Database Operation 继续要求单独授权。
 - 新增 `DR-035` 与版本化 Business Entity Manifest：记录用户、访客、身份映射、SKU 及时间边界，并由 Dataset Manifest 保存 SHA-256；Behavior CLI 强制读取并在不兼容时 fail-fast。
 - 新增 Behavior 正式规模实体绑定验收：3,000,000 条事件的实体引用、30 分钟 Session 边界和 `event_id` 唯一性全量检查均为 0 违规；该结果不代表 MySQL Source Gate 或目标 ECS Runtime。
 - 新增 `DR-034`，确认正式数据规模、21 表候选 DDL/CSV Contract、订单到优惠券的单向物理 FK、约 2,000 条商品变更事件，以及本地正式规模验证与 Source Gate 边界。
@@ -48,6 +50,7 @@
 
 ### 变更
 
+- 修正 Business Generator 的退款重试事件与优惠券当前状态字段：中间资金失败不再错误推进退款申请终态，`USED` 券不再残留锁定订单或锁定时间；Dataset Manifest 增加版本、规范文件名、逐 CSV 大小与 SHA-256。
 - Behavior Generator 不再根据配置数量构造第二套 ID 空间；配置计数仅用于与 Business Entity Manifest 核对。事件按同一访客的 `event_time` 排序后依据 30 分钟无活动边界生成 Session，`event_id` 使用数据版本、Seed 和时间范围派生的批次命名空间。
 - 更新 README、Spec、Plan、业务源设计及离实时 Status：Entity Manifest 门禁已完成，当前下一步收敛为版本化 `LOAD DATA` 和 Shared Source Gate；数据库部署与装载仍需单独授权。
 - 将 Business Generator 的 21 CSV Contract 与候选 DDL 对齐，补充订单明细、支付尝试和退款对象的 4 个审计时间字段；生成列继续由 MySQL 计算，不进入 CSV。

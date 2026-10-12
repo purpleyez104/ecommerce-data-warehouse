@@ -327,8 +327,11 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 initiated = requested + timedelta(minutes=5 * attempt_no)
                 succeeded = initiated + timedelta(seconds=30) if txn_status == "SUCCESS" else None
                 bundle.write("biz_refund_transaction", {"refund_txn_id": refund_txn_id, "refund_request_id": request_id, "attempt_no": attempt_no, "funding_refund_txn_id": f"RFT-{refund_txn_id:012d}", "refund_amount_cents": amount, "refund_txn_status": txn_status, "initiated_at": dt(initiated), "succeeded_at": dt(succeeded), "created_at": dt(initiated), "updated_at": dt(succeeded or initiated + timedelta(seconds=30))})
-                refund_event_id += 1
-                bundle.write("biz_refund_event", {"refund_event_id": refund_event_id, "event_key": f"RE-{refund_event_id:012d}", "refund_request_id": request_id, "refund_txn_id": refund_txn_id, "event_type": "SUCCESS" if txn_status == "SUCCESS" else ("FAIL" if txn_status == "FAILED" else "PROCESS"), "from_status": "PROCESSING", "to_status": txn_status, "occurred_at": dt(succeeded or initiated + timedelta(seconds=30)), "recorded_at": dt((succeeded or initiated + timedelta(seconds=30)) + timedelta(milliseconds=100))})
+                # INIT and retryable failures are funding-attempt states; only
+                # the request's final SUCCESS/FAILED state advances its lifecycle.
+                if txn_status == "SUCCESS" or (txn_status == "FAILED" and status == "FAILED"):
+                    refund_event_id += 1
+                    bundle.write("biz_refund_event", {"refund_event_id": refund_event_id, "event_key": f"RE-{refund_event_id:012d}", "refund_request_id": request_id, "refund_txn_id": refund_txn_id, "event_type": "SUCCESS" if txn_status == "SUCCESS" else "FAIL", "from_status": "PROCESSING", "to_status": txn_status, "occurred_at": dt(succeeded or initiated + timedelta(seconds=30)), "recorded_at": dt((succeeded or initiated + timedelta(seconds=30)) + timedelta(milliseconds=100))})
             stats[f"refund_{status.lower()}"] += 1
         if refund_txn_id != counts["biz_refund_transaction"]:
             raise ValueError("refund transaction target is inconsistent")
@@ -345,7 +348,7 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 status, order_id, user_id, locked_at, final_at = state
                 issued = max(config.start, locked_at - timedelta(days=1 + coupon_id % 20))
                 used_at = final_at if status == "USED" else None
-                locked_order_id = order_id if status in {"USED", "LOCKED"} else ""
+                locked_order_id = order_id if status == "LOCKED" else ""
                 used_order_id = order_id if status == "USED" else ""
             elif coupon_id <= len(coupon_state_by_id) + expiring_unused:
                 issued = weighted_time(rng, config.start, max(config.start, config.end - timedelta(days=1)), promotions)
@@ -357,7 +360,7 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 status, order_id, locked_at, used_at, locked_order_id, used_order_id = "UNUSED", "", None, None, "", ""
             expires = min(config.end if status == "EXPIRED" else config.end + timedelta(days=30), issued + timedelta(days=30))
             updated = final_at if state and final_at else (locked_at if state else (expires if status == "EXPIRED" else issued))
-            bundle.write("biz_coupon", {"coupon_id": coupon_id, "coupon_code": f"CPN-{coupon_id:012d}", "template_id": ((coupon_id - 1) % counts["biz_coupon_template"]) + 1, "user_id": user_id, "coupon_status": status, "locked_order_id": locked_order_id, "used_order_id": used_order_id, "issued_at": dt(issued), "expires_at": dt(expires), "locked_at": dt(locked_at), "used_at": dt(used_at), "updated_at": dt(updated)})
+            bundle.write("biz_coupon", {"coupon_id": coupon_id, "coupon_code": f"CPN-{coupon_id:012d}", "template_id": ((coupon_id - 1) % counts["biz_coupon_template"]) + 1, "user_id": user_id, "coupon_status": status, "locked_order_id": locked_order_id, "used_order_id": used_order_id, "issued_at": dt(issued), "expires_at": dt(expires), "locked_at": dt(locked_at) if status == "LOCKED" else "", "used_at": dt(used_at), "updated_at": dt(updated)})
             coupon_event_id += 1
             bundle.write("biz_coupon_event", {"coupon_event_id": coupon_event_id, "event_key": f"CE-{coupon_event_id:012d}", "coupon_id": coupon_id, "order_id": "", "event_type": "ISSUE", "from_status": "", "to_status": "UNUSED", "occurred_at": dt(issued), "recorded_at": dt(issued + timedelta(milliseconds=100))})
             if state:
@@ -426,10 +429,20 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
     entity_manifest_path.write_text(canonical_json(entity_manifest) + "\n", encoding="utf-8", newline="\n")
     entity_manifest_sha256 = hashlib.sha256(entity_manifest_path.read_bytes()).hexdigest()
     manifest = {
+        "dataset_manifest_version": 1,
         "dataset_version": config.raw["dataset_version"], "generator_version": __version__, "seed": seed,
         "history_start": config.raw["history_start"], "history_end": config.raw["history_end"], "history_days": config.history_days,
         "timezone": config.raw["timezone"], "generated_at": generated_at,
-        "tables": [{"table_name": table, "row_count": bundle.counts[table], "csv_file_size_bytes": (output / f"{table}.csv").stat().st_size} for table in TABLE_ORDER],
+        "tables": [
+            {
+                "table_name": table,
+                "file": f"{table}.csv",
+                "row_count": bundle.counts[table],
+                "csv_file_size_bytes": (output / f"{table}.csv").stat().st_size,
+                "sha256": hashlib.sha256((output / f"{table}.csv").read_bytes()).hexdigest(),
+            }
+            for table in TABLE_ORDER
+        ],
         "business_statistics": {key: stats[key] for key in sorted(stats)} | {"product_change_events": bundle.counts["biz_product_change_event"], "changed_sku_count": changed_skus, "multi_change_sku_count": sum(value > 1 for value in change_counts)},
         "traffic_statistics": {"min_daily_orders": min(daily_orders.values()), "max_daily_orders": max(daily_orders.values()), "avg_daily_orders": round(sum(daily_orders.values()) / config.history_days, 4), "peak_date": daily_orders.most_common(1)[0][0], "peak_date_orders": daily_orders.most_common(1)[0][1], "peak_hour": hourly_orders.most_common(1)[0][0], "peak_hour_orders": hourly_orders.most_common(1)[0][1]},
         "distribution_statistics": {"distinct_sku": len(sku_sales), "distinct_spu": counts["biz_spu"], "top_1_sku_sales_share": round(ranked[0] / sales_total, 6), "top_10_sku_sales_share": round(sum(ranked[:10]) / sales_total, 6), "top_5_percent_sku_share": round(sum(ranked[:top5]) / sales_total, 6), "top_20_percent_sku_share": round(sum(ranked[:top20]) / sales_total, 6), "registered_users": counts["biz_user"], "visitors": counts["biz_visitor"], "mapped_visitors": counts["biz_identity_mapping"], "active_order_users": active_users, "repeat_buyers": sum(value >= 2 for value in user_orders.values()), "avg_orders_per_user": round(counts["biz_order"] / active_users, 6), "max_orders_per_user": max(user_orders.values())},
