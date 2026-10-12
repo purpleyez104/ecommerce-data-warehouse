@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import shutil
@@ -109,18 +110,28 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
     hourly_orders = Counter()
     sku_sales = Counter()
     user_orders = Counter()
+    user_registered_at = {}
+    visitor_first_seen_at = {}
+    identity_mappings = []
     try:
         # Users and visitors.
+        recorded_time_ceiling = config.end - timedelta(milliseconds=100)
         for user_id in range(1, counts["biz_user"] + 1):
-            registered = weighted_time(rng, config.start, config.end, promotions)
+            registered = config.start if user_id == 1 else weighted_time(rng, config.start, recorded_time_ceiling, promotions)
+            user_registered_at[user_id] = registered
             bundle.write("biz_user", {"user_id": user_id, "user_key": f"USR-{user_id:010d}", "user_name": f"user_{user_id:010d}", "user_status": "DISABLED" if user_id % 100 == 0 else "ACTIVE", "registered_at": dt(registered), "created_at": dt(registered), "updated_at": dt(registered)})
         for visitor_id in range(1, counts["biz_visitor"] + 1):
-            first_seen = weighted_time(rng, config.start, config.end, promotions)
+            first_seen = config.start if visitor_id == 1 else weighted_time(rng, config.start, recorded_time_ceiling, promotions)
             last_seen = first_seen + timedelta(seconds=rng.randrange(max(1, int((config.end - first_seen).total_seconds()) + 1)))
+            visitor_first_seen_at[visitor_id] = first_seen
             bundle.write("biz_visitor", {"visitor_id": visitor_id, "visitor_key": f"VIS-{visitor_id:010d}", "first_seen_at": dt(first_seen), "last_seen_at": dt(last_seen), "created_at": dt(first_seen), "updated_at": dt(last_seen)})
         for mapping_id in range(1, counts["biz_identity_mapping"] + 1):
-            effective = weighted_time(rng, config.start, config.end, promotions)
-            bundle.write("biz_identity_mapping", {"mapping_id": mapping_id, "visitor_id": mapping_id, "user_id": ((mapping_id - 1) % counts["biz_user"]) + 1, "session_id": f"SES-MAP-{mapping_id:010d}", "evidence_type": "LOGIN", "evidence_id": f"LOGIN-{mapping_id:010d}", "mapping_scope": "VISITOR", "identity_version": 1, "effective_from": dt(effective), "effective_to": "", "mapping_status": "CONFIRMED", "recorded_at": dt(effective + timedelta(milliseconds=50))})
+            user_id = ((mapping_id - 1) % counts["biz_user"]) + 1
+            effective_start = max(visitor_first_seen_at[mapping_id], user_registered_at[user_id])
+            effective = weighted_time(rng, effective_start, recorded_time_ceiling, promotions)
+            mapping = {"mapping_id": mapping_id, "visitor_id": mapping_id, "user_id": user_id, "session_id": f"SES-MAP-{mapping_id:010d}", "evidence_type": "LOGIN", "evidence_id": f"LOGIN-{mapping_id:010d}", "mapping_scope": "VISITOR", "identity_version": 1, "effective_from": dt(effective), "effective_to": "", "mapping_status": "CONFIRMED", "recorded_at": dt(effective + timedelta(milliseconds=50))}
+            identity_mappings.append(mapping)
+            bundle.write("biz_identity_mapping", mapping)
 
         # Product catalog and true SKU history.
         for category_id in range(1, counts["biz_category"] + 1):
@@ -162,9 +173,12 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
         # Current carts and idempotent merge history.
         user_cart_count = min(counts["biz_cart"], counts["biz_user"])
         for cart_id in range(1, counts["biz_cart"] + 1):
-            created = weighted_time(rng, config.start, config.end, promotions)
             is_user = cart_id <= user_cart_count
-            bundle.write("biz_cart", {"cart_id": cart_id, "user_id": cart_id if is_user else "", "visitor_id": "" if is_user else ((cart_id - user_cart_count - 1) % counts["biz_visitor"]) + 1, "created_at": dt(created), "updated_at": dt(created + timedelta(minutes=rng.randrange(1440)))})
+            visitor_id = "" if is_user else ((cart_id - user_cart_count - 1) % counts["biz_visitor"]) + 1
+            owner_start = user_registered_at[cart_id] if is_user else visitor_first_seen_at[visitor_id]
+            created = weighted_time(rng, owner_start, config.end, promotions)
+            updated = min(config.end, created + timedelta(minutes=rng.randrange(1440)))
+            bundle.write("biz_cart", {"cart_id": cart_id, "user_id": cart_id if is_user else "", "visitor_id": visitor_id, "created_at": dt(created), "updated_at": dt(updated)})
         per_cart = [counts["biz_cart_item"] // counts["biz_cart"]] * counts["biz_cart"]
         for index in range(counts["biz_cart_item"] % counts["biz_cart"]):
             per_cart[index] += 1
@@ -206,11 +220,20 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
         refund_meta = []
         payment_attempt_id = payment_event_id = order_item_id = order_event_id = 0
         coupon_state_by_id = {}
+        regular_order_end = config.end - timedelta(hours=1, minutes=15)
+        refund_order_end = config.end - timedelta(hours=3)
+        regular_order_users = [user_id for user_id, registered in user_registered_at.items() if registered <= regular_order_end]
+        refund_order_users = [user_id for user_id, registered in user_registered_at.items() if registered <= refund_order_end]
+        if not regular_order_users or not refund_order_users:
+            raise ValueError("history range does not leave eligible registered users for order lifecycles")
         for order_id in range(1, counts["biz_order"] + 1):
             status = statuses[order_id - 1]
-            created = weighted_time(rng, config.start, config.end, promotions)
+            has_refund = order_id in refund_counts
+            eligible_users = refund_order_users if has_refund else regular_order_users
+            order_end = refund_order_end if has_refund else regular_order_end
+            user_id = rng.choice(eligible_users)
+            created = weighted_time(rng, user_registered_at[user_id], order_end, promotions)
             deadline = created + timedelta(minutes=15)
-            user_id = rng.randint(1, counts["biz_user"])
             user_orders[user_id] += 1
             selected = []
             while len(selected) < item_counts[order_id - 1]:
@@ -226,7 +249,7 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
             for index in range(discount - sum(allocations)):
                 allocations[index % len(allocations)] += 1
             attempts = payment_plan[order_id]
-            paid_at = created + timedelta(seconds=rng.randrange(30, 14 * 60)) if status == "PAID" else None
+            paid_at = created + timedelta(seconds=rng.randrange(60 * len(attempts) + 1, 14 * 60)) if status == "PAID" else None
             canceled_at = created + timedelta(minutes=15, seconds=rng.randrange(3600)) if status == "CANCELED" else None
             updated = paid_at or canceled_at or created
             bundle.write("biz_order", {"order_id": order_id, "order_no": f"ORD-{order_id:012d}", "user_id": user_id, "visitor_id": "", "coupon_id": coupon_id or "", "order_status": status, "gross_amount_cents": gross, "discount_amount_cents": discount, "payable_amount_cents": gross - discount, "created_at": dt(created), "payment_deadline_at": dt(deadline), "paid_at": dt(paid_at), "canceled_at": dt(canceled_at), "updated_at": dt(updated)})
@@ -243,7 +266,7 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 order_item_id += 1
                 spu_id = ((sku_id - 1) % counts["biz_spu"]) + 1
                 category_id = ((spu_id - 1) % counts["biz_category"]) + 1
-                order_item_rows.append({"order_item_id": order_item_id, "order_id": order_id, "sku_id": sku_id, "spu_id": spu_id, "category_id": category_id, "brand_code": f"BR-{((spu_id - 1) % 120) + 1:04d}", "sku_name": f"sku_{sku_id:07d}", "quantity": quantity, "unit_price_cents": sku_prices[sku_id], "gross_amount_cents": item_gross, "allocated_discount_cents": allocated, "payable_amount_cents": item_gross - allocated, "refund_reserved_cents": 0, "refunded_cents": 0, "refunded_quantity": 0, "created_at": dt(created)})
+                order_item_rows.append({"order_item_id": order_item_id, "order_id": order_id, "sku_id": sku_id, "spu_id": spu_id, "category_id": category_id, "brand_code": f"BR-{((spu_id - 1) % 120) + 1:04d}", "sku_name": f"sku_{sku_id:07d}", "quantity": quantity, "unit_price_cents": sku_prices[sku_id], "gross_amount_cents": item_gross, "allocated_discount_cents": allocated, "payable_amount_cents": item_gross - allocated, "refund_reserved_cents": 0, "refunded_cents": 0, "refunded_quantity": 0, "created_at": dt(created), "updated_at": dt(created)})
                 if status == "PAID":
                     sku_sales[sku_id] += quantity
             for refund_index in range(refund_counts.get(order_id, 0)):
@@ -257,14 +280,17 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                     row["refunded_quantity"] = refund_quantity or 0
                 elif refund_status in {"REQUESTED", "PROCESSING"}:
                     row["refund_reserved_cents"] = refund_amount
-                refund_meta.append((order_id, row, paid_at, refund_status, refund_amount, refund_quantity))
+                requested = min(config.end - timedelta(hours=2), paid_at + timedelta(days=1 + request_number % 20))
+                completed = requested + timedelta(hours=2) if refund_status in {"SUCCESS", "FAILED"} else None
+                row["updated_at"] = dt(completed or requested)
+                refund_meta.append((order_id, row, paid_at, refund_status, refund_amount, refund_quantity, requested, completed))
             for row in order_item_rows:
                 bundle.write("biz_order_item", row)
             for attempt_no, attempt_status in enumerate(attempts, start=1):
                 payment_attempt_id += 1
                 initiated = created + timedelta(seconds=min(60 * attempt_no, 12 * 60))
                 succeeded = paid_at if attempt_status == "SUCCESS" else None
-                bundle.write("biz_payment_attempt", {"payment_attempt_id": payment_attempt_id, "order_id": order_id, "attempt_no": attempt_no, "funding_txn_id": f"PAY-{payment_attempt_id:012d}", "amount_cents": gross - discount, "payment_status": attempt_status, "initiated_at": dt(initiated), "succeeded_at": dt(succeeded), "updated_at": dt(succeeded or initiated + timedelta(seconds=10))})
+                bundle.write("biz_payment_attempt", {"payment_attempt_id": payment_attempt_id, "order_id": order_id, "attempt_no": attempt_no, "funding_txn_id": f"PAY-{payment_attempt_id:012d}", "amount_cents": gross - discount, "payment_status": attempt_status, "initiated_at": dt(initiated), "succeeded_at": dt(succeeded), "created_at": dt(initiated), "updated_at": dt(succeeded or initiated + timedelta(seconds=10))})
                 payment_event_id += 1
                 bundle.write("biz_payment_event", {"payment_event_id": payment_event_id, "event_key": f"PE-{payment_event_id:012d}", "payment_attempt_id": payment_attempt_id, "callback_event_id": f"PCB-{payment_event_id:012d}" if attempt_status != "INIT" else "", "from_status": "INIT", "to_status": attempt_status, "occurred_at": dt(succeeded or initiated + timedelta(seconds=10)), "recorded_at": dt((succeeded or initiated + timedelta(seconds=10)) + timedelta(milliseconds=100))})
                 stats[f"payment_{attempt_status.lower()}"] += 1
@@ -272,11 +298,11 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 stats["retry_payment_orders"] += 1
             if coupon_id:
                 if status == "PAID":
-                    coupon_state_by_id[coupon_id] = ("USED", order_id, created, paid_at)
+                    coupon_state_by_id[coupon_id] = ("USED", order_id, user_id, created, paid_at)
                 elif status == "CREATED":
-                    coupon_state_by_id[coupon_id] = ("LOCKED", order_id, created, None)
+                    coupon_state_by_id[coupon_id] = ("LOCKED", order_id, user_id, created, None)
                 else:
-                    coupon_state_by_id[coupon_id] = ("UNUSED", order_id, created, canceled_at)
+                    coupon_state_by_id[coupon_id] = ("UNUSED", order_id, user_id, created, canceled_at)
 
         # Refund current state and immutable history.
         natural_txns = sum(2 if status == "SUCCESS" and index < round(refund_statuses.count("SUCCESS") * 0.10) else (1 if status != "REQUESTED" else 0) for index, status in enumerate(refund_statuses))
@@ -284,15 +310,13 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
         if extra_txns < 0:
             raise ValueError("refund_transaction target is below rule-derived count")
         refund_txn_id = refund_event_id = 0
-        for request_id, (order_id, item, paid_at, status, amount, quantity) in enumerate(refund_meta, start=1):
-            requested = min(config.end, paid_at + timedelta(days=1 + request_id % 20))
+        for request_id, (order_id, item, paid_at, status, amount, quantity, requested, completed) in enumerate(refund_meta, start=1):
             retry = status == "SUCCESS" and request_id <= round(refund_statuses.count("SUCCESS") * 0.10)
             txn_statuses = (["FAILED", "SUCCESS"] if retry else ([status] if status in {"SUCCESS", "FAILED"} else (["INIT"] if status == "PROCESSING" else [])))
             if extra_txns > 0 and status == "SUCCESS" and not retry:
                 txn_statuses.insert(0, "FAILED")
                 extra_txns -= 1
-            completed = requested + timedelta(hours=2) if status in {"SUCCESS", "FAILED"} else None
-            bundle.write("biz_refund_request", {"refund_request_id": request_id, "refund_request_no": f"RR-{request_id:012d}", "order_id": order_id, "order_item_id": item["order_item_id"], "requested_amount_cents": amount, "refund_quantity": quantity, "refund_status": status, "requested_at": dt(requested), "completed_at": dt(completed), "updated_at": dt(completed or requested)})
+            bundle.write("biz_refund_request", {"refund_request_id": request_id, "refund_request_no": f"RR-{request_id:012d}", "order_id": order_id, "order_item_id": item["order_item_id"], "requested_amount_cents": amount, "refund_quantity": quantity, "refund_status": status, "requested_at": dt(requested), "completed_at": dt(completed), "created_at": dt(requested), "updated_at": dt(completed or requested)})
             refund_event_id += 1
             bundle.write("biz_refund_event", {"refund_event_id": refund_event_id, "event_key": f"RE-{refund_event_id:012d}", "refund_request_id": request_id, "refund_txn_id": "", "event_type": "REQUEST", "from_status": "", "to_status": "REQUESTED", "occurred_at": dt(requested), "recorded_at": dt(requested + timedelta(milliseconds=100))})
             if txn_statuses:
@@ -302,7 +326,7 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 refund_txn_id += 1
                 initiated = requested + timedelta(minutes=5 * attempt_no)
                 succeeded = initiated + timedelta(seconds=30) if txn_status == "SUCCESS" else None
-                bundle.write("biz_refund_transaction", {"refund_txn_id": refund_txn_id, "refund_request_id": request_id, "attempt_no": attempt_no, "funding_refund_txn_id": f"RFT-{refund_txn_id:012d}", "refund_amount_cents": amount, "refund_txn_status": txn_status, "initiated_at": dt(initiated), "succeeded_at": dt(succeeded), "updated_at": dt(succeeded or initiated + timedelta(seconds=30))})
+                bundle.write("biz_refund_transaction", {"refund_txn_id": refund_txn_id, "refund_request_id": request_id, "attempt_no": attempt_no, "funding_refund_txn_id": f"RFT-{refund_txn_id:012d}", "refund_amount_cents": amount, "refund_txn_status": txn_status, "initiated_at": dt(initiated), "succeeded_at": dt(succeeded), "created_at": dt(initiated), "updated_at": dt(succeeded or initiated + timedelta(seconds=30))})
                 refund_event_id += 1
                 bundle.write("biz_refund_event", {"refund_event_id": refund_event_id, "event_key": f"RE-{refund_event_id:012d}", "refund_request_id": request_id, "refund_txn_id": refund_txn_id, "event_type": "SUCCESS" if txn_status == "SUCCESS" else ("FAIL" if txn_status == "FAILED" else "PROCESS"), "from_status": "PROCESSING", "to_status": txn_status, "occurred_at": dt(succeeded or initiated + timedelta(seconds=30)), "recorded_at": dt((succeeded or initiated + timedelta(seconds=30)) + timedelta(milliseconds=100))})
             stats[f"refund_{status.lower()}"] += 1
@@ -316,19 +340,24 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
         coupon_event_id = 0
         expiring_unused = min(10_000, counts["biz_coupon"] - len(coupon_state_by_id))
         for coupon_id in range(1, counts["biz_coupon"] + 1):
-            issued = weighted_time(rng, config.start, config.end, promotions)
             state = coupon_state_by_id.get(coupon_id)
             if state:
-                status, order_id, locked_at, final_at = state
+                status, order_id, user_id, locked_at, final_at = state
+                issued = max(config.start, locked_at - timedelta(days=1 + coupon_id % 20))
                 used_at = final_at if status == "USED" else None
                 locked_order_id = order_id if status in {"USED", "LOCKED"} else ""
                 used_order_id = order_id if status == "USED" else ""
             elif coupon_id <= len(coupon_state_by_id) + expiring_unused:
+                issued = weighted_time(rng, config.start, max(config.start, config.end - timedelta(days=1)), promotions)
+                user_id = ((coupon_id - 1) % counts["biz_user"]) + 1
                 status, order_id, locked_at, used_at, locked_order_id, used_order_id = "EXPIRED", "", None, None, "", ""
             else:
+                issued = weighted_time(rng, config.start, recorded_time_ceiling, promotions)
+                user_id = ((coupon_id - 1) % counts["biz_user"]) + 1
                 status, order_id, locked_at, used_at, locked_order_id, used_order_id = "UNUSED", "", None, None, "", ""
-            expires = min(config.end + timedelta(days=30), issued + timedelta(days=30))
-            bundle.write("biz_coupon", {"coupon_id": coupon_id, "coupon_code": f"CPN-{coupon_id:012d}", "template_id": ((coupon_id - 1) % counts["biz_coupon_template"]) + 1, "user_id": ((coupon_id - 1) % counts["biz_user"]) + 1, "coupon_status": status, "locked_order_id": locked_order_id, "used_order_id": used_order_id, "issued_at": dt(issued), "expires_at": dt(expires), "locked_at": dt(locked_at), "used_at": dt(used_at), "updated_at": dt(used_at or locked_at or expires if status == "EXPIRED" else issued)})
+            expires = min(config.end if status == "EXPIRED" else config.end + timedelta(days=30), issued + timedelta(days=30))
+            updated = final_at if state and final_at else (locked_at if state else (expires if status == "EXPIRED" else issued))
+            bundle.write("biz_coupon", {"coupon_id": coupon_id, "coupon_code": f"CPN-{coupon_id:012d}", "template_id": ((coupon_id - 1) % counts["biz_coupon_template"]) + 1, "user_id": user_id, "coupon_status": status, "locked_order_id": locked_order_id, "used_order_id": used_order_id, "issued_at": dt(issued), "expires_at": dt(expires), "locked_at": dt(locked_at), "used_at": dt(used_at), "updated_at": dt(updated)})
             coupon_event_id += 1
             bundle.write("biz_coupon_event", {"coupon_event_id": coupon_event_id, "event_key": f"CE-{coupon_event_id:012d}", "coupon_id": coupon_id, "order_id": "", "event_type": "ISSUE", "from_status": "", "to_status": "UNUSED", "occurred_at": dt(issued), "recorded_at": dt(issued + timedelta(milliseconds=100))})
             if state:
@@ -360,6 +389,42 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
     top5 = max(1, math.ceil(counts["biz_sku"] * 0.05))
     top20 = max(1, math.ceil(counts["biz_sku"] * 0.20))
     active_users = sum(1 for value in user_orders.values() if value)
+    entity_manifest = {
+        "entity_manifest_version": 1,
+        "dataset_version": config.raw["dataset_version"],
+        "source_generator_version": __version__,
+        "seed": seed,
+        "history_start": config.raw["history_start"],
+        "history_end": config.raw["history_end"],
+        "timezone": config.raw["timezone"],
+        "entities": {
+            "users": [{"user_id": user_id, "registered_at": dt(registered_at)} for user_id, registered_at in user_registered_at.items()],
+            "visitors": [{"visitor_id": visitor_id, "first_seen_at": dt(first_seen_at)} for visitor_id, first_seen_at in visitor_first_seen_at.items()],
+            "identity_mappings": [
+                {
+                    "visitor_id": row["visitor_id"],
+                    "user_id": row["user_id"],
+                    "session_id": row["session_id"],
+                    "identity_version": row["identity_version"],
+                    "effective_from": row["effective_from"],
+                    "effective_to": row["effective_to"] or None,
+                }
+                for row in identity_mappings
+            ],
+            "skus": [
+                {
+                    "sku_id": sku_id,
+                    "spu_id": ((sku_id - 1) % counts["biz_spu"]) + 1,
+                    "category_id": ((((sku_id - 1) % counts["biz_spu"]) + 1) - 1) % counts["biz_category"] + 1,
+                    "available_from": dt(config.start),
+                }
+                for sku_id in range(1, counts["biz_sku"] + 1)
+            ],
+        },
+    }
+    entity_manifest_path = output / "entity_manifest.json"
+    entity_manifest_path.write_text(canonical_json(entity_manifest) + "\n", encoding="utf-8", newline="\n")
+    entity_manifest_sha256 = hashlib.sha256(entity_manifest_path.read_bytes()).hexdigest()
     manifest = {
         "dataset_version": config.raw["dataset_version"], "generator_version": __version__, "seed": seed,
         "history_start": config.raw["history_start"], "history_end": config.raw["history_end"], "history_days": config.history_days,
@@ -368,6 +433,7 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
         "business_statistics": {key: stats[key] for key in sorted(stats)} | {"product_change_events": bundle.counts["biz_product_change_event"], "changed_sku_count": changed_skus, "multi_change_sku_count": sum(value > 1 for value in change_counts)},
         "traffic_statistics": {"min_daily_orders": min(daily_orders.values()), "max_daily_orders": max(daily_orders.values()), "avg_daily_orders": round(sum(daily_orders.values()) / config.history_days, 4), "peak_date": daily_orders.most_common(1)[0][0], "peak_date_orders": daily_orders.most_common(1)[0][1], "peak_hour": hourly_orders.most_common(1)[0][0], "peak_hour_orders": hourly_orders.most_common(1)[0][1]},
         "distribution_statistics": {"distinct_sku": len(sku_sales), "distinct_spu": counts["biz_spu"], "top_1_sku_sales_share": round(ranked[0] / sales_total, 6), "top_10_sku_sales_share": round(sum(ranked[:10]) / sales_total, 6), "top_5_percent_sku_share": round(sum(ranked[:top5]) / sales_total, 6), "top_20_percent_sku_share": round(sum(ranked[:top20]) / sales_total, 6), "registered_users": counts["biz_user"], "visitors": counts["biz_visitor"], "mapped_visitors": counts["biz_identity_mapping"], "active_order_users": active_users, "repeat_buyers": sum(value >= 2 for value in user_orders.values()), "avg_orders_per_user": round(counts["biz_order"] / active_users, 6), "max_orders_per_user": max(user_orders.values())},
+        "entity_manifest": {"file": entity_manifest_path.name, "version": 1, "sha256": entity_manifest_sha256},
     }
     (output / "dataset_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     return manifest

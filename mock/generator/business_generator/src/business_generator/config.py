@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from .contracts import TABLE_COLUMNS
@@ -42,6 +42,8 @@ def load_config(path: Path) -> DatasetConfig:
     cfg = DatasetConfig(data)
     if cfg.start >= cfg.end:
         raise ValueError("history_start must be before history_end")
+    if cfg.end - cfg.start < timedelta(hours=3):
+        raise ValueError("history range must be at least three hours for terminal business events")
     for name in TABLE_COLUMNS:
         if name not in cfg.counts:
             raise ValueError(f"counts missing table: {name}")
