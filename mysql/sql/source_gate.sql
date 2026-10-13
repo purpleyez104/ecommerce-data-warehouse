@@ -1,4 +1,4 @@
--- Shared V2 Source Gate. Expected values are injected as @expected_* session
+-- Shared Source Gate. Expected values are injected as @expected_* session
 -- variables by the validated bundle runner. Output protocol is exactly:
 -- rule_id<TAB>violation_count
 DROP TEMPORARY TABLE IF EXISTS source_gate_results;

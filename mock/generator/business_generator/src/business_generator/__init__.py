@@ -1,3 +1,3 @@
-"""Standalone V2 deterministic Business Generator."""
+"""Standalone deterministic formal Business Generator."""
 
 __version__ = "0.1.0"

@@ -1,6 +1,6 @@
 # Behavior Generator
 
-生成 V2 用户行为 JSONL，可运行 Bootstrap 历史模式或 Continuous 批次模式。运行时必须读取 Business Generator 输出的版本化 `entity_manifest.json`，不得根据相同数量重新构造第二套实体 ID 空间。
+生成正式用户行为 JSONL，可运行 Bootstrap 历史模式或 Continuous 批次模式。运行时必须读取 Business Generator 输出的版本化 `entity_manifest.json`，不得根据相同数量重新构造第二套实体 ID 空间。
 
 ```powershell
 cd mock\generator\behavior_generator
@@ -11,10 +11,10 @@ ecommerce-behavior-generator bootstrap --config config\smoke.json --entity-manif
 Continuous 示例：
 
 ```powershell
-ecommerce-behavior-generator continuous --config config\v2_spec.json --entity-manifest ..\business_generator\output\v2\entity_manifest.json --seed 20260929 --generated-at 2026-09-29T10:00:00+08:00 --start 2026-03-01T00:00:00 --end 2026-03-01T00:59:59.999 --events 10000 --output output\behavior-20260301-00.jsonl
+ecommerce-behavior-generator continuous --config config\formal.json --entity-manifest ..\business_generator\output\formal\entity_manifest.json --seed 20260929 --generated-at 2026-09-29T10:00:00+08:00 --start 2026-03-01T00:00:00 --end 2026-03-01T00:59:59.999 --events 10000 --output output\behavior-20260301-00.jsonl
 ```
 
-正式设计规模使用 `v2_spec.json`。`smoke.json` 只作为快速单元测试 Fixture，不是独立数据规模档位。
+正式设计规模使用 `formal.json`。`smoke.json` 只作为快速单元测试 Fixture，不是独立数据规模档位。
 
 验证：
 

@@ -1,6 +1,6 @@
-# V2 Generators
+# Formal Data Generators
 
-当前整体状态为 `candidate / implemented`，并已完成本地正式规模生成与 Entity Manifest 绑定：Business 21 表 1,329,480 行，Behavior 3,000,000 事件；正式规模全量实体引用、Session 边界和 `event_id` 唯一性检查为 0 违规。DDL/CSV 字段已对齐，但 `LOAD DATA`、Source Gate 与目标环境 Runtime 尚未完成。
+当前整体状态为 `verified`（证据范围不同）：Business 21 表 1,328,502 行已在目标 MySQL 完成 `LOAD DATA` 与 45-rule Shared Source Gate；Behavior 3,000,000 事件已完成本地正式规模生成与 Entity Manifest 绑定，全量实体引用、Session 边界和 `event_id` 唯一性检查为 0 违规。Behavior Kafka 与正式 CDC 尚未完成。
 
 两个生成器完全分开，可独立安装、运行和测试：
 

@@ -1,3 +1,3 @@
-"""Standalone V2 deterministic Behavior Generator."""
+"""Standalone deterministic formal Behavior Generator."""
 
 __version__ = "0.1.0"

@@ -1,9 +1,9 @@
--- Rendered by validate_v2_csv_bundle.py after a complete bundle preflight.
+-- Rendered by validate_csv_bundle.py after a complete bundle preflight.
 -- All schema checks, empty-target protection, LOAD DATA statements and the
 -- first Source Gate run execute in this single MySQL session.
 SET SESSION sql_mode = 'STRICT_ALL_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 SET SESSION autocommit = 0;
-SET @source_load_lock = GET_LOCK(CONCAT(DATABASE(), ':v2-source-load'), 0);
+SET @source_load_lock = GET_LOCK(CONCAT(DATABASE(), ':source-load'), 0);
 SET @source_load_guard = IF(@source_load_lock = 1, 'SELECT NULL WHERE FALSE', 'SELECT * FROM __source_load_advisory_lock_failed__');
 PREPARE source_load_guard_stmt FROM @source_load_guard;
 EXECUTE source_load_guard_stmt;
@@ -69,4 +69,4 @@ __LOAD_STATEMENTS__
 SOURCE __SOURCE_GATE_PATH__
 
 COMMIT;
-DO RELEASE_LOCK(CONCAT(DATABASE(), ':v2-source-load'));
+DO RELEASE_LOCK(CONCAT(DATABASE(), ':source-load'));

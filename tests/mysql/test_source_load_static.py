@@ -21,9 +21,9 @@ from business_generator.contracts import LOAD_TABLE_ORDER, TABLE_COLUMNS
 from business_generator.generator import generate
 
 
-VALIDATOR = ROOT / "mysql" / "scripts" / "validate_v2_csv_bundle.py"
+VALIDATOR = ROOT / "mysql" / "scripts" / "validate_csv_bundle.py"
 PARSER = ROOT / "mysql" / "scripts" / "parse_source_gate.py"
-LOAD_SCRIPT = ROOT / "mysql" / "scripts" / "load_v2_csv.sh"
+LOAD_SCRIPT = ROOT / "mysql" / "scripts" / "load_csv_bundle.sh"
 GATE_SCRIPT = ROOT / "mysql" / "scripts" / "run_source_gate.sh"
 GATE_SQL = ROOT / "mysql" / "sql" / "source_gate.sql"
 

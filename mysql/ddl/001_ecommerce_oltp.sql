@@ -1,7 +1,7 @@
--- Ecommerce OLTP formal 21-table schema candidate V2.0
+-- Ecommerce OLTP formal 21-table schema candidate
 -- Basis: 2026-10-11 live schema inspection plus benchmark, metrics, business baseline and physical-model review.
 -- Target: MySQL 8.0.46 / InnoDB / utf8mb4 / Asia/Shanghai business timestamps.
--- CANDIDATE ONLY. Not executed or deployed. Requires an existing ecommerce_oltp schema.
+-- Runtime accepted on 2026-10-12 against MySQL 8.0.46; see docs/acceptance/source-load-gate-acceptance.md.
 -- SAFETY: no DROP, TRUNCATE, DELETE, INSERT, or ALTER of pre-existing objects.
 -- CREATE TABLE intentionally has no IF NOT EXISTS: name collisions must fail visibly.
 -- All monetary amounts are signed BIGINT in CNY cents (never FLOAT/DOUBLE).
@@ -512,4 +512,4 @@ CREATE TABLE `biz_coupon_event` (
 -- Coupon-to-order reverse references intentionally have indexes but no foreign keys.
 -- This removes the circular load dependency; Generator and Source Gate must validate locked_order_id/used_order_id.
 
--- End of candidate DDL; no data migration or database execution performed.
+-- End of formal DDL. Re-execution against an existing schema must fail on object collisions.

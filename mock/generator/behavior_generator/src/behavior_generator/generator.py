@@ -123,7 +123,7 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path, 
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate V2 behavior events without impersonating MySQL CDC")
+    parser = argparse.ArgumentParser(description="Generate formal behavior events without impersonating MySQL CDC")
     sub = parser.add_subparsers(dest="mode", required=True)
     for mode in ("bootstrap", "continuous"):
         command = sub.add_parser(mode)

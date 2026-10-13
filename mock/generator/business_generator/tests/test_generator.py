@@ -92,6 +92,7 @@ class GeneratorTests(unittest.TestCase):
             for entry in manifest["tables"]:
                 csv_path = first / entry["file"]
                 self.assertEqual(entry["file"], f'{entry["table_name"]}.csv')
+                self.assertEqual(entry["row_count"], cfg.raw["counts"][entry["table_name"]])
                 self.assertEqual(entry["csv_file_size_bytes"], csv_path.stat().st_size)
                 self.assertEqual(entry["sha256"], digest(csv_path))
             self.assertEqual(manifest["business_statistics"]["paid_orders"], 70)
@@ -124,6 +125,19 @@ class GeneratorTests(unittest.TestCase):
                 self.assertEqual(events[-1]["to_status"], refund["refund_status"])
             refund_event_manifest = next(entry for entry in manifest["tables"] if entry["table_name"] == "biz_refund_event")
             self.assertEqual(refund_event_manifest["row_count"], len(refund_events))
+
+    def test_derived_event_count_mismatch_fails_and_removes_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "mismatch.json"
+            raw = json.loads(CONFIG.read_text(encoding="utf-8"))
+            raw["counts"]["biz_coupon_event"] -= 1
+            config_path.write_text(json.dumps(raw), encoding="utf-8")
+            output = Path(directory) / "output"
+
+            with self.assertRaisesRegex(ValueError, "coupon event target is inconsistent"):
+                generate_business(load_config(config_path), 20260928, "2026-09-28T10:00:00+08:00", output)
+
+            self.assertFalse(output.exists())
 
 if __name__ == "__main__":
     unittest.main()

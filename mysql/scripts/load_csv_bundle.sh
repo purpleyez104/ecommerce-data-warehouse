@@ -3,15 +3,15 @@ set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo=$(cd -- "$script_dir/../.." && pwd)
-validator="$script_dir/validate_v2_csv_bundle.py"
-template="$repo/mysql/sql/load_v2_csv.sql"
+validator="$script_dir/validate_csv_bundle.py"
+template="$repo/mysql/sql/load_csv_bundle.sql"
 gate="$repo/mysql/sql/source_gate.sql"
 bundle=''
 dry_run=0
 temp_dir=''
 
 usage() {
-  echo 'Usage: load_v2_csv.sh [--dry-run] --bundle <generated-bundle>'
+  echo 'Usage: load_csv_bundle.sh [--dry-run] --bundle <generated-bundle>'
 }
 
 die() { echo "ERROR: $*" >&2; exit 2; }
@@ -49,7 +49,7 @@ command -v mysql >/dev/null 2>&1 || die 'mysql client is required'
 [[ $MYSQL_PASSWORD != *$'\n'* && $MYSQL_PASSWORD != *$'\r'* ]] || die 'MYSQL_PASSWORD must not contain a newline'
 
 umask 077
-temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/v2-source-load.XXXXXX")
+temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/source-load.XXXXXX")
 cleanup() { [[ -z $temp_dir ]] || rm -rf -- "$temp_dir"; }
 trap cleanup EXIT INT TERM
 defaults_file="$temp_dir/mysql.cnf"
@@ -66,4 +66,4 @@ chmod 600 "$defaults_file"
 mysql --defaults-extra-file="$defaults_file" --protocol=TCP --host="$MYSQL_HOST" \
   --port="$MYSQL_PORT" --database="$MYSQL_DATABASE" --local-infile=1 \
   --batch --skip-column-names --raw < "$session_sql"
-echo 'V2 source load committed after Source Gate passed.'
+echo 'Source load committed after Source Gate passed.'

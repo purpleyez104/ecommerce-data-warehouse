@@ -1,4 +1,4 @@
-"""Standalone Business Generator: deterministic V2 bootstrap CSVs for 21 tables."""
+"""Standalone Business Generator: deterministic formal bootstrap CSVs for 21 tables."""
 
 from __future__ import annotations
 
@@ -336,8 +336,9 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
         if refund_txn_id != counts["biz_refund_transaction"]:
             raise ValueError("refund transaction target is inconsistent")
         if refund_event_id != counts["biz_refund_event"]:
-            counts = dict(counts)
-            counts["biz_refund_event"] = refund_event_id
+            raise ValueError(
+                f"refund event target is inconsistent: configured={counts['biz_refund_event']}, derived={refund_event_id}"
+            )
 
         # Coupon instance current state and lifecycle events.
         coupon_event_id = 0
@@ -374,8 +375,9 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 bundle.write("biz_coupon_event", {"coupon_event_id": coupon_event_id, "event_key": f"CE-{coupon_event_id:012d}", "coupon_id": coupon_id, "order_id": "", "event_type": "EXPIRE", "from_status": "UNUSED", "to_status": "EXPIRED", "occurred_at": dt(expires), "recorded_at": dt(expires)})
             stats[f"coupon_{status.lower()}"] += 1
         if coupon_event_id != counts["biz_coupon_event"]:
-            counts = dict(counts)
-            counts["biz_coupon_event"] = coupon_event_id
+            raise ValueError(
+                f"coupon event target is inconsistent: configured={counts['biz_coupon_event']}, derived={coupon_event_id}"
+            )
     except Exception:
         bundle.close()
         shutil.rmtree(output)
@@ -453,7 +455,7 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate deterministic V2 bootstrap business CSVs")
+    parser = argparse.ArgumentParser(description="Generate deterministic formal bootstrap business CSVs")
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--generated-at", required=True, help="explicit ISO-8601 evidence timestamp")

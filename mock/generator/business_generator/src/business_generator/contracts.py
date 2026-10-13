@@ -1,4 +1,4 @@
-"""CSV and behavior contracts derived from the V2 source specifications."""
+"""CSV and behavior contracts derived from the formal source specifications."""
 
 TABLE_COLUMNS = {
     "biz_user": ["user_id", "user_key", "user_name", "user_status", "registered_at", "created_at", "updated_at"],

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a V2 Business Generator CSV bundle without contacting MySQL."""
+"""Validate a formal Business Generator CSV bundle without contacting MySQL."""
 
 from __future__ import annotations
 
@@ -503,7 +503,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, help="write the JSON plan to this file as well as stdout")
     parser.add_argument("--render-load-sql", type=Path, help="render one-session load SQL after validation")
     parser.add_argument("--render-gate-sql", type=Path, help="render expected variables plus Source Gate for one session")
-    parser.add_argument("--load-template", type=Path, default=REPO_ROOT / "mysql" / "sql" / "load_v2_csv.sql")
+    parser.add_argument("--load-template", type=Path, default=REPO_ROOT / "mysql" / "sql" / "load_csv_bundle.sql")
     parser.add_argument("--source-gate", type=Path, default=REPO_ROOT / "mysql" / "sql" / "source_gate.sql")
     args = parser.parse_args(argv)
     try:

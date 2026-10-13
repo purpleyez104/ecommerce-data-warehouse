@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo=$(cd -- "$script_dir/../.." && pwd)
-validator="$script_dir/validate_v2_csv_bundle.py"
+validator="$script_dir/validate_csv_bundle.py"
 parser="$script_dir/parse_source_gate.py"
 gate="$repo/mysql/sql/source_gate.sql"
 bundle=''
@@ -38,7 +38,7 @@ command -v mysql >/dev/null 2>&1 || die 'mysql client is required'
 [[ $MYSQL_PASSWORD != *$'\n'* && $MYSQL_PASSWORD != *$'\r'* ]] || die 'MYSQL_PASSWORD must not contain a newline'
 
 umask 077
-temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/v2-source-gate.XXXXXX")
+temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/source-gate.XXXXXX")
 cleanup() { [[ -z $temp_dir ]] || rm -rf -- "$temp_dir"; }
 trap cleanup EXIT INT TERM
 defaults_file="$temp_dir/mysql.cnf"
