@@ -11,6 +11,8 @@
 - 涉及旧仓库内容迁入时，必须记录来源、采用理由、必要改造、验证方法和回滚方式。
 - 静态检查、文件存在或配置草案不得作为运行验证证据。
 
+> 适用性说明：`accepted` 表示决策在其形成时被采用，不保证其全部时点事实仍代表当前实现。旧 19 表、Pilot、候选 DDL 与部署前证据边界由后续连续决策（尤其 `DR-028`、`DR-031`、`DR-034`～`DR-037`）更新；阅读旧记录时必须同时查看其“历史说明／当前适用边界”和后续关联决策，不得仅凭索引状态推断当前工程状态。
+
 ## 决策索引
 
 | 编号 | 标题 | 状态 | 决策日期 | 影响范围 |
@@ -50,6 +52,9 @@
 | `DR-033` | GitHub 发布仓库整理与 V2 候选资产边界 | `accepted` | 2026-10-10 | GitHub 发布目标、仓库工具文件、历史归档、V2 设计稿与 Generator 证据状态 |
 | `DR-034` | V2 正式数据规模、21 表候选 Contract 与本地生成基线 | `accepted` | 2026-10-12 | 正式规模、性能实验规模、候选 DDL、CSV Contract、Generator、Source Gate |
 | `DR-035` | Business Entity Manifest 与 Behavior 实体绑定 Contract | `accepted` | 2026-10-12 | Business / Behavior Generator、身份映射、Session、事件幂等、正式规模验证 |
+| `DR-036` | V2 版本化 LOAD DATA 与 Shared Source Gate Contract | `accepted` | 2026-10-12 | Business Bundle、MySQL 装载、Source Gate、离线与实时进入门禁 |
+| `DR-037` | 60 天历史初始化、30 天双链路回放与拉链维度 | `accepted` | 2026-10-13 | Generator、DataX/ODS、Formal CDC、离实时接管、SCD2、重跑与对账 |
+| `DR-038` | DataX 字段权威与批次隔离发布 Contract | `accepted` | 2026-10-13 | DataX 多表配置、HDFS staging、Hive ODS 分区、字段 Contract、审计与重跑 |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -65,7 +70,7 @@
 
 ### 决策
 
-保留 DataX，并使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，输出目标为 ORC + Snappy。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储；ODS 装载负责显式分区注册、`business_date`、`extract_time`、`batch_id`、`source_table` 审计字段、幂等发布和失败隔离。不建设独立持久化的 Text/CSV 中间数据层。
+保留 DataX，并使用 HDFS Writer 直接写入 Hive ODS 发布范围内的 HDFS ORC + Snappy，不建设独立持久化的 Text/CSV 中间数据层。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储；ODS 装载负责显式分区注册、`business_date`、`extract_time`、`batch_id`、`source_table` 审计字段、幂等发布和失败隔离。根据后续 `DR-037` 的时间语义，当前实现先写 batch staging，再由 Validation / Publish 按每行 `business_date` 原子发布最终 `dt`；该临时发布区不构成独立持久化数据层，也不改变本决策的架构边界。
 
 ### 理由
 
@@ -1169,10 +1174,10 @@ M1 组件验收采用三级口径：
 
 当前 Milestone 2 采用以下文档作为实施基线：
 
-1. `docs/business/business-baseline-v2.md`：当前自营商城业务规则和验收不变量。
+1. `docs/business/business-baseline.md`：当前自营商城业务规则和验收不变量。
 2. `docs/metrics.md`：交易与资金、流量与转化、商品、用户、退款与售后、营销六域指标的唯一口径入口。
-3. `docs/source/logical-model-v2.md`：当前实体、关系、状态、行为事件和指标字段覆盖。
-4. `docs/source/physical-model-v1.md`：21 张 `biz_*` MySQL 表的字段级候选物理设计。
+3. `docs/source/logical-model.md`：当前实体、关系、状态、行为事件和指标字段覆盖。
+4. `docs/source/physical-model.md`：21 张 `biz_*` MySQL 表的字段级候选物理设计。
 5. `docs/acceptance/env-05-cdc-acceptance.md`：仅用于证明单个隔离测试表的 Snapshot、Binlog c/u/d、Checkpoint 和指定 TaskManager 故障恢复，不外推到正式 21 表。
 
 Milestone 2 状态为 `in progress`。21 表方案保持 `candidate`；正式 DDL、Seed、Generator、21 表 CDC、DataX/CDC 接续、90 天规模和 Runtime 均未完成。Milestone 3 在当前 21 表 DDL、固定数据和抽取语义通过验收前保持阻断。
@@ -1209,13 +1214,13 @@ Milestone 2 状态为 `in progress`。21 表方案保持 `candidate`；正式 DD
 
 ### 背景
 
-`docs/final-architecture-v1.0.md` 给出 Java DataStream Jar + YARN Application Mode 作为正式 Flink 方案，但旧协作规则将 Flink SQL 写为常规生产 ETL 方案。该文件还将 BI/Dashboard/Agent 列入后续阶段，并将 Doris 受控重启误列为待完成；当前兼容性矩阵和 `DR-026` 已记录 Doris 4.0.8 受控重启恢复通过。用户逐项确认这三项取舍与事实。
+`docs/final-architecture.md` 给出 Java DataStream Jar + YARN Application Mode 作为正式 Flink 方案，但旧协作规则将 Flink SQL 写为常规生产 ETL 方案。该文件还将 BI/Dashboard/Agent 列入后续阶段，并将 Doris 受控重启误列为待完成；当前兼容性矩阵和 `DR-026` 已记录 Doris 4.0.8 受控重启恢复通过。用户逐项确认这三项取舍与事实。
 
 ### 决策
 
 1. 正式实时业务作业采用 Java DataStream API，打包 Jar 并以 YARN Application Mode 部署。SQL Client + YARN Session 保留为 Kafka SQL 技术验证方式，不作为正式业务部署模式。Application 提交后的最终结果必须检查 YARN final state，不能只凭提交退出码判定成功。
 2. BI、Dashboard 和自然语言问数 Agent 暂列为后续数据应用阶段的规划项，不计入当前 M0～M10 的已交付能力；其具体实现、仓库归属、接口、安全和进入门禁需要单独评审。Project 2 仍只能通过六个只读契约消费已发布的 Project 1 事实。
-3. Doris 4.0.8 的 FE/BE、SQL 与受控重启恢复保持已验证事实；`docs/final-architecture-v1.0.md` 的 Step 11 同步修正。此事实不证明正式 Doris 服务表或端到端实时业务链路已经通过。
+3. Doris 4.0.8 的 FE/BE、SQL 与受控重启恢复保持已验证事实；`docs/final-architecture.md` 的 Step 11 同步修正。此事实不证明正式 Doris 服务表或端到端实时业务链路已经通过。
 
 ### 理由
 
@@ -1536,7 +1541,7 @@ Business Generator 已能产生 21 张 CSV、Dataset Manifest 与 Entity Manifes
 ### 验证方法
 
 1. 执行 `E:/Software/Git/bin/bash.exe -c 'export PATH=/usr/bin:/mingw64/bin:$PATH; bash tests/run_unit.sh'`；当前本地实测 Business Generator 1、Behavior Generator 2、DataX 3、MySQL load/gate 17，共 23 项通过。
-2. 以 `smoke.json`、固定 Seed `20260928` 和显式 `generated_at` 生成临时 bundle，再执行 `bash mysql/scripts/load_v2_csv.sh --dry-run --bundle <bundle>`；当前实测返回 21 表有效 JSON 计划且未调用 MySQL。
+2. 以 `smoke.json`、固定 Seed `20260928` 和显式 `generated_at` 生成临时 bundle，再执行 `bash mysql/scripts/load_csv_bundle.sh --dry-run --bundle <bundle>`；当前实测返回 21 表有效 JSON 计划且未调用 MySQL。
 3. 执行 `bash -n`、`python -m py_compile` 和 `git diff --check`；当前均通过，只证明本地语法、契约、fake-client 与失败路径范围。
 4. 获得 Database Operation 授权后，在受控目标验证候选 DDL、真实 LOAD、warning=0、Source Gate 全零、失败回滚、锁竞争和独立 runner；完成前不得标记为 `verified`。
 
@@ -1547,6 +1552,99 @@ Loader、Validator、Source Gate 与测试已形成版本化入口，下游可�
 ### 回滚方式
 
 在尚未进行 Database Operation 时，通过新的 Git revert 提交撤销 Loader、Validator、Gate、测试和 Generator Contract 修改，保留本决策及失败证据，不重写历史。若未来真实装载失败，保留失败日志与目标现场，停止下游，不自动清理或重跑；由单独批准的回滚方案处理目标库。不得删除历史 Pilot/legacy 资产、降低 Manifest 版本或绕过 Source Gate。
+
+## DR-037：60 天历史初始化、30 天双链路回放与拉链维度
+
+- 状态：`accepted`
+- 决策日期：2026-10-13
+- 决策人：用户
+- 影响范围：Milestone 2～6、8～9、Business / Behavior Generator、DataX/Hive ODS、DIM/DWD、Formal CDC、Kafka/Flink、Doris、重跑与离实时对账
+- 关联决策：细化 `DR-034` 的 90 天正式数据规模、`DR-036` 的 Shared Source Gate 之后接续、`DR-031` 的批量 ODS 路线与 `DR-032` 的 Formal CDC 路线；不替代既有 Source Gate 或 Pilot Runtime 证据
+
+### 背景
+
+现有正式 bundle 一次性生成并装载了 90 天结束时的 21 表最终状态，能够证明规模、Schema、引用、状态、金额和 Source Gate，但不能证明历史初始化与后续增量之间不存在遗漏、重复或未来状态泄漏，也不能验证 DataX 水位、历史分区重算、CDC Snapshot/Binlog 接续、离实时逐日接管和 SCD2 维护。
+
+需要把同一套 90 天确定性业务过程转换为可按时间推进的验收输入，在保留既有正式源证据的同时，为批量 ODS、Formal CDC、DIM 拉链和离实时对账提供统一切换点。
+
+### 决策
+
+1. 正式观察窗口仍为连续 90 个业务日；前 60 天定义为历史初始化窗口，`cutover_time` 固定在第 61 个业务日零点，后 30 天定义为逐日双链路回放窗口。所有任务显式接收时间范围，窗口采用左闭右开语义，不使用执行机器当前日期。
+2. Generator 后续应输出截至切换点的 `bootstrap` 以及 `day_61`～`day_90` 每日操作包。每日包同时表达新增、更新、失效/删除、状态事件、维度变化和预期对账；交易增量必须通过 MySQL Transaction 形成 Binlog，不得直接写 Kafka 伪造 CDC。
+3. 初始化源状态必须是 `cutover_time` 时点的正确状态，不得包含后 30 天才发生的最终变化。现有 90 天最终 bundle 与 1,328,502 行 Source Gate 证据继续有效，但不作为 60/30 时间推进式回放已经实现或验证的证据。
+4. 离线初始化完整抽取切换点前的历史。事实和事件按各自业务发生日期发布到 Hive ODS `dt`；维度全量快照按快照日期保存。后 30 天可变表按可靠的源更新时间水位抽取，Append-only 事件按记录水位抽取，再依据业务时间重建受影响的历史业务分区。
+5. Formal CDC 在暂停源写入后，以与离线初始化一致的源端切换点执行 Initial Snapshot 并记录 Binlog Offset。Snapshot 只初始化源状态，不能作为第 61 天新增交易重复累计；后 30 天操作包逐日写入 MySQL，CDC/Flink 负责低延迟结果。
+6. 链路统一区分业务发生/生效时间、源更新时间、抽取时间、装载时间、业务日期、批次和 CDC Offset。业务时间决定事实/事件分区或维度版本，源更新时间决定增量范围，抽取/装载时间只用于审计。
+7. 切换点前历史结果由离线链路建立基线；切换点后实时链路负责尚未离线结算的开放业务日。每日离线 Gate 通过后，离线结果逐日接管已结算日期；服务层必须通过结算边界或版本选择避免离线和实时结果重复相加。
+8. SCD2 只用于需要按历史属性还原事实的维度。前 60 天必须由带 `effective_at` 的变更事件、可靠增量历史或每日快照差异构建完整版本；只有第 60 天快照时，拉链只能从切换点开始。后 30 天按业务生效时间关闭旧版本、插入新版本；迟到变化重新生成受影响业务键的完整时间线。稳定且只关心当前值的维度使用 Type 1。
+9. ODS、DIM/DWD 和运行审计必须可追溯 `business_time`/`effective_at`、`source_updated_at`、`extract_time`、`load_time`、`business_date`/`dt`、`batch_id`、来源、操作类型和 CDC Offset；具体字段映射按源表能力实现，不得用数仓 `load_time` 冒充源端水位。
+10. 详细 Contract、数据流、SCD2 算法、质量规则和证据边界以 `docs/design/historical-incremental-replay-design.md` 为准。本决策不授权重置现有 MySQL、重新装载数据、创建 Topic、启动 Formal CDC、清理 Doris 或执行正式回放。
+
+### 理由
+
+60 天历史窗口足以验证跨日订单、支付、退款、身份和商品历史，后 30 个日批又能覆盖连续水位、重跑、回补、迟到和故障恢复，而不需要为每一天维护独立最终数据集。统一切换点使 DataX 与 CDC 能在同一业务状态上接续；把业务时间、源更新时间和装载时间分开，可以同时保证业务归属、增量捕获和运行审计。对小规模维度采用受影响键重建或整表原子覆盖，比为个人项目引入额外事务表格式更容易验证和维护。
+
+### 验证方法
+
+1. 固定 Seed 重复生成 `bootstrap`、30 个 daily package、Manifest 与预期结果，逐文件 SHA-256 一致。
+2. 在隔离源库只装载前 60 天，核对截至切换点的当前状态和历史事件，并证明不存在切换点后的字段值或事件。
+3. 记录同一切换点的源表基线、DataX 水位和 Binlog Offset；验证 DataX 历史初始化、CDC Initial Snapshot 与第一个增量窗口之间无重复、无缺失。
+4. 验证前 60 天事实按业务日期分区，30 个日批水位连续；历史记录后续变化能够重建原业务日期分区，同窗口重跑结果确定。
+5. 验证每日 MySQL 操作产生预期 CDC `INSERT/UPDATE/DELETE`，Flink 中断恢复后可从已确认位置接续，Snapshot 记录不被重复统计为新交易。
+6. 对 SCD2 检查当前版本唯一、有效区间合法且不重叠、相同属性不重复开版、历史事实只命中一个版本、迟到变化重算与重跑幂等。
+7. 每日执行源端、ODS、DIM/DWD、实时 Doris 与离线结果的主键、行数、状态和金额对账；失败必须返回非零并阻断接管。
+
+### 影响与风险
+
+Generator 需要从“最终 90 天快照 bundle”扩展为“切换点状态 + 每日业务操作”，DataX 需要区分抽取水位和业务分区，DIM 需要增加历史版本构建，Formal CDC 需要一致切换点与 Snapshot/增量边界。当前 21 表是否为所有候选 SCD2 属性保留了完整前 60 天变化仍需实施核对；缺少历史时只能从切换点开始，不能补造版本。历史 Behavior 的批量装载入口、正式 Topic/Partition/Schema、Flink Watermark/迟到/状态 TTL、Doris 接管模型和离实时阈值仍受后续门禁约束。
+
+当前正式 MySQL 已包含完整 90 天最终状态，不能直接作为新的切换点源库使用。任何隔离库构建、正式库重置、Topic 或 Doris 处理都是独立外部操作，必须获得对应授权并保留回滚证据。
+
+### 回滚方式
+
+若 60/30 生成或链路验收失败，保留 `DR-037`、失败 Manifest、日志和对账结果，停止后续 Gate；删除或隔离操作只针对经授权创建且有明确运行编号的 replay 资源。现有 90 天正式 bundle、正式 MySQL、Source Gate、Pilot ODS/CDC 历史证据保持不变。通过新的连续决策调整切换比例、输入 Contract 或历史策略，不改写本决策，不复用 Pilot Offset/Checkpoint，也不降低质量规则绕过失败。
+
+## DR-038：DataX 字段权威与批次隔离发布 Contract
+
+- 状态：`accepted`
+- 决策日期：2026-10-13
+- 决策人：用户
+- 影响范围：Milestone 3、DataX 多表配置与 Job Generator、HDFS staging、Hive ODS 分区、字段 Contract、审计、重跑和 ODS Gate
+- 关联决策：细化 `DR-001` 的“直写 ODS”物理边界、更新 `DR-031` 的逐表 columns 描述，并落实 `DR-037` 的抽取水位与业务分区分离原则；不改变 Source Gate、正式 CDC 或数据库授权边界
+
+### 背景
+
+当前 21 表 DataX Job Generator 已使用统一配置描述抽取策略、主键、分区和质量规则。若每表重复维护 columns，会与 Business Generator 的 CSV 字段顺序及正式 MySQL DDL 形成多套权威来源；若 DataX 直接写最终 `dt`，一次抽取包含多个业务日期或发布中途失败时，难以在校验前保证最终分区原子性。
+
+### 决策
+
+1. DataX 字段顺序唯一引用 Business Generator 的 `TABLE_COLUMNS`；字段类型以正式 MySQL DDL 为权威。`ods_tables.json` 不重复维护逐表 columns 清单，但必须逐表声明 source/target、primary key、partition、extract 和 quality rules。字段 Contract 变化必须同步 Generator、DDL 映射和测试。
+2. DataX HDFS Writer 将 ORC + Snappy 写入 `<ODS_STAGE_ROOT>/<target_table>/batch_id=<batch_id>` 批次隔离路径。该路径属于 ODS 发布过程的临时工作区，不是独立持久化数据层。
+3. Spark Validation / Publish 在文件、Schema、主键、行数和业务质量检查通过后，根据每行 `business_date` 或显式快照日发布并注册最终 Hive `dt` 分区。失败批次不得暴露为已发布分区；重跑必须保持批次隔离和明确覆盖边界。
+4. 当前抽取策略分为 `mutable_incremental`、`append_only` 和 `full_snapshot`。可变表使用可靠 `updated_at` 半开窗口，Append-only 表使用 `recorded_at` 或 `merged_at` 半开窗口；`biz_identity_mapping` 因 `recorded_at` 无法捕获后续撤销和 `effective_to` 补写而使用每日全量快照。
+5. 抽取水位只决定本批读取范围，不决定最终业务分区。事实和事件按行业务时间生成 `business_date`，全量快照按显式快照日分区；`extract_time`、`load_time` 和 `batch_id` 只作运行审计。
+6. 生成的 DataX Job 只能写入项目 Runtime 目录及 ODS staging 根路径，文件权限保持私有；数据库密码只从环境变量读取，不进入参数、日志、Manifest 或版本库。
+
+### 理由
+
+字段顺序和类型各保留一个权威来源，可以避免 21 份重复列表随 Schema 演进产生漂移。批次隔离后再校验和发布，能够处理一个抽取窗口覆盖多个业务日期、迟到变化重建历史分区以及失败重跑，同时保持“不建设持久化中间层”的架构边界。三类抽取策略显式表达源表是否可变以及水位可靠性，比对所有表套用 `updated_at` 更可验证。
+
+### 验证方法
+
+1. 解析 `datax/config/ods_tables.json`，确认覆盖 21 表：14 张 `mutable_incremental`、6 张 `append_only`、1 张 `full_snapshot`，且所有表的分区来源均为 `business_date`。
+2. 执行 `tests/datax/test_generate_job.py`，验证 bootstrap 多业务日期分布、半开水位、身份映射快照、缺失/反向时间窗口、未知配置键、目录穿越、符号链接逃逸、私有文件和环境变量失败路径。
+3. 执行仓库 `tests/run_unit.sh`，确认 Business、Behavior、DataX 和 MySQL 静态测试全部通过；执行 `git diff --check` 和 Markdown 本地链接检查。
+4. 后续在目标环境执行 DataX/HDFS/Hive Runtime、Stage/Validate/Publish、同批重跑、失败隔离和 ODS Gate；完成前保持 `implemented / not_run`，不得提升为正式 ODS `verified`。
+
+### 影响与风险
+
+`DR-001` 中“DataX 直写 ODS”继续表示不建设独立持久化 landing 层，但不再表示绕过临时 batch staging 直接暴露最终分区。`DR-031` 中“每表配置 columns”由本决策更新为集中 `TABLE_COLUMNS` 权威。当前 Job Generator 和 Contract 已通过本地测试，Stage Runner、Spark Validation / Publish 及正式 DataX/HDFS/Hive Runtime 尚未实现或验收。
+
+集中字段权威使 DataX 生成器依赖 Business Generator Contract；移动模块或改变 `TABLE_COLUMNS` 时必须通过显式导入和 Contract Test 失败，不能静默回退到另一份字段列表。最终分区覆盖、迟到分区重建和 staging 清理由后续 ODS Runtime 设计继续收敛。
+
+### 回滚方式
+
+若集中字段 Contract 不可维护，通过新的连续决策引入由同一权威自动生成的版本化 columns artifact，不手工恢复 21 份重复列表。若 batch staging / Publish 在目标环境不可实施，保留失败批次与 ODS Gate 证据，停止发布并通过新决策调整原子发布方式；不得绕过校验直接把失败输出注册为最终分区，也不得删除既有 Pilot 或 Source Gate 证据。
 
 ## 记录模板
 

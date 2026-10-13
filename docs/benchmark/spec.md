@@ -2,7 +2,7 @@
 
 > 版本：v1.2
 > 状态：`candidate / DESIGNED / not_run`
-> 数据基线：本规范不单独定义业务生成规则；候选设计参考 [V2 数据规格候选稿](../design/v2-data-spec-candidate.md)，正式范围和门禁以 `docs/spec.md`、`docs/plan.md` 为准。
+> 数据基线：本规范不单独定义业务生成规则；候选设计参考 [V2 数据规格候选稿](../archive/data-spec-candidate-2026-09-28.md)，正式范围和门禁以 `docs/spec.md`、`docs/plan.md` 为准。
 > 规模方案：正式数据规模为 100,000 笔订单和 3,000,000～5,000,000 条行为事件；性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件；不建设独立 Smoke 数据档位。
 
 
@@ -637,8 +637,9 @@ run_mode = FULL 或 INCREMENTAL
 
 Continuous 阶段必须区分“增量抽取时间”和“业务分区时间”：
 
-- 当前状态表主要根据 `updated_at` 判断本次 DataX 要抓哪些发生变化的记录。
-- 事件表主要根据 `recorded_at` 判断本次要抓哪些新增事件。
+- 当前可变表根据可靠的 `updated_at` 半开窗口判断本次 DataX 要抓哪些发生变化的记录。
+- Append-only 表根据各自记录水位（`recorded_at` 或 `merged_at`）判断本次要抓哪些新增记录。
+- `biz_identity_mapping.recorded_at` 不会随撤销或 `effective_to` 补写可靠变化，因此该表按显式快照日执行每日全量快照，不使用该字段作为更新水位。
 - Hive `dt` 按数据实际所属的业务日期确定，而不是直接使用 `updated_at` 或 `recorded_at`。
 
 因此一次 T+1 增量任务可能回刷一个或多个历史业务分区，`affected_partition_count` 必须留证。

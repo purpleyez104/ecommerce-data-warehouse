@@ -1,8 +1,8 @@
 # 实时链路架构规范（Milestone 8 设计输入）
 
-状态：M8/M9 `in progress`；R1～R3 已完成 Pilot / Acceptance 使命并转为 History。Realtime V2 已完成方向设计但尚未开始 Formal CDC 实现，当前与离线共同进入 Shared V2 Source Data Build。当前在线、最新 Checkpoint、正式 Topic/Partition/`event_version`、全字段/跨分区/乱序与端到端 Exactly-Once 仍未验证。更新时间：2026-09-27。
+状态：M8/M9 `in progress`；R1～R3 已完成 Pilot / Acceptance 使命并转为 History。60 天初始化与 30 天双链路回放为 `DESIGNED / not_run`，Formal CDC 尚未实现。当前在线、最新 Checkpoint、正式 Topic/Partition/`event_version`、全字段/跨分区/乱序与端到端 Exactly-Once 仍未验证。更新时间：2026-10-13。
 
-本文件展开[最终工程架构](../architecture/final-architecture-v1.0.md)的实时视图，并以[业务源设计](business-source-design.md)及[指标口径](../business/metrics.md)为上游。用户已确认实时链路正在建设，但本文不是 Milestone 8 已完成评审或 Milestone 9 已验证的证明。
+本文件展开[最终工程架构](../architecture/final-architecture.md)的实时视图，并以[业务源设计](business-source-design.md)及[指标口径](../business/metrics.md)为上游。用户已确认实时链路正在建设，但本文不是 Milestone 8 已完成评审或 Milestone 9 已验证的证明。
 
 ## 数据流与责任
 
@@ -38,7 +38,11 @@ Kafka 输入 → Flink Java DataStream Jar（YARN Application）
 
 ## Realtime V2 初始化与工程组织
 
-Realtime V2 与离线共享 `ecommerce_oltp`、7 域 21 表业务模型和 Metrics Contract。初始化顺序固定为：Python → CSV → `LOAD DATA` → SOURCE GATE → 停止源写入 → 正式 Flink CDC Initial Snapshot → Kafka Snapshot Gate → 冻结 Snapshot 基线 → 启动 Incremental Business Generator → 持续 Binlog。增量生成器必须写 MySQL Transaction，禁止直接写 Kafka。
+Realtime V2 与离线共享 `ecommerce_oltp`、7 域 21 表业务模型、Metrics Contract 和 `DR-037` 定义的切换点。90 天观察窗口拆成前 60 天历史初始化与后 30 天逐日回放；完整 Contract 见[历史初始化与双链路回放设计](historical-incremental-replay-design.md)。
+
+初始化顺序固定为：生成并装载切换点 bootstrap → SOURCE GATE → 停止源写入 → 记录切换点与 Binlog Offset → 离线历史初始化及 ODS Gate → 正式 Flink CDC Initial Snapshot → Kafka Snapshot Gate → 冻结共同基线 → 从 `day_61` 启动 Incremental Business Generator → 持续 Binlog。增量生成器必须写 MySQL Transaction，禁止直接写 Kafka。
+
+Initial Snapshot 只初始化切换点当前状态，不能把前 60 天存量交易作为第 61 天新增事实重复统计。前 60 天历史指标由离线链路提供；需要跨切换点累计的实时指标必须使用已验收的离线基线或另行验证的状态初始化方案。
 
 正式 CDC 覆盖一期 21 表，并验证表/库 metadata、主键、Snapshot 完整性、INSERT/UPDATE 和关键 DELETE。Partition/Key 原则为 Same Business Key → Same Partition → Ordered Events；具体 Partition 数在数据规模冻结后决定。正式 `event_version` 必须稳定判断同一业务主键的新旧事件，在冻结前不得复制 `kafka_offset` Sequence。
 
@@ -64,6 +68,6 @@ Flink Client 使用 Java 17；当前 YARN Container 与 Flink Doris User Jar 使
 
 ## Milestone 9 验收边界
 
-当前下一开发入口为 Shared V2 Source Data Build；`R4 Payment DWD` 已暂停。SOURCE GATE 通过后，先审计现有 Topic / Checkpoint，再冻结 Formal CDC Topic Namespace、Partition/Key Strategy、`event_version` 和独立 Checkpoint Root，随后执行 21 表 Initial Snapshot 与 CDC Gate。后续集中执行 Realtime Model Gate、Incremental Simulation、Recovery Gate、实时指标验收和 Offline ↔ Realtime Reconciliation，不再逐表重复完整 Initial + Incremental + Recovery 大验收。
+当前下一开发入口为 60/30 时间推进式输入 Contract 与 Formal CDC 初始化设计；`R4 Payment DWD` 已暂停。SOURCE GATE 已通过，但启动正式 CDC 前仍须准备隔离的切换点源状态，审计现有 Topic / Checkpoint，冻结 Formal CDC Topic Namespace、Partition/Key Strategy、`event_version` 和独立 Checkpoint Root。随后执行 21 表 Initial Snapshot 与 CDC Gate，再以 30 个 daily package 集中执行 Incremental Simulation、Realtime Model Gate、Recovery Gate、实时指标验收和 Offline ↔ Realtime Reconciliation，不再逐表重复完整 Initial + Incremental + Recovery 大验收。
 
 正式 V2 启动前必须制定可回滚的 Doris 初始化重置方案，清除或隔离 `ecommerce_serving.dwd_order`、`dwd_order_item` 中的 Pilot 数据，但继续使用正式 database 命名，不创建 `ecommerce_serving_v2`。本设计不授权当前执行数据库清理。完整 M9 固定输入仍须覆盖 Snapshot 与持续 Binlog、INSERT/UPDATE/DELETE、重复和乱序、源端不停写时的 Flink 中断与恢复、Doris 重放/Upsert、离线 T+1 对账；未解释的重复、丢失、迟到或对账差异均阻断 `verified`。

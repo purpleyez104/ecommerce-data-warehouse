@@ -31,4 +31,4 @@
 
 以上规模、状态、分区和金额基线来自用户提供的 2026-09-22 Chat 运行结果，并与当前确定性生成器的固定参数静态复算一致。本文件不是原始 ECS 日志，也不证明新入库脚本已在 ECS 执行。
 
-限定范围的 ODS Runtime 结论见 [`biz_order` ODS 历史切片验收记录](../acceptance/biz_order_ods_acceptance.md)。M3 仍为 `in_progress`；21 表全量、增量、重跑/回补、失败恢复和后续离线分层仍未完成。
+限定范围的 ODS Runtime 结论见 [`biz_order` ODS 历史切片验收记录](../../../../docs/acceptance/biz_order_ods_acceptance.md)。M3 仍为 `in_progress`；21 表全量、增量、重跑/回补、失败恢复和后续离线分层仍未完成。

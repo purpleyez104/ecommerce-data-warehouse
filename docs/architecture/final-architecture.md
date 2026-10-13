@@ -1,10 +1,9 @@
-# 电商离线实时一体化数仓工程基线 V1.0
+# 电商离线实时一体化数仓工程基线
 
 > Status: CONFIRMED\
-> Version: V1.0\
 > Purpose: 后续业务源开发、数据生成、ETL、实时链路建设唯一工程依据
 
-本文件固定总体技术路线和已确认的部署方式；业务规则、指标口径、21 表字段及 Milestone 门禁分别以 [业务基线](../business/business-baseline-v2.md)、[指标口径](../business/metrics.md)、[源模型](../source/physical-model-v1.md)和[阶段计划](../plan.md)为准。`CONFIRMED` 不等于正式业务链路已验收。BI/Dashboard/Agent 仅列为后续规划，不属于当前 M0～M10 的已交付能力。
+本文件固定总体技术路线和已确认的部署方式；业务规则、指标口径、21 表字段及 Milestone 门禁分别以 [业务基线](../business/business-baseline.md)、[指标口径](../business/metrics.md)、[源模型](../source/physical-model.md)和[阶段计划](../plan.md)为准。`CONFIRMED` 不等于正式业务链路已验收。BI/Dashboard/Agent 仅列为后续规划，不属于当前 M0～M10 的已交付能力。
 
 ------------------------------------------------------------------------
 

@@ -1,19 +1,19 @@
 # ecommerce-data-warehouse
 
-“电商离实时一体化数据仓库”是一个从零搭建、面向数据开发岗位求职的工程项目。项目以真实运行、可验证、可复现和可解释为基本要求。离线 100 单 Pilot 已完成 MySQL → DataX → Hive ODS → Spark SQL → Hive DWD 的限定范围验收，并转为 `PILOT / ACCEPTANCE / HISTORY`；当前离线开发入口已切换到 V2 Source Data Build，先冻结 21 表数据规格，再建设 Python → CSV → `LOAD DATA` 的正式数据源。
+“电商离实时一体化数据仓库”是一个从零搭建、面向数据开发岗位求职的工程项目。项目以真实运行、可验证、可复现和可解释为基本要求。离线 100 单 Pilot 已完成 MySQL → DataX → Hive ODS → Spark SQL → Hive DWD 的限定范围验收，并转为 `PILOT / ACCEPTANCE / HISTORY`；当前正式业务源已完成 21 表 DDL、Python → CSV → MySQL `LOAD DATA` 与 Shared Source Gate 验收，下一步进入批量 ODS 与 Formal CDC 接续。
 
 ## 当前状态
 
 | 项目 | 当前值 |
 | --- | --- |
-| 当前阶段 | 离线与实时 Pilot：`completed / HISTORY`；Shared V2 Source Data Build：`in progress`；Realtime V2：`DESIGNED / waiting for SOURCE GATE`。Milestone 0：`completed`；Milestone 1、2、3、8、9：`in progress`；Milestone 4～7：`pending` |
+| 当前阶段 | 离线与实时 Pilot：`completed / HISTORY`；Shared Source Data Build：`VERIFIED`；批量 ODS 与 Formal CDC 接续：`DOING / DESIGNED`。Milestone 0：`completed`；Milestone 1、2、3、8、9：`in progress`；Milestone 4～7：`pending` |
 | 规格版本 | `0.5-draft` |
-| 实现状态 | M1 Step 2～12 已完成限定范围 Runtime 验收，剩余门禁为 DolphinScheduler 3.4.2。离线 `hist-v1-001` 与实时 R1～R3 均作为 Pilot History 保留；V2 正式源模型仍为 7 域 21 表。目标 MySQL 已完成只读结构核对，21 表 DDL candidate 为 `implemented / not_run`；Business / Behavior Generator 已完成本地正式规模生成与 Entity Manifest 绑定，但 `LOAD DATA`、Source Gate、正式 CDC Contract、正式 Kafka Raw Layer 与 Domain Flink Applications 尚未实现 |
-| 当前允许活动 | 离实时共同下一入口是 Shared V2 Source Data Build：实现可重复的 `LOAD DATA` 与 Source Gate；数据库部署和装载仍需单独授权。暂停 `R4 Payment DWD` 和 `ods_order_item_create.sql`，不继续扩展 Pilot 源库或 Topic |
+| 实现状态 | M1 Step 2～12 已完成限定范围 Runtime 验收，剩余门禁为 DolphinScheduler 3.4.2。离线 `hist-v1-001` 与实时 R1～R3 均作为 Pilot History 保留；正式源模型为 7 域 21 表。MySQL 8.0.46 已部署 21 表并通过 1,328,502 行 `LOAD DATA`、事务内与提交后独立 45-rule Source Gate；Behavior Generator 已完成本地 3,000,000 事件验证。正式 CDC Contract、Kafka Raw Layer、Domain Flink Applications 和正式批量 ODS 尚未实现 |
+| 当前允许活动 | Source Gate 已通过；离线可进入通用 DataX/Stage/Validate/Publish 的批量 ODS 实现，实时可进入 Formal CDC Contract 与初始化设计。暂停 `R4 Payment DWD` 和 `ods_order_item_create.sql`，不继续扩展 Pilot 源库或 Topic |
 | 运行验证 | 除三条临时技术验收链路外，`hist-v1-001` 已在历史限定范围证明 100 单、69 `PAID`、31 `CANCELED`、88 个 ODS 业务日期分区及三项金额基线；证据来源为用户提供的 2026-09-22 Chat 终端输出。实时 R1～R3 在历史限定范围证明 21 表 1,178 条 Snapshot、Binlog 增量、CDC/Order DWD 从 Checkpoint 恢复、订单 `CREATED → CANCELED` Upsert，以及 OrderItem DWD 320 行 Initial Load 与一次同键增量更新；Doris 订单为 101 单（69 `PAID`、32 `CANCELED`），订单明细为 320 行、320 个不同明细、101 个订单、627 件。当前在线和最新 Checkpoint 仍为 `UNKNOWN`；上述结果不等于 M3/M9 完整业务链路、全字段/乱序、恢复一致性或端到端 Exactly-Once 已完成 |
 | 精确组件版本 | Hadoop 3.4.1、MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6.0、Doris 4.0.8 和 Flink Doris Connector 26.1.1 已在目标 ECS 验证；DolphinScheduler 3.4.2 待验证 |
 | 运行平台 | 阿里云 ECS（三节点） |
-| 实时数仓 | M8/M9 为 `in progress`；R1～R3 已完成 Pilot / Acceptance 使命并转为 History，`OrderDwdJob` / `OrderItemDwdJob` 保留为 Verified Prototype 与 Framework Reference。`ecommerce_oltp_m2_acceptance`、`ods_cdc_m2_clean_v1`、`all-to-zero`、Pilot Checkpoint 和 `kafka_offset` Sequence 不进入正式 V2。Realtime V2 等待 Shared SOURCE GATE，之后再进入 Formal CDC Contract、CDC Gate 与按业务域组织的 DWD/DIM |
+| 实时数仓 | M8/M9 为 `in progress`；R1～R3 已完成 Pilot / Acceptance 使命并转为 History，`OrderDwdJob` / `OrderItemDwdJob` 保留为 Verified Prototype 与 Framework Reference。`ecommerce_oltp_m2_acceptance`、`ods_cdc_m2_clean_v1`、`all-to-zero`、Pilot Checkpoint 和 `kafka_offset` Sequence 不进入正式链路。Shared Source Gate 已通过，下一步为 Formal CDC Contract、CDC Gate 与按业务域组织的 DWD/DIM |
 
 仓库中的目录和占位文件只表示模块边界，不表示组件已经安装、任务已经实现或链路已经验证。只有在记录的环境和版本中完成安装、启动、连通、执行和结果对账后，内容才能标记为 `verified`。
 
@@ -64,7 +64,7 @@ MySQL ecommerce_oltp
   → Doris 离线服务表
 ```
 
-DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，输出格式为 ORC + Snappy，不建设独立持久化的中间数据层。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储；分区注册、审计字段、幂等发布和失败隔离属于 ODS 装载责任。该路径的兼容性和运行行为必须在 Milestone 1、3 真实验证。
+DataX 使用 HDFS Writer 将 ORC + Snappy 写入 Hive ODS 发布范围内的批次隔离 staging，不建设独立持久化的中间数据层。事实和事件在抽取结果中按行业务时间携带 `business_date`，维度全量快照使用显式快照日；后续 Spark Validation / Publish 再按 `business_date` 原子发布并注册最终 Hive `dt` 分区。审计字段、幂等发布和失败隔离属于 ODS 装载责任。Job Generator 与 21 表抽取 Contract 已通过本地测试，Stage Runner、Validation、Publish 和完整 Runtime 仍须在 Milestone 3 验证。
 
 ### 实时目标链路
 
@@ -104,12 +104,12 @@ MySQL Binlog
 | `docs/` | 规格、计划、架构、集群基线、兼容矩阵、指标口径和验证结论 | Milestone 0 | in progress |
 | `infra/` | 主机、端口、组件配置、版本锁定和兼容性记录 | Milestone 1 | implemented |
 | `env/` | 不含秘密值的环境变量示例 | Milestone 0-1 | implemented |
-| `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | V2 Business CSV 与 Behavior JSONL Generator | Milestone 2 | Business 21 表 1,329,480 行与 Behavior 3,000,000 事件已在本机正式规模生成；Entity Manifest SHA-256 绑定、全量实体引用、Session 与事件唯一性检查通过。`LOAD DATA`、Source Gate 和目标 ECS Runtime 尚未完成 |
-| `mysql/` | V2 正式源库 DDL、装载和验收入口 | Milestone 2 | 21 表候选 DDL 已生成且未部署；正式库当前没有 21 张 `biz_*`，`LOAD DATA` 和 Source Gate 尚未实现 |
+| `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | Business CSV 与 Behavior JSONL Generator | Milestone 2 | Business 21 表 1,328,502 行已在目标服务器正式生成并装载；Behavior 3,000,000 事件已在本机正式规模生成。Entity Manifest SHA-256 绑定、全量实体引用、Session 与事件唯一性检查通过 |
+| `mysql/` | 正式源库 DDL、装载和验收入口 | Milestone 2 | MySQL 8.0.46 已部署 21 表，装载 1,328,502 行；事务内与提交后独立 Shared Source Gate 均为 45/45 通过，`local_infile` 已恢复为 `OFF` |
 | `archive/pilot-v1/` | 旧 Pilot Generator、离线参考资产与实时 R1 工程/验收资产 | Milestone 2-3、8-9 历史 | `PILOT / ACCEPTANCE / HISTORY`；不作为 V2 正式入口，归档移动不提升 Runtime 状态 |
-| `tests/` | V2 Generator / DataX Targeted Test 与后续阶段测试入口 | Milestone 2-10 | Targeted Test 已在本地执行；Pilot 对账脚本已移入 `archive/pilot-v1/` |
+| `tests/` | Generator / DataX Targeted Test 与后续阶段测试入口 | Milestone 2-10 | 2026-10-13 本地 32 个 Unit Tests 通过，其中 DataX 11 个；Pilot 对账脚本已移入 `archive/pilot-v1/` |
 | `archive/legacy-m2-19-table/` | 旧 19 表 Seed、Generator、脚本、测试和固定结果 | 历史归档 | 不作为当前 V2 实现或验收依据 |
-| `datax/jobs/`、`datax/scripts/`、`datax/templates/` | MySQL 到 Hive ODS 对应 HDFS 分区的抽取任务和执行入口 | Milestone 3 | `biz_order` 固定 100 单的历史 DataX Runtime 已由 2026-09-22 Chat 限定证明；仓库候选脚本/模板不是当次实际执行文件，Pilot 发布重建稿已归档且仍为 `implemented / not_run` |
+| `datax/config/`、`datax/scripts/`、`datax/templates/` | MySQL 到 Hive ODS batch staging 的抽取 Contract 和 Job 生成入口 | Milestone 3 | 21 表三类抽取策略、逐行业务日期、受限私有 Job 与失败路径已通过本地测试；正式 DataX/HDFS/Hive Runtime、Stage/Validate/Publish 和 ODS Gate 仍为 `not_run` |
 | `hive/ods/` | ODS 表、分区注册、审计字段和发布规则 | Milestone 3 | 当前正式实现区为 placeholder；`hist-v1-001` 的历史参考 DDL、发布与质量入口已归档到 `archive/pilot-v1/offline/reference/`，M3 仍为 `in progress` |
 | `hive/dwd/` | 原子事实、去重、状态和字段标准化 | Milestone 4 | placeholder |
 | `hive/dws/` | 可复用主题汇总、比率分子和分母 | Milestone 4-5 | placeholder |
@@ -146,7 +146,7 @@ V2 指标按六个域组织：交易与资金 `TR-01`～`TR-14`、流量与转�
 | 0 | 项目定义与文档基线 | README、规格、阶段计划、协作边界 | completed |
 | 1 | 基础设施与兼容性 | 三节点、版本矩阵、启动和最小连通验证 | in progress |
 | 2 | 业务模型与数据生成 | V2 业务基线、21 表 OLTP、行为事件、固定 seed、预期结果 | in progress |
-| 3 | DataX 直写 Hive ODS | 全量/增量抽取、ODS ORC 分区、注册与对账 | in progress（100 单 Pilot 已验证并转为 History；V2 将按层批量建设，尚未开始正式 ODS Gate） |
+| 3 | DataX 直写 Hive ODS | 全量/增量抽取、ODS ORC 分区、注册与对账 | in progress（100 单 Pilot 已转为 History；21 表 Job Generator 与抽取 Contract 已通过本地测试，Stage/Validate/Publish Runtime 与 ODS Gate 尚未完成） |
 | 4 | 离线数仓 MVP | DIM/DWD、DWS、ADS 最小垂直链路 | pending |
 | 5 | 正式指标与数据质量 | V2 正式指标、质量结果、幂等和回补 | pending |
 | 6 | Doris 服务与调度 | 离线服务表、T+1 DAG、失败阻断和对账 | pending |
@@ -176,27 +176,28 @@ V2 指标按六个域组织：交易与资金 `TR-01`～`TR-14`、流量与转�
 - [架构说明](docs/architecture/architecture.md)：当前架构边界说明；后续需随实施阶段更新。
 - [建模说明](docs/modeling.md)：业务、逻辑、物理和指标建模文档导航。
 - [部署说明](docs/deployment.md)：部署拓扑、环境基线、兼容性和排障文档导航。
-- [最终工程架构 V1.0](docs/architecture/final-architecture-v1.0.md)：总体技术路线、Flink 正式部署选择与历史技术验收边界。
+- [最终工程架构](docs/architecture/final-architecture.md)：总体技术路线、Flink 正式部署选择与历史技术验收边界。
 - [部署拓扑](docs/deployment-topology.md)：三节点角色、资源、Java 与安全边界。
 - [业务源设计](docs/design/business-source-design.md)：V2 21 表和独立行为源的交付及验收边界。
+- [历史初始化与双链路回放设计](docs/design/historical-incremental-replay-design.md)：60 天初始化、30 天离实时回放、重跑时间契约和 SCD2 拉链维度。
 - [实时链路规范](docs/design/realtime-pipeline-design.md)：DataStream Application 方案与 Milestone 8 待评审契约。
 - [集群事实基线](docs/cluster-baseline.md)：当前 ECS、网络、磁盘、用户、Java 和 Hadoop 的确认事实及验证结论。
 - [组件兼容性矩阵](docs/compatibility-matrix.md)：精确版本候选、官方依据、项目状态和验证门禁。
 - [安装与排障记录](docs/installation-troubleshooting.md)：目标 ECS 上真实发生的问题、修复、复测和回滚。
 - [V2 指标体系](docs/business/metrics.md)：六个指标域的完整口径、依赖、待细化项和最小验收案例。
-- [V2 数据规格候选稿](docs/design/v2-data-spec-candidate.md)：2026-09-28 设计输入；整体状态为 `candidate`，不覆盖 `docs/spec.md` 的正式门禁。
-- [V2 实施计划候选稿](docs/design/v2-implementation-plan-candidate.md)：2026-09-28 阶段设计输入；未执行内容不得写成当前进度。
+- [数据规格候选稿（历史）](docs/archive/data-spec-candidate-2026-09-28.md)：2026-09-28 设计输入；整体状态为 `candidate`，不覆盖 `docs/spec.md` 的正式门禁。
+- [实施计划候选稿（历史）](docs/archive/implementation-plan-candidate-2026-09-28.md)：2026-09-28 阶段设计输入；未执行内容不得写成当前进度。
 - [Benchmark 设计规范](docs/benchmark/spec.md)：数据规模与性能证据设计；所有数值须经真实运行验证。
-- [V2 业务基线](docs/business/business-baseline-v2.md)：当前自营商城业务规则和验收不变量。
-- [V2 逻辑模型](docs/source/logical-model-v2.md)：当前实体、关系、状态和指标字段覆盖。
-- [21 表候选物理设计](docs/source/physical-model-v1.md)：字段级候选方案；不等于现存 MySQL 结构。
+- [业务基线](docs/business/business-baseline.md)：当前自营商城业务规则和验收不变量。
+- [逻辑模型](docs/source/logical-model.md)：当前实体、关系、状态和指标字段覆盖。
+- [21 表候选物理设计](docs/source/physical-model.md)：字段级候选方案；不等于现存 MySQL 结构。
 - [M2-03 设计快照](docs/source/M2-03-物理设计与静态审查.md)：当时静态检查通过、DDL 未执行；后续隔离验收另按历史事实记录。
 - [ENV-05 CDC 验收](docs/acceptance/env-05-cdc-acceptance.md)：单隔离测试表的限定范围 CDC 与故障恢复证据。
 - [R1 全量快照验收冻结记录](docs/acceptance/r1_snapshot_acceptance_frozen.md)：指定 21 表隔离库到当前开发 Topic 的初始快照和订单对账证据；不包含增量、全字段或 Exactly-Once 结论。
 - [R1 实时链路验收记录](docs/acceptance/r1-realtime-acceptance.md)：R1 首次装载基线、R2 补充说明及安全边界。
 - [R1/R2 实时链路验收记录](docs/acceptance/realtime_r1_r2_verified.md)：21 表 Snapshot、Binlog 增量、Checkpoint 恢复、订单正常顺序 Upsert 与未验证边界。
 - [`biz_order` ODS 历史切片验收记录](docs/acceptance/biz_order_ods_acceptance.md)：`hist-v1-001` 的 100 单、88 分区、金额基线、发布重建稿、质量入口及未验证边界。
-- [`hist-v1-001` 固定样本摘要](docs/verification/hist-v1-001.md)：固定生成参数、订单/明细/支付规模、状态和金额期望值。
+- [`hist-v1-001` 固定样本摘要](archive/pilot-v1/offline/reference/hist-001.md)：固定生成参数、订单/明细/支付规模、状态和金额期望值。
 - [Development Chat / Work 协作流程](docs/workflow/README.md)：分别从实时和离线 Development Chat 获取 File Fact Ledger 与 Handoff，并仅同步有证据支持的当前工程事实和必要操作文件。
 - [历史 Milestone 2 业务设计](docs/archive/milestone-2-business-design.md)：与 `archive/legacy-m2-19-table/` 一并作为旧 19 表历史材料保留，不作为当前 V2 实现依据。
 - [修改日志](CHANGELOG.md)：按“新增、变更、修复、移除”记录面向使用者和维护者的可交付变更。
@@ -215,6 +216,6 @@ V2 指标按六个域组织：交易与资金 `TR-01`～`TR-14`、流量与转�
 8. Agent 每次最终答复都总结核心操作和核心决策，并询问用户是否将其写入 `CHANGELOG.md`、`docs/decision-register.md` 或两者；未获确认时不自动落盘，当前请求已明确授权的记录除外。
 9. Trellis 只管理 Task 状态、计划和执行证据；项目事实优先级为 `AGENTS.md`、项目 docs、Trellis Task。当前使用 Data Engineering spec、Codex inline，自动 Commit 与 Hook 注册均关闭。
 
-Milestone 0 已于 2026-09-04 通过用户评审。根据 `DR-026`，M1 Step 2～12 已完成兼容性与功能验收，当前只剩 DolphinScheduler 3.4.2。M2 以 V2 业务、指标和 21 表源模型为准；根据 `DR-031`、`DR-032`，离线 100 单与实时 R1～R3 Pilot 均已转为 History。2026-10-11 已只读确认正式库尚无 21 张 `biz_*`，并形成新的 21 表 DDL candidate 与对齐的 CSV Contract；2026-10-12 已完成本地正式规模 Business / Behavior 生成与 Entity Manifest 绑定。下一步是 `LOAD DATA` 与 Source Gate，正式 CDC、Kafka Raw、Domain Flink Job 只能在 SOURCE GATE 后继续。M3、M8、M9 保留 Pilot 限定 Runtime 证据，但不得因此提升完整状态。
+Milestone 0 已于 2026-09-04 通过用户评审。根据 `DR-026`，M1 Step 2～12 已完成兼容性与功能验收，当前只剩 DolphinScheduler 3.4.2。M2 以当前业务、指标和 21 表源模型为准；根据 `DR-031`、`DR-032`，离线 100 单与实时 R1～R3 Pilot 均已转为 History。2026-10-12 已在正式 `ecommerce_oltp` 部署 21 表并装载 1,328,502 行，事务内与提交后独立 Shared Source Gate 均通过 45 条规则。下一步分别进入批量 ODS 与 Formal CDC Contract/初始化；该事实不提升 M3、M8、M9 的完整状态。
 
 根据 `DR-029`，正式实时作业选用 Java DataStream Jar + YARN Application Mode；该选型不解除 Milestone 8 设计评审和 Milestone 9 运行验收门禁。BI/Dashboard/Agent 仅为后续数据应用规划，尚未实施；Doris 4.0.8 受控重启恢复已通过，但正式业务服务表仍待对应阶段验收。

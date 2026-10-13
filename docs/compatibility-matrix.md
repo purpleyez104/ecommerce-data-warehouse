@@ -12,7 +12,7 @@
 - 精确版本调整必须先保存失败证据并取得用户确认，不得静默升级、降级或使用容器兜底。
 - 全部 M1 组件验证完成前不创建 `infra/versions.env`。
 - `DR-026` 已采用用户确认的 Step 2～12 Runtime 验收记录作为当前能力基线；文件完整性用于可复现与审计，不再以非核心附件缺失否定已实际展示的组件能力。
-- [最终工程架构](architecture/final-architecture-v1.0.md)确定正式 Flink 业务作业采用 Java DataStream Jar + YARN Application Mode；这是一项部署选型，不会将 M1 临时作业提升为 M9 正式业务链路验收。
+- [最终工程架构](architecture/final-architecture.md)确定正式 Flink 业务作业采用 Java DataStream Jar + YARN Application Mode；这是一项部署选型，不会将 M1 临时作业提升为 M9 正式业务链路验收。
 
 ## 当前矩阵
 

@@ -1,18 +1,25 @@
 # Offline Current Status
 
-更新时间：2026-10-12
+更新时间：2026-10-13
 状态口径：`VERIFIED / DOING / DESIGNED / HISTORY / UNKNOWN`
 
-本文件描述截至 2026-10-12 用户确认的离线链路事实与当前开发方向。Runtime 结论来自 Development Chat 的 File Fact Ledger 与验收输出；仓库文件存在本身不等于 `VERIFIED`。100 单链路已完成 Pilot / Acceptance 使命，当前开发入口切换到与实时链路共用的 Shared V2 Source Data Build。
+本文件描述截至 2026-10-12 用户确认的离线链路事实与当前开发方向。Runtime 结论来自 Development Chat 的 File Fact Ledger 与验收输出；仓库文件存在本身不等于 `VERIFIED`。100 单链路已完成 Pilot / Acceptance 使命，与实时链路共用的 Shared Source Data Build 已通过 Runtime 验收。
 
 ## VERIFIED
 
-### V2 Generator 本地正式规模验证
+### Generator 正式规模验证
 
-- 2026-10-12 使用 `v2_spec.json`、显式 Seed 和显式 `generated_at` 在本机临时目录最终复跑 Business：21 张 CSV、90 天、100,000 笔订单、285,000 条订单明细、合计 1,329,480 行、147,089,462 bytes，耗时 61.365 秒；同轮输出 11,470,325 bytes 的版本化 Entity Manifest。
+- 2026-10-12 使用 `formal.json`、显式 Seed `20260928` 和显式 `generated_at` 在 `hadoop201` 最终复跑 Business：21 张 CSV、90 天、100,000 笔订单、285,000 条订单明细、合计 1,328,502 行，耗时 213 秒；同轮输出版本化 Entity Manifest。该耗时仅为本次环境事实，不作为性能基线。
 - Behavior 强制读取上述 Entity Manifest；最终正式规模复跑生成 3,000,000 条事件、938,435,690 bytes、256,992 条映射事件和 2,785,149 个 Session，耗时 316.287 秒；全量检查 `bad_references=0`、`bad_sessions=0`、`duplicate_event_ids=0`，SHA-256 绑定通过。
 - Business Targeted Unit Test 1 项、Behavior Targeted Unit Test 2 项通过，覆盖确定性、金额守恒、支付时序、优惠券用户/事件时序、订单晚于注册、历史窗口、Entity Manifest 版本失败、实体引用、Session 和 `event_time ≤ ingest_time ≤ history_end`。
-- 以上只证明当前本地 Generator 在记录参数下完成生成、实体绑定与目标检查；临时产物已清理，不证明候选 DDL 已部署、MySQL `LOAD DATA`、Source Gate 或目标 ECS Runtime 已通过。
+- Generator 修复后对配置中的所有表数量执行 fail-fast，不再静默覆盖状态机派生事件数；正式复跑的 21 张 CSV 与修复前初次输出逐文件 SHA-256 一致。
+
+### MySQL 正式业务源与 Shared Source Gate
+
+- MySQL 8.0.46 的正式库 `ecommerce_oltp` 已部署 21 张 `biz_*` 表，原有 3 张技术测试表未删除或覆盖。
+- 正式 bundle 已通过单 MySQL session 的 `LOAD DATA LOCAL INFILE` 装载并提交；21 表提交后精确 `COUNT(*)` 合计 1,328,502 行，与 Dataset Manifest 一致。
+- 事务内和提交后独立 Shared Source Gate 均通过 45 条规则，覆盖计数、唯一性、引用、金额、支付窗口、退款、优惠券、状态链与时间关系，全部 0 违规。
+- MySQL `local_infile` 只在装载期间临时启用，验收后已恢复为 `OFF`。完整证据边界见 [`source-load-gate-acceptance.md`](../acceptance/source-load-gate-acceptance.md)。
 
 ### `hist-v1-001` 历史源数据
 
@@ -46,22 +53,25 @@
 
 ## DOING
 
-### V2 Source Data Build
+### Source Data Build 后续接续
 
 - 正式源库切换为 `ecommerce_oltp`；`ecommerce_oltp_m2_acceptance` 保留为 Pilot、CDC、R1/R2/M3 历史验收环境，不删除，也不再作为正式离线开发源。
-- 已只读核对当前 MySQL：`ecommerce_oltp` 仅有 3 张技术测试表，没有 21 张 `biz_*`；历史验收库 `ecommerce_oltp_m2_acceptance` 有同名 21 表和 1,178 行 Pilot 数据，结构主体可作为候选稿参考，但不能视为正式库已部署。
+- `ecommerce_oltp` 的 21 张正式 `biz_*` 表已部署并完成装载验收；历史验收库 `ecommerce_oltp_m2_acceptance` 仍只作为 Pilot/CDC 历史环境。
 - 服务器工作目录中的旧 19 表 `generator/` 与旧 21 表 Pilot `tools/ecommerce_generator_v1/` 已按用户指示删除；仓库历史归档不受影响。
-- 已生成 `mysql/ddl/001_ecommerce_oltp.sql` 候选稿，并补齐 Business Generator 的 4 个 CSV 审计字段。DDL 采用订单到优惠券的单向物理 FK，券反向订单引用改由索引与 Source Gate 校验。上述状态均为 `implemented / not_run`。
+- `mysql/ddl/001_ecommerce_oltp.sql` 已部署；DDL 采用订单到优惠券的单向物理 FK，券反向订单引用由索引与 Source Gate 校验。
 - V2 正式数据路径冻结为 Python Generator → CSV → MySQL `LOAD DATA` → `ecommerce_oltp`。
-- 该 Source Data Build 同时是 Realtime V2 的历史初始化基线；SOURCE GATE 通过前，实时链路不再沿 Pilot 源库继续逐表开发。
-- 正式数据规模已确认为 90 天、100,000 笔订单、约 285,000 条订单明细、约 100 万条 OLTP 记录和 3,000,000～5,000,000 条行为事件；性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件。仓库 Generator 已在本机完成正式规模生成并产生实测 Manifest；MySQL 装载、完整状态分布/跨表比例 Source Gate 和服务器 Runtime 仍待核验，当前不得描述为已装载或已通过 Source Gate。
+- 该 Source Data Build 同时是正式实时链路的历史初始化基线；Source Gate 已通过，可进入 Formal CDC Contract 与初始化设计，但不能复用 Pilot Topic 直接外推完成状态。
+- 正式数据规模已确认为 90 天、100,000 笔订单、285,000 条订单明细、实测 1,328,502 条 OLTP 记录和 3,000,000～5,000,000 条行为事件；Business 数据已完成目标 MySQL 装载与 Source Gate。性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件，仍为 `DESIGNED / not_run`。
 - 正式 V2 数据进入 `ecommerce_ods`、`ecommerce_dwd` 前，必须对现有 100 单 Pilot 数据执行有边界、可回滚的初始化重置；本决策不授权当前执行数据库清理。
 
 ## DESIGNED
 
+- `DR-037` 已确认正式 90 天观察窗口按前 60 天历史初始化、后 30 天逐日双链路回放；事实/事件按业务时间分区，源更新时间只作抽取水位，迟到更新重建原业务日期分区。该设计为 `DESIGNED / not_run`，现有 90 天最终 bundle 与 Source Gate 不证明时间推进式 ODS 已实现。
+- 需要历史属性的维度按前 60 天变化历史初始化 SCD2，后 30 天关闭旧版本、插入新版本并处理迟到修正；精确 `dim_*` 映射仍待 Milestone 4 实施前冻结。
 - 正式源模型继续采用 7 个业务域、21 张 `biz_*` 业务表；Generator 必须统一覆盖一期业务表，而不是逐表补小样本。
 - 工程实施改为按层批量推进：21 表 Source → 批量 ODS → ODS Gate → DWD/DIM → Model Gate → DWS → ADS → Doris。
-- ODS 复用边界为“一套代码 + 多表配置”：通用 DataX Job Generator、Stage Runner、Spark Validation 和 Publish；每表提供 source/target、columns、primary key、partition、extract 与 quality rule。
+- ODS 复用边界为“一套代码 + 多表配置”：通用 DataX Job Generator、Stage Runner、Spark Validation 和 Publish；每表提供 source/target、primary key、partition、extract 与 quality rule，columns 统一引用 Business Generator 的 `TABLE_COLUMNS`，字段类型以正式 MySQL DDL 为准。
+- 通用 DataX Job Generator 与 21 表 Contract 已完成本地实现和 11 个 Targeted Tests：可变表按 `updated_at`、Append-only 表按记录水位、`biz_identity_mapping` 按日全量快照；事实/事件按行业务时间生成 `business_date`，输出固定进入 `<target_table>/batch_id=<batch_id>` staging。该结论是本地 `implemented / not_run`，不证明 DataX/HDFS/Hive Runtime、业务分区发布或 ODS Gate。
 - DWD/DIM 的业务转换 SQL 分表维护；Spark submit、日志、锁、失败保护、参数解析和 precheck 统一复用。
 - 主要验收门禁收敛为 Source Gate、ODS Gate、Model Gate；取消重复逐表端到端验收，不取消必要测试、失败传播和最终整链路验收。
 - 正式数据库继续使用 `ecommerce_oltp`、`ecommerce_ods`、`ecommerce_dwd`、`ecommerce_dim`、`ecommerce_dws`、`ecommerce_ads`，不新增 `_v2` database。
@@ -86,16 +96,15 @@
 - `ods_order_item_create.sql` 是否已上传至 ECS repository：`UNKNOWN`；Hive DDL 明确为 `NOT EXECUTED`。
 - Handoff 标记为已验证的 ODS/DWD 工程文件当前未出现在本 worktree；在取得真实文件内容前，不根据 ECS 路径或文件名自行重建。
 - 当前 ECS 服务是否仍保持 Handoff 验收时的在线状态不在本次离线基线证明范围内。
-- 21 表候选 DDL 与 CSV 字段映射已完成只读对照，但正式库尚未部署；候选 DDL 的隔离执行、`LOAD DATA` 与 Source Gate 仍为 `UNKNOWN / not_run`。
-- Generator 的 MySQL `LOAD DATA`、数据库约束执行、完整 Source Gate 和目标 ECS Runtime：`UNKNOWN / not_run`。
-- Behavior Generator 已强制读取 Business Generator 的版本化 Entity Manifest；正式规模跨源身份、Session、商品引用和事件唯一性本地检查为 `VERIFIED`。数据库 Source Gate 与目标 ECS Runtime 仍为 `UNKNOWN / not_run`。
+- 21 表 DDL、CSV 字段映射、正式库部署、`LOAD DATA`、数据库约束和 Shared Source Gate 已在记录环境中 `VERIFIED`；该结论不包含 DataX/Hive ODS 或正式 CDC。
+- Behavior Generator 已强制读取 Business Generator 的版本化 Entity Manifest；正式规模跨源身份、Session、商品引用和事件唯一性本地检查为 `VERIFIED`，但行为数据尚未进入正式 Kafka Raw Layer。
 - 性能实验规模约 900,000 笔订单和 9,000,000 条行为事件仍为 `DESIGNED / not_run`，不得用本轮正式规模耗时外推性能结论。
 - V2 初始化重置的精确对象、备份/回滚、执行命令与验收方法：`DECISION_REQUIRED`；不得直接清理现有数据库。
 - `BI / Agent` 是否进入当前 V2 正式交付，还是继续遵循 `DR-029` 作为 M0～M10 之后规划：`DECISION_REQUIRED`。
 
 ## NEXT
 
-1. 实现可重复执行的 21 CSV `LOAD DATA` 与 Source Gate 脚本，覆盖数据库约束、状态分布、跨表比例、金额、时间及失败非零。
-2. 获得单独数据库变更授权后，在正式库部署候选 DDL，并通过批量 `LOAD DATA` 装载 21 CSV；不使用 Python 逐条写库。
-3. 执行 Source Gate；通过前不进入批量 ODS，也不启动 Formal CDC。
-5. 不继续执行 `ods_order_item_create.sql`，不删除旧 acceptance 环境，不把 Pilot 数据与 V2 正式数据混用。
+1. 先实现并静态验收 bootstrap、30 个 daily package、切换点 Manifest 和预期结果，不直接重跑或重置已装载的正式 Source bundle。
+2. 在已完成本地测试的 DataX Job Generator 与 21 表 Contract 上实现 Stage Runner、Spark Validation 与 Publish，验证 60 天业务分区初始化、30 天连续水位和受影响历史分区重建，再执行 ODS Gate。
+3. ODS Gate 通过后实现 Type 1/SCD2 DIM 与 DWD，并执行 Model Gate。
+4. 任何隔离库构建、重置、回滚或重新装载需要新的 Database Operation 授权；不继续执行 `ods_order_item_create.sql`，不删除旧 acceptance 环境。

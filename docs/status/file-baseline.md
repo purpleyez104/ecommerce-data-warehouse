@@ -1,7 +1,7 @@
 # File Baseline
 
-更新时间：2026-10-12
-扫描范围：Offline Current Baseline、Realtime R3 Handoff、Realtime V2 方向决策点名路径、V2 Generator/DDL 及当前 worktree
+更新时间：2026-10-13
+扫描范围：Offline Current Baseline、Realtime R3 Handoff、正式回放设计点名路径、Generator/DDL 及当前 worktree
 证据口径：`VERIFIED_EXECUTED / CONFIRMED_CREATED / CHAT_GENERATED / MENTIONED_ONLY / SUPERSEDED / UNKNOWN`
 
 `FILE EXISTS ≠ VERIFIED`。Runtime 验证与当前 worktree 文件存在性分别记录；ECS 上已执行但尚未同步到 worktree 的文件，不根据名称或建议路径自行重建。
@@ -17,6 +17,7 @@
 | `docs/status/realtime-current.md` | 本轮建立基线 | 当前实时状态 |
 | `docs/status/file-baseline.md` | 已按本次 File Fact Ledger 更新 | 当前文件事实与冲突 |
 | `docs/workflow/README.md` | 当前工作区存在 | Development Chat → Work → Repository 协作规则 |
+| `docs/design/historical-incremental-replay-design.md` | 本轮创建，`DESIGNED / not_run` | 60 天初始化、30 天双链路回放、时间审计与 SCD2 设计 |
 
 ## VERIFIED_EXECUTED：ECS 正式工程文件
 
@@ -74,13 +75,13 @@
 - `docs/acceptance/r1-realtime-acceptance.md`
 - `docs/acceptance/realtime_r1_r2_verified.md`
 - `docs/acceptance/biz_order_ods_acceptance.md`
-- `docs/verification/hist-v1-001.md`
+- `archive/pilot-v1/offline/reference/hist-001.md`
 
 ## 当前工程资产
 
 | 范围 | 路径 | 文件事实 | Runtime 边界 |
 | --- | --- | --- | --- |
-| DataX 候选入口 | `datax/config/`、`datax/scripts/`、`datax/templates/` | `CONFIRMED_CREATED` | 不是 `hist-v1-001` 当次实际执行文件；本轮 `not_run` |
+| DataX 21 表 Contract 与 Job Generator | `datax/config/ods_tables.json`、`datax/scripts/generate_job.py`、`datax/templates/mysql_to_hdfs_ods.json.tpl` | `CONFIRMED_CREATED` | 2026-10-13 本地 11 个 DataX Targeted Tests 通过；正式 DataX/HDFS/Hive Runtime、Stage/Validate/Publish 与 ODS Gate 为 `not_run`，不是 `hist-v1-001` 当次实际执行文件 |
 | Hive ODS DDL | `archive/pilot-v1/offline/reference/ods_order.sql` | `CONFIRMED_CREATED` | 本轮 `not_run`；仅作 Pilot History |
 | ODS 发布重建稿 | `archive/pilot-v1/offline/reference/publish_order_ods_partitions.sh` | `CONFIRMED_CREATED` | `implemented / not_run`；不含实际 ECS 路径 |
 | ODS 质量入口 | `archive/pilot-v1/offline/reference/check_ods_order_quality.sh` | `CONFIRMED_CREATED` | `implemented / not_run` |
@@ -89,15 +90,17 @@
 | Doris 订单 DWD DDL | `archive/pilot-v1/realtime/doris/dwd_order_create.sql` | `CONFIRMED_CREATED` | 历史 Doris 表有验收事实；当前文件未重新执行 |
 | 实时只读对账 | `archive/pilot-v1/realtime/acceptance/check_order_dwd_consistency.sh`、`archive/pilot-v1/realtime/acceptance/check_dwd_order_consistency.sh` | `CONFIRMED_CREATED` | `implemented / not_run` |
 | 旧 Pilot Generator | `archive/pilot-v1/ecommerce_generator_v1/` | 已归档并恢复原 package layout | `PILOT / ACCEPTANCE / HISTORY`；不作为新的 V2 Python → CSV Generator 实现基础或正式入口 |
-| V2 21 表候选 DDL | `mysql/ddl/001_ecommerce_oltp.sql` | `CONFIRMED_CREATED` | 21 表及 CSV 字段静态一致；`implemented / not_run`，未部署或执行 Source Gate |
-| V2 Business / Behavior Generator | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | `VERIFIED_EXECUTED`（本地正式规模） | Business 21 表 1,329,480 行、Behavior 3,000,000 事件已生成；Entity Manifest 绑定及全量引用/Session/事件唯一性检查通过；不代表 `LOAD DATA`、Source Gate 或目标 ECS Runtime |
+| 21 表正式 DDL 与 Source Gate | `mysql/ddl/001_ecommerce_oltp.sql`、`mysql/scripts/`、`mysql/sql/` | `VERIFIED_EXECUTED` | MySQL 8.0.46 已部署 21 表并装载 1,328,502 行；事务内与提交后独立 45-rule Source Gate 均通过，`local_infile` 已恢复为 `OFF` |
+| Business / Behavior Generator | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | `VERIFIED_EXECUTED` | Business 21 表 1,328,502 行已在目标服务器生成并装载；Behavior 3,000,000 事件已完成本地正式规模验证；Entity Manifest 绑定及全量引用/Session/事件唯一性检查通过 |
+| 历史初始化与双链路回放设计 | `docs/design/historical-incremental-replay-design.md` | 当前 worktree 存在 | `DESIGNED / not_run`；不证明 bootstrap/daily Generator、批量 ODS、Formal CDC、SCD2 或离实时接管已实现 |
 
-## V2 Source Data Build 文件边界
+## 正式 Source Data Build 文件边界
 
-- V2 Business / Behavior Generator 已完成本地正式规模生成与 Targeted Test；该证据只覆盖记录参数下的文件生成，不能推导 Source Gate 或目标环境 Runtime 已通过。
-- 正式数据规模、90 天时间范围、21 张 CSV 字段及 Behavior 对 Business Entity Manifest 的复用已确认并完成本地正式规模验证；数据库装载依赖/顺序、状态分布和跨表比例仍待 Source Gate 核验或冻结。
-- `LOAD DATA` 初始化脚本、Source Gate 与 V2 正式 ODS 批量配置均尚未创建或验证。
+- Business / Behavior Generator 已完成固定输入的正式规模生成与 Targeted Test；Business 21 表已进一步完成目标 MySQL Runtime 验收，Behavior 仍仅覆盖本地 JSONL/Manifest 验证。
+- 正式数据规模、90 天时间范围、21 张 CSV 字段、装载顺序、状态分布、跨表关系及 Behavior 对 Business Entity Manifest 的复用已确认；Source Gate 验收边界见 `docs/acceptance/source-load-gate-acceptance.md`。
+- `LOAD DATA` 初始化脚本与 Shared Source Gate 已实现并通过本地失败路径与目标 MySQL Runtime 验收；正式 ODS 21 表抽取 Contract 与 Job Generator 已创建并通过本地测试，Stage/Validate/Publish、DataX/HDFS/Hive Runtime 与 ODS Gate 尚未实现或验证。
 - Formal CDC 配置、正式 Kafka Topic、`event_version`、Domain Flink Applications、Incremental Business Generator、正式 Checkpoint Root 与 V2 Doris 初始化脚本均尚未创建或验证。
+- 60 天 bootstrap、30 个 daily package、切换点源状态、SCD2 SQL、历史分区重建和离实时逐日接管均为 `DESIGNED / not_run`；现有最终 90 天 bundle 不替代这些资产。
 - 旧 Pilot 文件继续保存历史证据；后续若需要复用通用算法，必须逐项确认来源与 V2 Contract，不得整体继承旧生成器或逐条 INSERT 路径。
 
 ## Evidence Assets
@@ -117,7 +120,7 @@
 ## 已迁移的当前文档路径
 
 - `docs/architecture.md` → `docs/architecture/architecture.md`
-- `docs/final-architecture-v1.0.md` → `docs/architecture/final-architecture-v1.0.md`
+- `docs/final-architecture.md` → `docs/architecture/final-architecture.md`
 - `docs/business-source-design.md` → `docs/design/business-source-design.md`
 - `docs/realtime-pipeline-design.md` → `docs/design/realtime-pipeline-design.md`
 - `docs/metrics.md` → `docs/business/metrics.md`
@@ -140,7 +143,7 @@
 - 早期 `r1-order-dwd-job.zip`：已被当前正式工程版本替代。
 - `archive/legacy-m2-19-table/`：旧 19 表代码归档，不是当前 V2 实现。
 - `docs/archive/milestone-2-business-design.md`：旧 19 表设计归档已恢复；仅作历史材料，不作为当前 V2 实现依据。
-- `mysql/ddl/`、`mysql/sql/`：上一轮候选路径已从当前工作区移除；不得把历史验收自动映射到新骨架。
+- `mysql/ddl/`、`mysql/sql/` 的早期不完整候选骨架已移除；当前同路径内容是后来建立并已完成正式部署／Source Gate 验收的权威实现，不得与早期骨架混为一谈。
 - 根目录 `scripts/start.sh`、`scripts/stop.sh`：当前工作区已删除；未获得继续保留或替代入口的 Handoff 事实。
 
 ## CONFLICT / UNKNOWN
@@ -151,7 +154,7 @@
 4. `offline_m3_source_preflight.sh`、`offline_m3_02_make_order_job.py`、`offline_m3_03_stage_orders.sh` 修正版和 `m3_cleanup_nonbaseline_orders.sql` 的实际路径仍为 `UNKNOWN`。
 5. `ods_order_item_create.sql` 当前只有 Chat 创建路径，未确认进入 ECS repository 或本 worktree；现已决定停止执行并保持 F2 历史状态。
 6. `offline-m4-01-dwd-order.md` 与 `capacity-scheduler.xml.bak-20260923-am` 是否真实创建仍为 `UNKNOWN`。
-7. 当前 worktree 有大量既存未提交迁移与新增文件；本轮仅处理已批准的仓库整理范围。
+7. 当前 worktree 仍有大量既存未提交迁移、DataX 实现与文档同步修改；文件存在和未提交 diff 不等于已形成 Git 提交或 Runtime 证据。
 8. Realtime Handoff 已验证的 R3 Job 与 `inspect-source-contract.sh` 当前 worktree 缺失；未附原文件内容，不能根据文件名或 Chat 片段重建。
 9. R3 Doris DDL、R2/R3 验收 SQL/Python 当前只有 Chat-only 执行事实；是否在服务器固化为脚本文件仍为 `UNKNOWN`。
 10. `capacity-scheduler.xml` 的旧记录路径与本次 Realtime Handoff 路径不同；是否为软链接或同一文件仍为 `UNKNOWN`。
@@ -164,8 +167,8 @@
 - 确认四个 M3 路径未知文件的真实位置与最终版本。
 - 取得 `/home/yee/publish_m3_ods.sh` 后，仅做 Handoff 指定的维护性参数化与 fail-fast 整理。
 - `ods_order_item_create.sql` 保持 F2，不安排部署或状态提升；如未来 V2 ODS 需要同名能力，应依据正式 21 表 Contract 重新评审，不能沿用该状态。
-- 核对 `ecommerce_oltp` 的正式 21 表 DDL，并在创建新 Generator 文件前冻结 V2 数据规格。
-- SOURCE GATE 通过后再审计 Kafka Topic / Checkpoint，并冻结 Formal CDC Contract；当前不继续 Payment DWD Pilot。
-- MySQL 权威 DDL、旧归档文档与 start/stop 脚本仍按原有 Deferred Issue 保留，本轮不处理。
+- 已完成 `ecommerce_oltp` 正式 21 表 DDL、Generator、装载与 Source Gate 核对；后续结构变化必须重新执行 Schema Contract 与 Source Gate。
+- 当前审计 Kafka Topic / Checkpoint，并冻结 Formal CDC Contract；继续停止 Payment DWD Pilot。
+- 旧归档文档与 start/stop 脚本仍按原有 Deferred Issue 保留；MySQL 权威 DDL 已由正式部署和 Source Gate 闭合，不再列为 Deferred Issue。
 - 从服务器取得 R3 Job 与 `inspect-source-contract.sh` 的真实最终文件后，再按 Handoff 路径同步并核对内容；不提交已构建 JAR。
 - 确认 R3 Doris DDL、R2/R3 验收 SQL/Python 是否已固化，以及 `capacity-scheduler.xml` 两个路径的真实关系。

@@ -1,9 +1,9 @@
-# 电商业务源物理设计规格 V1.0｜21 张 MySQL 表
+# 电商业务源物理设计规格｜21 张 MySQL 表
 
-> 状态：**M2-02 字段级候选物理设计／DDL candidate／未部署**。2026-10-11 已只读核对目标 MySQL：正式库 `ecommerce_oltp` 仅有 3 张技术测试表，未存在 21 张 `biz_*`；历史验收库有同名 21 表。仓库据此与业务、指标文档生成 `mysql/ddl/001_ecommerce_oltp.sql` 候选稿，但尚未执行或完成 Runtime 验收。
-> 上游：[业务基线](../business/business-baseline-v2.md) · [指标字典](../business/metrics.md) · [逻辑模型](logical-model-v2.md)。已通过的 ENV-05 是**隔离测试表**的 CDC 验证，不等于这 21 张正式源表已经 CDC 验收。
+> 状态：**当前字段级物理设计／DDL 与 Source Gate 已完成 Runtime 验收**。2026-10-12 已在 MySQL 8.0.46 的正式库 `ecommerce_oltp` 部署 21 张 `biz_*` 表，通过 `LOAD DATA LOCAL INFILE` 装载 1,328,502 行，并在事务内和提交后独立执行 45 条 Shared Source Gate 规则，结果均为 0 违规。证据边界见 [`source-load-gate-acceptance.md`](../acceptance/source-load-gate-acceptance.md)。
+> 上游：[业务基线](../business/business-baseline.md) · [指标字典](../business/metrics.md) · [逻辑模型](logical-model.md)。已通过的 ENV-05 是**隔离测试表**的 CDC 验证，不等于这 21 张正式源表已经 CDC 验收。
 
-> 后续状态提示：历史候选 DDL 静态快照见 [M2-03](M2-03-物理设计与静态审查.md)，隔离验收库的有限 21 表 CDC 与批次结果见[业务源设计](../design/business-source-design.md)。2026-10-11 的核对只支持形成新候选稿，不把历史验收反写为正式部署。
+> 历史候选 DDL 静态快照见 [M2-03](M2-03-物理设计与静态审查.md)，隔离验收库的有限 CDC 与批次结果见[业务源设计](../design/business-source-design.md)。这些早期记录保持其原始证据边界；当前正式部署与 Source Gate 事实以本文件首段及对应 acceptance 为准。
 
 ## 1. 物理统一规范
 
@@ -21,7 +21,7 @@
 | CDC | 仅业务表 Binlog CDC；不启 Outbox，不允许应用双写业务状态到 Kafka |
 | 分组 | 用户身份 3 + 商品 4 + 购物车 3 + 订单 3 + 支付 2 + 退款 3 + 券 3 = **21** |
 
-标注约定：PK 主键，UK 唯一键，FK 逻辑/物理外键建议，IDX 查询索引；跨表守恒和并发竞争不能被普通 CHECK/外键替代，须由业务事务及验收测试保证。完整 null/default、CHECK、索引及外键已进入候选 DDL，仍须静态复核与隔离 Runtime 验收。
+标注约定：PK 主键，UK 唯一键，FK 逻辑/物理外键建议，IDX 查询索引；跨表守恒和并发竞争不能被普通 CHECK/外键替代，须由业务事务及验收测试保证。当前 null/default、CHECK、索引及外键已进入正式 DDL，并已完成 MySQL 部署和 Shared Source Gate Runtime 验收；该结论不外推为并发业务服务、正式 CDC 或 ODS 验收。
 
 ## 2. 字段清单（逐表）
 
@@ -66,13 +66,15 @@
 
 UK `(visitor_id, identity_version)` 为前版建议；还须由业务校验身份歧义、同作用范围时间区间不产生非法冲突，不能把该 UK 当作全部身份一致性证明。IDX `(visitor_id,effective_from)`、`(user_id,effective_from)`。
 
+`recorded_at` 表示映射记录首次写入或形成证据的时间，不保证在后续补写 `effective_to` 或把 `mapping_status` 改为 `REVOKED` 时同步变化，因此不能作为该表可靠的更新水位。当前离线采集 Contract 对 `biz_identity_mapping` 使用显式快照日的每日全量快照；这是采集补偿策略，不改变映射自身的有效区间语义。
+
 ### 2.2 商品（4）
 
 **04 `biz_category`｜类目当前状态**：`category_id BIGINT PK`；`category_code VARCHAR(64) UK`；`category_name VARCHAR(128)`；`category_status VARCHAR(32)`；`created_at DATETIME(3)`；`updated_at DATETIME(3)`。
 
 **05 `biz_spu`｜SPU 当前状态**：`spu_id BIGINT PK`；`spu_code VARCHAR(64) UK`；`category_id BIGINT FK→biz_category`；`brand_code VARCHAR(64)`；`brand_name VARCHAR(128)`；`spu_name VARCHAR(255)`；`spu_status VARCHAR(32)`；`created_at/updated_at DATETIME(3)`。IDX `(category_id)`。本 21 表不增加独立品牌表。
 
-**06 `biz_sku`｜销售 SKU 当前状态**：`sku_id BIGINT PK`；`sku_code VARCHAR(64) UK`；`spu_id BIGINT FK→biz_spu`；`sku_name VARCHAR(255)`；`sale_price_cents BIGINT CHECK >=0`；`sku_status VARCHAR(32)`（ON_SALE/OFF_SALE）；`created_at/updated_at DATETIME(3)`。IDX `(spu_id)`；`(updated_at)` 按增量场景决定。**库存能力缺口**：已确认业务要求 SKU 有独立库存，但此 21 表最新字段草案未给库存字段；候选 DDL 部署前需补充/确认最小库存属性及扣减范围，不能在本文冒称已落实。
+**06 `biz_sku`｜销售 SKU 当前状态**：`sku_id BIGINT PK`；`sku_code VARCHAR(64) UK`；`spu_id BIGINT FK→biz_spu`；`sku_name VARCHAR(255)`；`sale_price_cents BIGINT CHECK >=0`；`sku_status VARCHAR(32)`（ON_SALE/OFF_SALE）；`created_at/updated_at DATETIME(3)`。IDX `(spu_id)`、`(updated_at)`。**库存能力缺口（`DECISION_REQUIRED`）**：当前已部署 21 表基线没有库存字段；若增加最小库存属性或扣减，必须作为后续 Schema / Generator / DataX Contract 变更迁移并重新验收，不能在本文冒称已落实。
 
 **07 `biz_product_change_event`｜商品变更不可变事件**：`change_id BIGINT PK`；`event_key VARCHAR(64) UK`；`target_type VARCHAR(32)`（CATEGORY/SPU/SKU）；`target_id BIGINT`；`change_type VARCHAR(32)`（价格/类目/品牌/状态）；`before_data JSON`；`after_data JSON`；`effective_at DATETIME(3)`；`recorded_at DATETIME(3)`。IDX `(target_type,target_id,effective_at)`；多态 target_id 不能用单一 FK 实现，业务事务校验目标存在且 before/after 匹配。
 
@@ -92,7 +94,7 @@ UK `(visitor_id, identity_version)` 为前版建议；还须由业务校验身�
 |---|---|---|
 | order_id | BIGINT | PK |
 | order_no | VARCHAR(64) | UK |
-| user_id, visitor_id | BIGINT NULL | 分别关联注册/匿名身份；结算归属互斥或组合规则在候选 DDL 部署前收敛 |
+| user_id, visitor_id | BIGINT NULL | 分别关联注册/匿名身份；当前 DDL 以 CHECK 强制恰有一方非 NULL |
 | coupon_id | BIGINT NULL | 可选券，最多一张 |
 | order_status | VARCHAR(32) | CREATED / PAID / CANCELED |
 | gross_amount_cents | BIGINT | 原价总额 >=0 |
@@ -103,7 +105,7 @@ UK `(visitor_id, identity_version)` 为前版建议；还须由业务校验身�
 | paid_at, canceled_at | DATETIME(3) NULL | 对应有效终态时间 |
 | updated_at | DATETIME(3) | 审计/增量 |
 
-IDX `(user_id,created_at)`、`(order_status,created_at)`；若匿名订单支持按访客查询，则评审 `(visitor_id,created_at)`。注意该候选稿没有确认匿名是否允许不登录完成支付，**不得把某种 guest-checkout 策略当作既定事实**。正式候选 DDL 采用单向物理约束：`biz_order.coupon_id → biz_coupon.coupon_id`；券表中的 `locked_order_id`、`used_order_id` 仅建索引，反向一致性由 Generator 与 Source Gate 校验，避免循环 FK 阻碍 21 CSV 装载。
+当前 DDL 已建立 IDX `(user_id,created_at)`、`(visitor_id,created_at)`、`(order_status,created_at)`，并以 CHECK 强制订单只能归属注册用户或匿名访客之一。这只证明所有者互斥，不等于已经确认匿名访客可完成支付等完整 guest-checkout 产品策略。正式 DDL 采用单向物理约束：`biz_order.coupon_id → biz_coupon.coupon_id`；券表中的 `locked_order_id`、`used_order_id` 仅建索引，反向一致性由 Generator 与 Source Gate 校验，避免循环 FK 阻碍 21 CSV 装载。
 
 **12 `biz_order_item`｜订单 SKU 成交快照**
 
@@ -164,6 +166,8 @@ CHECK 非负、`refunded_cents+refund_reserved_cents<=payable_amount_cents`、�
 
 正式采集需使用明确表白名单、主键与 `op` 语义，不采集无关系统表。按表 Topic 是 Step 9 的最小测试方案，**不是**正式 21 表 Topic 划分已确认；CDC 正式 Topic 组织另行确定。行为三组 Topic 的具体字符串仅作为建议，不代表已经部署。
 
+当前离线 DataX Contract 将 21 表分为三类：可变表按可靠 `updated_at` 半开窗口抽取，Append-only 记录按 `recorded_at` 或 `merged_at` 半开窗口抽取，`biz_identity_mapping` 因没有可靠更新水位按日全量快照。抽取水位只决定本批读取范围；事实/事件的业务时间决定每行 `business_date`，快照表使用显式快照日。DataX 先写 target table 的 batch staging，最终 Hive `dt` 由后续 Validation / Publish 识别并发布。
+
 ## 4. 可靠事件发布与一致性边界
 
 ```text
@@ -197,14 +201,14 @@ CHECK 非负、`refunded_cents+refund_reserved_cents<=payable_amount_cents`、�
 | 8 | 正式表快照/CDC接续与离实时对账 | 检查缺失、重复、历史修订和故障恢复 |
 | 9 | 正式数据规模与性能实验 | 正式规模先完成业务验收；约 90 万订单、900 万行为事件的性能实验独立执行，不预设性能结论 |
 
-**已实现但未运行验收**：21 表候选 DDL、Python Business / Behavior Generator，以及与候选 DDL 对齐的 21 CSV 字段 Contract。**尚未实施或验收**：正式源表部署、`LOAD DATA`、Source Gate、21 表 CDC、DataX 与 CDC 全链路对账、3 组正式行为 Topic、正式指标计算。
+**已完成 Runtime 验收**：21 表正式 DDL、Python Business Generator、与 DDL 对齐的 21 CSV Contract、正式规模 `LOAD DATA` 与 Shared Source Gate。**已完成本地正式规模验证**：Behavior Generator 及其与 Business Entity Manifest 的绑定。**尚未实施或验收**：21 表正式 CDC、DataX 与 CDC 全链路对账、3 组正式行为 Topic、正式指标计算。
 
-## 7. 最终 DDL 必须先收敛的项目
+## 7. 已部署基线之外的待决策与后续扩展
 
-- SKU 库存最小属性与库存是否仅展示，不改变一期不做完整库存流水的边界。
-- 订单匿名/注册身份归属 CHECK、用户券与访客支付业务的兼容关系；不要擅自增加 guest checkout 规则。
-- 状态字段所有合法枚举、NOT NULL/默认值、时间一致性及外键 ON DELETE/UPDATE 策略；订单与优惠券已选定单向物理 FK，反向引用由 Source Gate 校验。
+- `DECISION_REQUIRED`：SKU 库存最小属性与是否执行简单扣减；任何新增都需要 Schema Migration、Generator / CSV / DataX Contract 同步及重新验收，且不改变一期不做完整库存流水的边界。
+- 订单的注册/匿名归属互斥 CHECK 已部署；用户券与访客支付兼容关系、是否允许完整 guest checkout 仍不得擅自补全。
+- 当前状态枚举、NOT NULL/default、时间 CHECK 及外键策略已经部署；后续若扩展状态机或删除策略，须按 Schema 变更重新验收。订单与优惠券已选定单向物理 FK，反向引用由 Source Gate 校验。
 - 条件唯一索引对应生成列的精确 DDL、资金/回调幂等语义、跨表并发锁顺序。
 - 券优惠额度与订单应付的零元订单处理（若现有业务规则未覆盖，需单独决策）；30日退款分母的精确资金截点由指标文档指明未决。
 - JSON 商品变更事件强制核心字段与 Schema 版本、Topic key/schema/retention/ISR，历史 CDC 与离线初始化对齐规则。
-- 当前候选 DDL 和 Generator Contract 已进入仓库，但未部署、未装载、未通过 Source Gate；旧候选 SQL 和测试脚本**不得**被视为此文档的自动实现。
+- 当前 DDL、Generator Contract、正式规模装载与 Shared Source Gate 已按 acceptance 记录完成；该事实不外推为正式 CDC、DataX/Hive ODS 或后续数仓分层已实现。旧候选 SQL 和测试脚本**不得**被视为此文档的自动实现。

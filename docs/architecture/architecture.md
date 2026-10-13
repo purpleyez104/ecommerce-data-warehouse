@@ -3,7 +3,7 @@
 版本：`0.3-draft`
 状态：离线 100 单与实时 R1～R3 Pilot 已完成限定验收并转为 History，当前共同进入 Shared V2 Source Data Build；Milestone 1、8、9 实施中，M1 剩余门禁为 DolphinScheduler 3.4.2
 
-总体技术路线见[最终工程架构 V1.0](final-architecture-v1.0.md)，节点和 Java 角色见[部署拓扑](../deployment-topology.md)。本文件保留阶段与技术验收边界；业务源和实时设计分别见[业务源设计](../design/business-source-design.md)与[实时链路规范](../design/realtime-pipeline-design.md)。
+总体技术路线见[最终工程架构 V1.0](final-architecture.md)，节点和 Java 角色见[部署拓扑](../deployment-topology.md)。本文件保留阶段与技术验收边界；业务源和实时设计分别见[业务源设计](../design/business-source-design.md)与[实时链路规范](../design/realtime-pipeline-design.md)。
 
 ## 当前基础设施
 
@@ -35,7 +35,7 @@ MySQL → DataX → Hive ODS（HDFS ORC + Snappy）→ DIM / DWD → DWS → ADS
 - 正式源库为 `ecommerce_oltp`；`ecommerce_oltp_m2_acceptance` 只保留为 Pilot、CDC、R1～R3/M3 历史验收环境。
 - V2 Source Data Build 固定采用 Python Generator → CSV → MySQL `LOAD DATA`。Generator 只负责业务关系、状态、时间、主外键、金额与边界场景，不负责逐条写入数据库。
 - 正式数仓 database 沿用 `ecommerce_ods`、`ecommerce_dwd`、`ecommerce_dim`、`ecommerce_dws`、`ecommerce_ads`，不新增 `_v2`；V2 初始化前须通过单独方案隔离或重置现有 Pilot 数据。
-- `datax/`：通过通用 Job Generator 和多表配置写入 HDFS Stage / Hive ODS 分区；配置描述 source/target、columns、primary key、partition、extract 与 quality rule。
+- `datax/`：通过通用 Job Generator 和多表配置写入 HDFS Stage / Hive ODS 分区；每表配置描述 source/target、primary key、partition、extract 与 quality rule，字段顺序统一引用 Business Generator 的 `TABLE_COLUMNS`，字段类型以正式 MySQL DDL 为准，避免重复维护第二套 columns 清单。
 - `hive/`：管理 Metastore、Table、Partition 与离线分层；100 单 Pilot 的 ODS/DWD 只作为 History 保留。
 - `spark/`：离线计算统一运行于 YARN；通用执行框架承担提交、日志、锁、失败保护、参数和 precheck，DWD/DIM 业务转换 SQL 按表维护。
 - `quality/`：可阻断流程的数据质量检查，后续阶段按固定输入实施。
@@ -57,7 +57,7 @@ V2 工程实施按层批量推进：
 
 M1 组件验收采用“五个独立入口 + 一个共享 Evidence Library”的结构。公共库只负责 `run-id` 与输出目录安全、Evidence Layout、步骤日志、断言、SHA-256、Secret 去敏、`summary.env` 状态和受控 Cleanup，不包含 MySQL、Hive、Kafka、Spark 或 DataX 的组件命令。公共 API 冻结后，各组件脚本只能作为调用方；本地 Contract Test 只证明接口与安全行为，不替代目标 ECS 的组件 Runtime 验收。
 
-本项目不建设独立持久化的 landing/staging 数据层。HDFS Stage 是发布前临时工作区，不是长期数仓层；ODS 装载负责 ORC + Snappy 输出、Spark validation、Hive 分区注册、审计字段、幂等发布和失败隔离。Pilot 已证明该模式可行，V2 批量框架与 ODS Gate 尚未实现，不能标记为 `verified`。
+本项目不建设独立持久化的 landing/staging 数据层。HDFS Stage 是发布前临时工作区，不是长期数仓层；ODS 装载负责 ORC + Snappy 输出、Spark validation、Hive 分区注册、审计字段、幂等发布和失败隔离。Pilot 已证明该模式可行；当前 21 表 DataX Job Generator 与抽取 Contract 已完成本地测试，但 Stage Runner、Spark Validation / Publish、正式 Runtime 与 ODS Gate 尚未实现或验收，不能标记为 `verified`。
 
 ## M1 后续组件分布
 
@@ -96,7 +96,7 @@ M1 只允许使用临时对象验证组件兼容性。后续 R1～R3 小切片�
 
 正式 Flink 业务作业采用 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅为技术验证。YARN Flink Runtime 使用 Java 11，自行编译的业务 Job 必须保持 `javac --release 11`（class major version 55），除非运行时基线经正式升级。当前 Order / OrderItem DWD 的 `all-to-zero` 与 `kafka_offset` Sequence 只属于 Pilot，不外推为正式多分区方案。
 
-Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 和 Metrics Contract。历史初始化为 Python → CSV → `LOAD DATA`；增量业务生成器通过 MySQL Transaction 产生 Binlog，不能直接写 Kafka。正式 CDC 覆盖 21 表，Topic Namespace 在 Inventory 后冻结，Key/Partition 保证 Same Business Key → Same Partition → Ordered Events，正式 `event_version` 另行设计。Flink 工程按业务域组织 Domain Applications，运行框架通用化、业务转换分业务维护；不再一表一 Application。下一开发入口是 Shared V2 Source Data Build，SOURCE GATE 后再进入 Formal CDC Contract、CDC Gate、Domain DWD/DIM、Recovery Gate 与离实时对账。
+Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 和 Metrics Contract。历史初始化为 Python → CSV → `LOAD DATA`；增量业务生成器通过 MySQL Transaction 产生 Binlog，不能直接写 Kafka。正式 CDC 覆盖 21 表，Topic Namespace 在 Inventory 后冻结，Key/Partition 保证 Same Business Key → Same Partition → Ordered Events，正式 `event_version` 另行设计。Flink 工程按业务域组织 Domain Applications，运行框架通用化、业务转换分业务维护；不再一表一 Application。Shared Source Gate 已通过；当前入口是 60/30 输入 Contract、Topic / Checkpoint Inventory 与 Formal CDC Contract，之后依次进入 CDC Gate、Domain DWD/DIM、Recovery Gate 与离实时对账。
 
 ## 配置边界
 

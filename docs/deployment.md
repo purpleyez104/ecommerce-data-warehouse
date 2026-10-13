@@ -8,7 +8,7 @@
 - [集群事实基线](cluster-baseline.md)：ECS、网络、磁盘、用户和 Hadoop 当前事实。
 - [组件兼容性矩阵](compatibility-matrix.md)：精确版本、兼容依据和验收状态。
 - [安装与排障记录](installation-troubleshooting.md)：实际问题、修复、复测和回滚。
-- [最终工程架构 V1.0](architecture/final-architecture-v1.0.md)：总体技术路线与历史技术验收边界。
+- [最终工程架构 V1.0](architecture/final-architecture.md)：总体技术路线与历史技术验收边界。
 
 ## 状态边界
 

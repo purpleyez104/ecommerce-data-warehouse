@@ -2,7 +2,7 @@
 
 状态：当前 ECS 与已验收组件拓扑记录；未实施的服务仍为规划。更新时间：2026-09-20。
 
-本文件展开 [最终工程架构](architecture/final-architecture-v1.0.md)的部署视图。运行事实以[集群事实基线](cluster-baseline.md)、[兼容性矩阵](compatibility-matrix.md)和 `DR-026` 为证据来源；不因出现在拓扑图中就把后续业务作业标记为已部署。
+本文件展开 [最终工程架构](architecture/final-architecture.md)的部署视图。运行事实以[集群事实基线](cluster-baseline.md)、[兼容性矩阵](compatibility-matrix.md)和 `DR-026` 为证据来源；不因出现在拓扑图中就把后续业务作业标记为已部署。
 
 ## 节点与角色
 

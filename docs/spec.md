@@ -1,8 +1,8 @@
 # 电商离实时一体化数据仓库项目规格
 
 版本：`0.5-draft`
-状态：离线与实时 Pilot `completed / HISTORY`；Shared V2 Source Data Build `in progress`；Realtime V2 `DESIGNED / waiting for SOURCE GATE`。Milestone 0 `completed`；Milestone 1、2、3、8、9 `in progress`；Milestone 4～7 `pending`
-更新时间：2026-10-11
+状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build `VERIFIED`；批量 ODS 与 Formal CDC 接续 `DOING / DESIGNED`。Milestone 0 `completed`；Milestone 1、2、3、8、9 `in progress`；Milestone 4～7 `pending`
+更新时间：2026-10-13
 Repository：`ecommerce-data-warehouse`
 
 ## 0. 文档使用范围
@@ -77,7 +77,7 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 | 交付阶段 | 状态 | 目标 | 证据边界 |
 | --- | --- | --- | --- |
 | V1 小规模链路与展示仓库 | `in progress` | 以固定、可人工核对的小数据集，跑通离线和实时最小纵向链路；形成可复现命令、脚本/SQL、验收记录、架构说明和简历证据 | 只陈述已真实执行的范围、数据量、结果和限制；不用小数据结果外推大规模、高吞吐或端到端 Exactly-Once |
-| V2 规模与工程能力扩展 | `in progress`（当前限 Source Data Build） | 以 21 表正式源模型冻结数据规格，建设 Python → CSV → `LOAD DATA` 与 Source Gate，后续按层推进 ODS、DWD/DIM、DWS、ADS 和 Doris | 正式数据规模为 90 天、100,000 笔订单、约 285,000 条订单明细、约 100 万条 OLTP 记录和 3,000,000～5,000,000 条行为事件；性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件。实际数据量、性能和完整链路结论仍须绑定环境、版本、固定输入和实测结果 |
+| V2 规模与工程能力扩展 | `in progress`（Source Data Build 已验收；批量 ODS / Formal CDC 接续中） | 以 21 表正式源模型和 Shared Source Gate 为共同基线，按层推进 ODS、DWD/DIM、DWS、ADS、Doris 与正式 CDC | 正式数据规模为 90 天、100,000 笔订单、约 285,000 条订单明细、实测 1,328,502 条 OLTP 记录和 3,000,000～5,000,000 条行为事件；性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件。性能和完整链路结论仍须绑定环境、版本、固定输入和实测结果 |
 
 “交付 V1/V2”是项目建设阶段，不替代文档中已有的“V2 业务基线”、“V2 指标体系”等模型或口径版本标识。
 
@@ -90,7 +90,7 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 | 项目名称、文档使用范围框架 | 采用，并调整为仅适用于 Project 1 |
 | 两项目关系及 65% / 35% 比例 | 作为交接约束保留 |
 | MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris、DolphinScheduler 技术方向 | 作为目标技术栈保留 |
-| DataX 直接写正式 ODS ORC | 采用；使用 HDFS Writer 写入 Hive ODS 对应 HDFS 分区，分区注册、审计字段、幂等发布和失败隔离由 ODS 装载负责，真实行为在 Milestone 1、3 验证 |
+| DataX 写入正式 ODS ORC 发布范围 | 采用；HDFS Writer 先写批次隔离 staging，Validation / Publish 按每行 `business_date` 发布 Hive `dt`；不建设独立持久化中间层，真实行为在 Milestone 1、3 验证 |
 | 参考文件中的候选版本 | 不直接锁定；必须重新完成兼容性和启动验证 |
 | 实时 Topic、窗口、迟到处理、维度和 Doris 表模型 | 暂不采用具体设计，保留为实时阶段待决策项 |
 | Project 2 业务和应用实现 | 不迁入，只保留六个只读契约 |
@@ -103,15 +103,15 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 
 ### 3.1 V1 业务范围
 
-当前业务基线采用自营商城两期方案。第一期覆盖用户与匿名身份、Category/SPU/SKU、商品展示与行为、购物车、下单与取消、订单券、支付和基础退款，形成可核对的交易与资金闭环；第二期再扩展库存流水/快照、完整履约物流、复杂营销和更完整售后。当前正式业务规则入口为 `docs/business/business-baseline-v2.md`。
+当前业务基线采用自营商城两期方案。第一期覆盖用户与匿名身份、Category/SPU/SKU、商品展示与行为、购物车、下单与取消、订单券、支付和基础退款，形成可核对的交易与资金闭环；第二期再扩展库存流水/快照、完整履约物流、复杂营销和更完整售后。当前正式业务规则入口为 `docs/business/business-baseline.md`。
 
 分析范围覆盖交易与资金、流量与转化、商品、用户、退款与售后、营销。交易状态由模拟业务服务写入 MySQL，业务交易 CDC 只来自 MySQL Binlog；页面、商品和购物行为由独立行为源写入 Kafka，不得由生成器直接写 Kafka 冒充 CDC。
 
-当前源模型目标为 21 张 `biz_*` MySQL 表及独立行为事件流。逻辑模型见 `docs/source/logical-model-v2.md`，字段级候选物理设计见 `docs/source/physical-model-v1.md`。2026-10-11 已只读确认正式库尚无 21 张业务表，并以历史验收库结构、业务基线和指标口径形成新的仓库候选 DDL；该候选稿尚未部署，隔离库历史验收不得外推为正式库或完整链路验收。
+当前源模型为 21 张 `biz_*` MySQL 表及独立行为事件流。逻辑模型见 `docs/source/logical-model.md`，字段级物理设计见 `docs/source/physical-model.md`。2026-10-12 已在 MySQL 8.0.46 的正式库部署 21 表，装载固定输入生成的 1,328,502 行，并通过事务内及提交后独立 Shared Source Gate；隔离库历史验收仍不得外推为正式 CDC 或完整链路验收。
 
 ### 3.2 当前非目标
 
-- 第一期不建设完整库存域或库存流水；SKU 最小库存属性与是否扣减仍需在候选 DDL 部署前确认。
+- 第一期不建设完整库存域或库存流水；当前已部署 21 表基线没有 SKU 库存字段。是否新增最小库存属性或简单扣减仍为 `DECISION_REQUIRED`，若采纳必须执行 Schema / Generator / DataX Contract 迁移并重新验收。
 - 当前阶段不确定实时 Topic、窗口、Watermark、迟到、状态 TTL、维度关联和 Doris 实时表模型。
 - 不建设生产级 Hadoop HA，也不将三节点开发环境描述为高可用集群。
 - 不引入阿里云专有中间件、Kafka ZooKeeper 模式、Spark Standalone、Flink Standalone、Kubernetes、HBase、Redis、Elasticsearch、ClickHouse、Iceberg、Hudi 或 Paimon。
@@ -122,15 +122,15 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 
 `DR-008` 允许 M1 与 M2 分轨推进，但不取消直接依赖。上一版 M2 的代码材料保留在 `archive/legacy-m2-19-table/`，对应设计文档保留在 `docs/archive/milestone-2-business-design.md`；二者均为历史材料，不作为当前 V2 实现依据。
 
-2026-09-18 的 V2 业务重设计不沿用归档实现作为当前模型依据。当前采用 21 张 `biz_*` 表的候选设计、独立行为事件流和新版指标口径，Milestone 2 保持 `in progress`。旧 19 表归档验证不能证明 V2 实现。2026-09-21 入库的 R1 冻结记录证明指定 21 表隔离验收库到当前开发 Topic 的初始快照表级行数一致，并完成订单主键与最终状态对账；它不证明正式源库、固定 Seed、90 天数据、增量 CDC、DataX 接续或 M2 完成。
+2026-09-18 的业务重设计不沿用归档实现作为当前模型依据。当前采用已部署并通过 Source Gate 的 21 张 `biz_*` 表、独立行为事件流和新版指标口径；Milestone 2 因 60/30 回放输入尚未实现而保持 `in progress`。旧 19 表归档验证不能证明当前实现。2026-09-21 入库的 R1 冻结记录只证明指定 21 表隔离验收库到开发 Topic 的初始快照表级行数一致，以及订单主键与最终状态对账；它不证明正式源库增量 CDC、DataX 接续或 M2 完成。
 
-Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提供的 2026-09-22 Chat 终端记录进一步证明 `hist-v1-001` 的 100 单 `biz_order` 在限定范围完成 MySQL → DataX → HDFS ORC → Hive ODS 发布和 Spark 固定基线汇总，共 88 个业务日期分区；该历史事实记录在 `docs/acceptance/biz_order_ods_acceptance.md`。仓库新增的发布重建稿与质量入口均为 `implemented / not_run`，当前 M2 的正式 DDL、固定数据和抽取语义也尚未完全闭合，因此 M3 保持 `in progress`；未解决契约仍是完成 M3 及扩大范围的门禁。
+Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提供的 2026-09-22 Chat 终端记录进一步证明 `hist-v1-001` 的 100 单 `biz_order` 在限定范围完成 MySQL → DataX → HDFS ORC → Hive ODS 发布和 Spark 固定基线汇总，共 88 个业务日期分区；该历史事实记录在 `docs/acceptance/biz_order_ods_acceptance.md`。当前正式 DDL、固定 Business 数据与 Source Gate 已闭合，21 表 DataX Job Generator、抽取 Contract 与失败路径已通过本地测试；Stage Runner、Validation / Publish、正式 Runtime 与 ODS Gate 尚未完成，因此 M3 保持 `in progress`。
 
 用户于 2026-09-22 确认实时链路已经建设到一半，因此 Milestone 8、9 记录为 `in progress`。后续实时链路 R1～R3 的历史输出证明 `biz_product_change_event` 的 `op=c/d`、Order / OrderItem DWD Java Job 构建与首次装载、CDC / Order DWD Checkpoint 恢复、订单与明细正常顺序 `op=u`，以及 Doris 101 单、320 明细汇总；当前在线、全字段/乱序、物理 DELETE、更新故障恢复和完整对账仍未验证。R1/R1-7 只是限定切片记录，不是项目阶段编号，也不把 M9 提升为完整 `verified`。这些事实现作为 Pilot History 保留，不解除 M2/M3 或 M8/M9 其余门禁。
 
 ### 3.4 当前业务语义基线
 
-`docs/business/business-baseline-v2.md` 是当前业务规则入口，核心约束包括：
+`docs/business/business-baseline.md` 是当前业务规则入口，核心约束包括：
 
 - 身份：匿名访客与注册用户分离，只在可靠证据下建立可版本化映射；歧义事件保持匿名，不能静默覆盖历史结果。
 - 会话与漏斗：同一访客按事件时间连续 30 分钟无活动开启新会话；同时保留自然日经营漏斗和 7×24 小时同群组漏斗。
@@ -141,9 +141,9 @@ Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提
 - 优惠券：订单级最多一张固定金额券；锁定覆盖订单支付期限，取消时释放或过期，支付后 `USED`，退款不返券。
 - 金额：源候选模型统一使用整数分，订单头、明细、优惠分摊、支付和退款必须满足守恒，不使用浮点财务金额。
 
-### 3.5 当前逻辑与候选物理模型
+### 3.5 当前逻辑与物理模型
 
-当前逻辑模型见 `docs/source/logical-model-v2.md`，字段级候选物理设计见 `docs/source/physical-model-v1.md`。21 张候选 MySQL 表按以下七组组织：
+当前逻辑模型见 `docs/source/logical-model.md`，字段级物理设计见 `docs/source/physical-model.md`。21 张正式 MySQL 表按以下七组组织：
 
 - 用户与身份 3 张：`biz_user`、`biz_visitor`、`biz_identity_mapping`。
 - 商品 4 张：`biz_category`、`biz_spu`、`biz_sku`、`biz_product_change_event`。
@@ -155,7 +155,7 @@ Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提
 
 行为事件不计入 21 张 MySQL 表，逻辑上包含页面浏览、商品曝光、商品点击、加购和移除，至少保留稳定事件键、事件时间、采集时间、访客/用户、会话及按事件适用的 SKU、页面和数量字段。精确 Kafka Schema、Topic key 和保留策略仍待实施设计。
 
-21 表设计仍为 `candidate`。2026-10-11 只读核对表明：正式库 `ecommerce_oltp` 仅有 3 张技术测试表，没有 21 张 `biz_*`；历史验收库 `ecommerce_oltp_m2_acceptance` 有同名 21 表。仓库已形成 `mysql/ddl/001_ecommerce_oltp.sql` 候选稿，并将 21 CSV Contract 补齐 4 个审计时间字段。订单/优惠券采用 `biz_order.coupon_id` 单向物理 FK，券表反向订单引用改由索引与 Source Gate 校验；生成列不进入 CSV。2026-10-12 已完成本地正式规模 Business 21 表 1,329,480 行、版本化 Entity Manifest 与 Behavior 3,000,000 事件绑定验证，但 `LOAD DATA`、Source Gate、DataX/CDC 初始化接续及正式库验收尚未完成。正式部署前仍需收敛 SKU 库存属性、订单身份、回调去重、状态 JSON、状态枚举与零元订单等问题。
+21 表设计已作为当前正式源模型落地。`mysql/ddl/001_ecommerce_oltp.sql` 与 21 CSV Contract 对齐，订单/优惠券采用 `biz_order.coupon_id` 单向物理 FK，券表反向订单引用由索引与 Source Gate 校验；生成列不进入 CSV。2026-10-12 已完成 Business 21 表 1,328,502 行的目标 MySQL 装载与 45-rule Source Gate，Behavior 3,000,000 事件的 Entity Manifest 绑定验证也已完成；DataX/CDC 初始化接续尚未完成。
 
 ### 3.6 历史材料边界
 
@@ -175,11 +175,11 @@ Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提
 
 | 范围 | 状态 | 证据边界 |
 | --- | --- | --- |
-| V2 业务规则 | baseline | `docs/business/business-baseline-v2.md`；不是业务系统上线证明 |
-| V2 逻辑模型 | design archive | `docs/source/logical-model-v2.md`；不是 SQL 或部署证据 |
-| 21 表候选物理模型 | `candidate / implemented / not_run` | 已只读核对正式库与历史验收库，新增 `mysql/ddl/001_ecommerce_oltp.sql`；尚未部署或通过 Source Gate |
+| V2 业务规则 | baseline | `docs/business/business-baseline.md`；不是业务系统上线证明 |
+| V2 逻辑模型 | current design | `docs/source/logical-model.md`；不是 SQL 或部署证据 |
+| 21 表物理模型 | `verified`（DDL、正式装载与 Source Gate） | MySQL 8.0.46 已部署 `mysql/ddl/001_ecommerce_oltp.sql`，装载 1,328,502 行并通过事务内及提交后独立 45-rule Source Gate |
 | 旧 Pilot Generator | `PILOT / ACCEPTANCE / HISTORY` | `archive/pilot-v1/ecommerce_generator_v1/`；保留历史，不作为 V2 正式入口 |
-| V2 Business / Behavior Generator | `verified`（仅本地正式规模生成与 Entity Manifest 绑定） | `mock/generator/business_generator/`、`mock/generator/behavior_generator/`；21 CSV 字段已与候选 DDL 对齐，Business 1,329,480 行与 Behavior 3,000,000 事件已生成；Entity Manifest SHA-256、实体引用、Session 和事件唯一性通过，`LOAD DATA`、Source Gate 和目标环境 Runtime 尚未完成 |
+| Business / Behavior Generator | `verified`（Business 目标 Runtime；Behavior 本地正式规模） | `mock/generator/business_generator/`、`mock/generator/behavior_generator/`；Business 1,328,502 行已完成目标 MySQL 装载与 Source Gate，Behavior 3,000,000 事件的 Entity Manifest SHA-256、实体引用、Session 和事件唯一性通过 |
 | R1 21 表初始快照 | `verified`（冻结范围） | `docs/acceptance/r1_snapshot_acceptance_frozen.md`；1,178 / 1,178 表级计数及 100 单主键/最终状态对账，不含增量、全字段或 Exactly-Once |
 | R1～R3 Order / OrderItem DWD | `verified`（历史限定范围） | 商品事件 `op=c/d`、Java Job 构建与提交、CDC / Order DWD Checkpoint 恢复、正常顺序 Upsert，以及 Doris 101 单 / 320 明细汇总；不含全字段/乱序、物理 DELETE、更新故障恢复或 Exactly-Once |
 | `biz_order` ODS 历史切片 | `verified`（历史限定范围） | 用户提供的 2026-09-22 Chat：100 单、69 `PAID`、31 `CANCELED`、88 分区及金额汇总；发布重建稿和质量入口为 `implemented / not_run`，不含增量、重跑/回补或 M3 完整验收 |
@@ -192,11 +192,11 @@ Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提
 
 V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表；`ecommerce_oltp_m2_acceptance` 保留为 Pilot、CDC、R1～R3/M3 历史环境。正式数据生成路径为 Python Generator → CSV → MySQL `LOAD DATA`，Generator 与数据库写入解耦。正式数仓继续使用 `ecommerce_ods`、`ecommerce_dwd`、`ecommerce_dim`、`ecommerce_dws`、`ecommerce_ads`，不新增 `_v2` database。
 
-工程按层批量推进，并以 Source Gate、ODS Gate、Model Gate 和最终整链路验收控制质量。ODS 使用通用 DataX Job Generator、Stage Runner、Spark Validation、Publish 与多表配置；DWD/DIM 的业务转换 SQL 分表维护，执行框架通用化。现有 Pilot 数据在 V2 正式装载前必须经过单独批准的隔离或初始化重置方案；本规格更新不授权数据库清理。
+工程按层批量推进，并以 Source Gate、ODS Gate、Model Gate 和最终整链路验收控制质量。ODS 使用通用 DataX Job Generator、Stage Runner、Spark Validation、Publish 与多表配置；DWD/DIM 的业务转换 SQL 分表维护，执行框架通用化。正式源库已与历史 Pilot 库隔离；任何非空正式源表的重置、回滚或重新装载仍需单独 Database Operation 授权。
 
 ## 4. 技术栈与开发方式
 
-选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本；当前版本兼容与临时链路的实际结论以 `DR-026` 为准。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，并通过 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 分区；ORC + Snappy 与失败非零的技术能力已验证，正式分区发布、审计、幂等和失败隔离仍由 Milestone 3 验收。
+选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本；当前版本兼容与临时链路的实际结论以 `DR-026` 为准。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，并通过 HDFS Writer 写入 Hive ODS 发布范围内的批次隔离 staging；ORC + Snappy 与失败非零的技术能力已验证，正式分区发布、审计、幂等和失败隔离仍由 Milestone 3 验收。
 
 | 职责 | 技术 | 当前状态 |
 | --- | --- | --- |
@@ -209,7 +209,7 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 | CDC 与实时计算 | Flink CDC、Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 用于技术验证 | 组件兼容性 verified；R1～R3 Snapshot、商品事件 `c/d`、Order / OrderItem 正常顺序 Upsert 和 CDC / Order DWD Checkpoint 恢复在限定范围内 verified；这些结果现为 Pilot History，正式 V2 尚未实现，M8/M9 保持 `in progress` |
 | 分析服务 | Doris | verified；4.0.8 FE/BE、SQL 与受控重启已通过 |
 | 工作流调度 | DolphinScheduler | candidate；3.4.2 尚未完成 M1 验收 |
-| 数据生成和质量工具 | Python、SQL | 旧 Generator 已转为 Pilot History；V2 Business / Behavior Generator 已完成本地正式规模生成与 Entity Manifest 绑定，Incremental Business Generator、`LOAD DATA`、Source Gate 与目标环境 Runtime 均未完成 |
+| 数据生成和质量工具 | Python、SQL | 旧 Generator 已转为 Pilot History；Business / Behavior Generator 已完成正式规模生成与 Entity Manifest 绑定，Business `LOAD DATA`、Source Gate 与目标 MySQL Runtime 已通过；Incremental Business Generator 尚未完成 |
 
 开发方式：
 
@@ -217,7 +217,7 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 - 正式 Flink 业务 ETL 与聚合作业采用 Java DataStream Jar + YARN Application Mode；Flink SQL Client + YARN Session 仅保留为 Kafka SQL 技术验证，不作为正式业务部署模式。该选择不提前确定窗口、状态或指标实现。
 - Python 用于固定 seed 数据生成器和轻量质量工具。
 - `archive/pilot-v1/ecommerce_generator_v1/` 仅保留 Pilot History；即使 package layout 已恢复，也不得作为 V2 正式入口或用历史运行结果证明当前代码通过 Runtime。
-- `mock/generator/business_generator/` 与 `mock/generator/behavior_generator/` 已完成本地正式规模生成、Entity Manifest 绑定与 Targeted Test。21 CSV 字段已完成候选 DDL 映射，但装载顺序与 Source Gate 未冻结前，不得提升为正式数据源交付。
+- `mock/generator/business_generator/` 与 `mock/generator/behavior_generator/` 已完成正式规模生成、Entity Manifest 绑定与 Targeted Test。21 CSV 字段、装载顺序和 Shared Source Gate 已完成目标 MySQL 验收；该事实不提升 Behavior Kafka、DataX/Hive ODS 或正式 CDC 状态。
 - 不得使用多种语言重复实现同一个生产任务。
 
 技术能力依据：
@@ -234,17 +234,19 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 
 ## 5. 目标架构与实施链路
 
-总体技术路线见[最终工程架构 V1.0](architecture/final-architecture-v1.0.md)；节点、源系统和实时作业的责任分别见[部署拓扑](deployment-topology.md)、[业务源设计](design/business-source-design.md)和[实时链路规范](design/realtime-pipeline-design.md)。这些文档只按各自证据范围解释，不改变本规格的 Milestone 门禁。
+总体技术路线见[最终工程架构 V1.0](architecture/final-architecture.md)；节点、源系统和实时作业的责任分别见[部署拓扑](deployment-topology.md)、[业务源设计](design/business-source-design.md)和[实时链路规范](design/realtime-pipeline-design.md)。这些文档只按各自证据范围解释，不改变本规格的 Milestone 门禁。
 
 ### 5.1 离线主线
 
 ```text
 MySQL ecommerce_oltp
         │
-        │ DataX 全量或基于 update_time 的增量抽取
+        │ DataX 全量、可靠更新时间增量、事件记录水位增量或每日全量快照
         ▼
-Hive ODS
-HDFS 业务日期分区，ORC + Snappy
+HDFS batch staging（ORC + Snappy）
+        │ Spark Validation / Publish
+        ▼
+Hive ODS（按每行 business_date 发布 HDFS dt 分区）
         │
         │ Spark SQL
         ▼
@@ -267,7 +269,9 @@ ADS
 
 约束：
 
-- DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，不建设独立持久化的中间数据层。
+- DataX 使用 HDFS Writer 写入 Hive ODS 发布范围内的 batch staging，不建设独立持久化的中间数据层；staging 只服务于校验、失败隔离和原子发布。
+- 可变表使用可靠的 `updated_at` 半开窗口，Append-only 表使用记录水位半开窗口，没有可靠更新水位的 `biz_identity_mapping` 使用显式快照日的每日全量快照。抽取水位不决定最终业务分区。
+- 事实和事件在抽取结果中按行业务时间计算 `business_date`，维度全量快照使用显式快照日；Spark Validation / Publish 根据该字段识别并发布最终 Hive `dt`。
 - Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储；ODS 装载负责分区注册、审计字段、幂等发布和失败隔离。
 - DataX 不负责决定正式金额精度、状态枚举或最终 Hive 字段类型；这些内容必须随源模型和 ODS 设计确认。
 - Hive ODS 保留源字段语义，并包含 `business_date`、`extract_time`、`batch_id` 和 `source_table` 等审计字段；最终字段以源模型评审结果为准。
@@ -276,7 +280,7 @@ ADS
 - ODS 保留源语义；DWD 保存原子事实；DIM 保存一致维度；DWS 保存可复用的可加度量和比率分子/分母；ADS 负责最终指标表达。
 - 离线 ADS 默认通过 Spark Doris Connector 写入 Doris，具体 Connector 版本必须经过 Spark、Scala、Java 和 Doris 兼容性验证。
 - DolphinScheduler 只能在离线任务独立运行通过后接入，负责业务日期、依赖、重试、回补、质量阻断、Doris 装载和对账，不承载业务计算逻辑。
-- DataX 基于 `update_time` 的增量抽取不能天然捕获硬删除。进入 OLTP 设计前必须确认使用软删除或状态字段，或者增加周期性全量快照和删除对账。
+- 基于更新时间或记录水位的 DataX 增量抽取不能天然捕获硬删除。当前 21 表禁止业务硬删除；没有可靠更新水位的表必须使用全量快照或另行设计删除对账，不得用 `load_time` 冒充源端变化水位。
 
 ### 5.2 Realtime V2 目标链路
 
@@ -302,7 +306,7 @@ Flink 实时清洗与计算
 
 Flink CDC 是运行在 Flink 上的采集任务，不是独立于 Flink 的常驻平台。R1～R3 业务切片止于 `ecommerce_oltp_m2_acceptance` → `ods_cdc_m2_clean_v1` → Order / OrderItem DWD → Doris，现统一定位为 Pilot / Acceptance / History。历史 Runtime 证据继续有效，但 acceptance 源库、Pilot Topic、`all-to-zero`、`kafka_offset` Sequence 与旧 Checkpoint 不进入正式 V2。
 
-Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 与 Metrics Contract。正式 CDC 在 Source Gate 后启动，覆盖 21 表；Topic Namespace、Partition 数、Key 和 `event_version` 必须先冻结。Flink 工程按业务域组织 Domain Applications，运行框架通用化、业务转换分业务维护。当前这些内容均为已确认设计，不是实现或 Runtime 证明。
+Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 与 Metrics Contract。Shared Source Gate 已通过；正式 CDC 尚未启动，必须先完成 60/30 输入 Contract、Topic / Checkpoint Inventory，并冻结 Topic Namespace、Partition 数、Key 和 `event_version`。Flink 工程按业务域组织 Domain Applications，运行框架通用化、业务转换分业务维护。当前这些正式实时内容均为已确认设计，不是实现或 Runtime 证明。
 
 正式业务作业部署方式已选为 Java DataStream Jar + YARN Application Mode；正式 Topic、Schema、窗口、状态、Doris 表模型及端到端一致性仍由 Milestone 8 评审。SQL Client + YARN Session 的 M1 验证不作为正式业务作业验收。
 
@@ -387,7 +391,7 @@ YARN ResourceManager Scheduler 已确认使用 `8030`。Doris FE HTTP 已决定�
 
 实时组件可以完成安装兼容性验证，但在实时规格确认前不得进入正式业务开发。
 
-Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architecture-v1.0.md` 中的 Step 11 已按此事实修正。Hive 3.1.3 当前在 Java 17 环境通过验收；不能把 Java 11 的设计偏好记成 Hive 已切换的事实。
+Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architecture.md` 中的 Step 11 已按此事实修正。Hive 3.1.3 当前在 Java 17 环境通过验收；不能把 Java 11 的设计偏好记成 Hive 已切换的事实。
 
 ## 9. 数据生成、任务参数与幂等
 
@@ -410,7 +414,13 @@ Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architectu
 
 所有批任务必须显式接收业务日期或起止时间，不得依赖执行机器当前日期推断数据范围。装载和转换应支持首次运行、同日重跑、连续回补和失败退出。
 
-现有 `archive/pilot-v1/ecommerce_generator_v1/` 已转为 Pilot History，不再作为 V2 正式入口。新的 V2 Business / Behavior Generator 已完成本地正式规模生成与 Entity Manifest 绑定；下一步通过数据库 Source Gate 确认状态分布、跨表比例、CSV 依赖和装载顺序。Business Generator 不包含逐条 INSERT 职责，MySQL 装载仍须由版本化、可失败退出的 `LOAD DATA` 入口承担。
+现有 `archive/pilot-v1/ecommerce_generator_v1/` 已转为 Pilot History，不再作为正式入口。当前 Business / Behavior Generator 已完成正式规模生成与 Entity Manifest 绑定；Business 数据已由可失败退出的 `LOAD DATA` 入口装载，并通过状态分布、跨表关系、CSV 依赖和装载顺序的 Shared Source Gate。Business Generator 不包含逐条 INSERT 职责。
+
+根据 `DR-037`，正式 90 天数据的链路验收采用统一切换点：前 60 天建立历史初始化基线，后 30 天逐日驱动离线 DataX 与实时 CDC/Flink。切换点为第 61 个业务日零点；初始化数据必须是该时点的正确状态，不得包含后 30 天才发生的最终变化。现有一次性 90 天最终 bundle、正式 MySQL 装载和 Shared Source Gate 继续作为规模与业务 Contract 证据，不自动证明时间推进式回放已经实现。
+
+后续 Generator Contract 必须提供 bootstrap 与 30 个 daily 操作包。事实和事件按照业务发生时间归属 `dt`，维度快照按照快照日期归属；`source_updated_at` 或事件记录水位只决定增量抽取范围，`extract_time`/`load_time` 只用于审计。历史记录在后续日发生变化时，离线任务必须重建受影响的原业务日期分区。
+
+需要历史属性的维度使用 SCD2：前 60 天由变更事件、可靠增量历史或每日快照差异构建版本，后 30 天按业务生效时间关闭旧版本和插入新版本；迟到变化重建受影响业务键的完整时间线。没有切换点前历史输入时，不得虚构旧版本。稳定且只关心当前值的维度使用 Type 1。完整设计见[历史初始化与双链路回放设计](design/historical-incremental-replay-design.md)。
 
 ## 10. 指标范围与编号
 
@@ -489,7 +499,7 @@ Milestone 0～10 仍用于跟踪模块责任和完整验收。交付 V1 采用�
 
 1. **规格、环境和兼容性基线**：规格通过评审；阻断决策有记录；核心组件具备最小验证方案。
 2. **OLTP 模型与数据生成器**：按当前 V2 基线确认业务过程、21 表字段、状态机、事实粒度和固定验收数据，并完成 DDL、Seed、Generator 与运行验收。
-3. **离线抽取与 ODS**：DataX 将固定数据真实写入 Hive ODS 对应的 HDFS ORC 分区，Hive 分区可见且失败返回非零状态。
+3. **离线抽取与 ODS**：DataX 将固定数据真实写入 HDFS batch staging，经 Validation / Publish 发布 Hive ODS ORC 分区，Hive 分区可见且失败返回非零状态。
 4. **离线数仓 MVP**：Hive ODS 与 Spark DIM/DWD、DWS、ADS 在真实引擎执行并完成逐层对账。
 5. **正式指标与质量**：V2 采用的指标具有稳定发布 ID、口径、血缘、固定样例和质量规则。
 6. **服务与调度**：Doris 离线服务表和 DolphinScheduler T+1 DAG 通过重跑、补数和失败测试。
@@ -501,7 +511,7 @@ Milestone 0～10 仍用于跟踪模块责任和完整验收。交付 V1 采用�
 
 BI/Dashboard/Agent 仅为 M0～M10 之后的数据应用规划，不在本阶段顺序中插入新的实施门禁；其归属、安全、接口和验收需另行评审。Project 2 当前的只读边界不变。
 
-2026-09-27 用户确认离线 100 单 Pilot 已完成使命并转为 History，离线开发入口切换到 V2 Source Data Build。2026-10-11 用户进一步确认正式数据规模和性能实验规模，并明确跳过新 Generator 的独立 Smoke 档位；同日已完成目标 MySQL 只读结构核对、候选 21 表 DDL 生成和 CSV 字段同步。2026-10-12 已完成关系/时间修复、Targeted Test、本地正式规模生成与 Entity Manifest 绑定。下一步是 `LOAD DATA` 和 Source Gate。批量 ODS 和后续模型均尚未实现。M3 继续保留 Pilot 的限定 Runtime 证据，但 V2 ODS Gate 尚未开始；M4～M6 不因本地 Generator 通过而提升。实时 M8/M9 的独立状态与证据边界保持不变。
+2026-09-27 用户确认离线 100 单 Pilot 已完成使命并转为 History，离线开发入口切换到 Shared Source Data Build。2026-10-11 用户进一步确认正式数据规模和性能实验规模，并明确跳过独立 Smoke 数据档位；同日完成目标 MySQL 只读结构核对、21 表 DDL 和 CSV 字段同步。2026-10-12 已完成关系/时间及数量契约修复、Targeted Test、正式规模生成、目标 MySQL 21 表部署、1,328,502 行装载与 45-rule Source Gate。下一步是批量 ODS 与 Formal CDC Contract/初始化；M3、M8、M9 的完整状态不因 Source Gate 通过而自动提升。
 
 ## 14. 验收标准
 
@@ -510,7 +520,7 @@ BI/Dashboard/Agent 仅为 M0～M10 之后的数据应用规划，不在本阶段
 只有同时满足以下条件，离线闭环才能标记为 `verified`：
 
 1. 固定 seed 数据能够重复生成相同业务输入。
-2. DataX 将 MySQL 数据真实写入 Hive ODS 对应的 HDFS ORC + Snappy 业务日期分区。
+2. DataX 将 MySQL 数据真实写入 HDFS ORC + Snappy batch staging，并由 Publish 按每行 `business_date` 发布 Hive ODS 业务日期分区。
 3. Hive 能够注册并读取 ODS 分区，审计字段、源字段语义和批次发布结果符合已确认设计。
 4. Spark on YARN 能够读取 Hive、完成 DIM/DWD、DWS 和 ADS 加工并写回 Hive。
 5. 首次运行、同日重跑和连续业务日期回补没有不可解释的重复。
@@ -564,19 +574,19 @@ V1 可以在完整 V2 扩展前形成可展示版本，但必须同时满足：
 
 历史 M2 决策与实现已经整体归档，不自动决定当前 V2 的 21 表实现。当前仍需确认：
 - 当前实时链路已确认实际开发 Topic、订单 DWD 代码/构建/提交、Doris 表模型、两作业 Checkpoint 恢复与正常顺序订单 Upsert；仍须确认当前 YARN/Flink/BE 状态、21 表全字段、乱序/物理 DELETE、R2 更新恢复、完整对账及正式 Topic/Schema。完成这些验收和 M8 评审前不得将 M9 提升为完整 `verified` 或扩展到其他实时表和指标。
-- 候选 21 表 DDL 的隔离执行结果及其与正式库部署后的逐项差异；当前仓库候选入口尚未通过 Runtime 验收。
-- V2 21 表的状态分布、跨表比例、依赖和生成顺序；21 张 CSV 字段已与候选 DDL 对齐，数据量与 90 天时间范围已于 2026-10-11 确认。
-- 新 Python CSV Generator 的确定性 seed、显式时间范围、重跑语义、精确依赖版本、输出 Contract 和失败行为。
-- `LOAD DATA` 的文件格式、装载顺序、事务/失败边界、重跑与 Source Gate 入口。
+- 21 表 DDL、正式装载与 Source Gate 已通过 Runtime 验收；后续结构变更仍需逐项记录与重新验收。
+- 21 表的状态分布、跨表关系、依赖和生成顺序已由 45-rule Source Gate 验证；更大性能实验规模仍为 `DESIGNED / not_run`。
+- 现有正式 Business / Behavior Generator 的确定性 Seed、显式时间范围、输出 Contract 与失败行为已完成对应证据范围验收；bootstrap 与 30 个 daily package 的重跑语义、依赖锁定和预期结果仍待实现。
+- `LOAD DATA` 的文件格式、装载顺序、事务/失败边界与 Source Gate 入口已实现并验收；非空目标的重跑按设计 fail-fast，任何重置方案仍须单独批准。
 - `ecommerce_ods`、`ecommerce_dwd` 中 Pilot 数据的精确隔离/重置对象、备份、验证和回滚方式；未经单独授权不得执行清理。
 - `BI / Agent` 是否进入当前 V2 正式交付，还是继续遵循 `DR-029` 作为 M0～M10 之后规划。
-- 候选 DDL 在正式库的隔离部署、回滚与 Source Gate 方法，以及历史验收结果如何映射到正式源库门禁。
+- 正式源库的回滚/重置方法及其备份边界仍需在发生重跑需求时单独设计和批准。
 - SKU 最小库存属性及第一期是否执行简单扣减。
-- 订单匿名/注册身份互斥规则、guest checkout 边界和精确 CHECK。
-- 支付/退款回调去重保留范围、状态 JSON 演进契约；订单/优惠券已采用单向 FK，仍须确认 Source Gate 的反向引用校验规则。
-- 21 表完整状态枚举、NOT NULL/default、外键策略、生成列、锁顺序与零元订单处理。
+- 订单匿名/注册身份互斥 CHECK 已部署并验收；完整 guest checkout 产品边界仍待确认。
+- 支付/退款回调去重保留范围、状态 JSON 演进契约；订单/优惠券单向 FK 与 Source Gate 反向引用校验已验收，后续契约变化必须重新验证。
+- 当前 21 表状态枚举、NOT NULL/default、外键策略与生成列已部署并通过 Source Gate；业务服务并发锁顺序、扩展状态和零元订单处理仍待确认。
 - V2 指标检索编号是否直接作为稳定发布 ID，以及复购率、部分退款比例、券核销率、细分漏斗和 30 日退款率的待细化口径。
-- 拉链维度及实时维度历史策略。
+- SCD2 的 60 天初始化、30 天增量维护及迟到修正原则已由 `DR-037` 确认；精确 `dim_*` 表、跟踪属性和实时维度物理实现仍须在 Milestone 4/8 实施前冻结。
 - 性能实验的并发模型、实时事件速率、资源上限和具体执行参数；性能实验规模本身已于 2026-10-11 确认。
 - HDFS/Hive、Kafka 和 Doris 的保留周期。
 - Topic 划分、Partition、Schema 和重放策略。

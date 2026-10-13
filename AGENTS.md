@@ -20,7 +20,7 @@ Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审
 - Milestone 1 的变更只创建其确实需要维护的环境、基础设施、兼容性、安装排障和验证内容，不夹带 M2 实现。
 - 禁止格式化已存在的 NameNode；验证脚本只能删除自己创建且经过前缀和运行编号约束的临时对象。
 
-`DR-008` 允许 Milestone 1 与 Milestone 2 分轨推进。当前 M2 以 `docs/business/business-baseline-v2.md`、`docs/business/metrics.md`、`docs/source/logical-model-v2.md` 和 `docs/source/physical-model-v1.md` 为设计输入。21 表候选 DDL 的 `M2-03` 静态快照属于部署前事实；`docs/acceptance/r1_snapshot_acceptance_frozen.md` 只证明指定隔离库到开发 Topic 的 21 表初始快照 1,178 / 1,178 及 100 单订单主键/最终状态对账，不证明当前在线状态、增量 CDC 或正式库结构。新 Generator 文件已入库，但固定 Seed、显式日期/重跑契约、精确依赖版本、90 天数据和离线接续未完成；M2 仍为 `in progress`。M3 只允许在输入、表范围、抽取契约、预期结果和回滚边界均明确的 V1 小数据切片内实施；不得据此宣称 M3 完成或扩大到全表范围。`docs/acceptance/env-05-cdc-acceptance.md` 只证明单个隔离测试表和指定故障场景，不得单独外推到正式 21 表。
+`DR-008` 允许 Milestone 1 与 Milestone 2 分轨推进。当前 M2 以 `docs/business/business-baseline.md`、`docs/business/metrics.md`、`docs/source/logical-model.md` 和 `docs/source/physical-model.md` 为设计输入。21 表候选 DDL 的 `M2-03` 静态快照属于部署前事实；`docs/acceptance/r1_snapshot_acceptance_frozen.md` 只证明指定隔离库到开发 Topic 的 21 表初始快照 1,178 / 1,178 及 100 单订单主键/最终状态对账，不证明当前在线状态或正式增量 CDC。2026-10-12，正式 `ecommerce_oltp` 已部署 21 表，装载固定输入生成的 1,328,502 行并通过事务内及提交后独立 45-rule Shared Source Gate；该事实见 `docs/acceptance/source-load-gate-acceptance.md`，不证明 DataX/Hive ODS 或正式 CDC 已完成。M2 仍为 `in progress`。M3 扩大到正式批量 ODS 前必须明确表范围、抽取契约、预期结果、重跑和回滚边界。`docs/acceptance/env-05-cdc-acceptance.md` 只证明单个隔离测试表和指定故障场景，不得单独外推到正式 21 表。
 
 旧 19 表代码保留在 `archive/legacy-m2-19-table/`，对应旧设计归档保留在 `docs/archive/milestone-2-business-design.md`；二者均不作为当前 V2 实现依据。M1 与 M2 的并行不解除直接运行依赖；M2 剩余门禁仍阻止 M3 全范围完成，但不阻止已冻结边界的 V1 小数据切片。
 
@@ -64,9 +64,9 @@ MySQL ecommerce_oltp
   → Doris 离线服务表
 ```
 
-DataX 使用 HDFS Writer 直接写入 Hive ODS 对应的 HDFS 业务日期分区，输出格式为 ORC + Snappy；不建设独立持久化的中间数据层。Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储，ODS 装载负责分区注册、审计字段、幂等发布和失败隔离。DataX 不负责决定正式金额精度、状态枚举和最终字段类型。ODS 保留源语义，DWD 保存原子事实，DIM 保存一致维度，DWS 保存可复用度量以及比率的分子和分母，ADS 负责最终指标表达。DolphinScheduler 只能在任务独立运行通过后接入，负责参数、依赖、重试、回补、质量阻断、装载和对账，不承载业务计算逻辑。
+DataX 使用 HDFS Writer 将 ORC + Snappy 写入 Hive ODS 发布范围内的批次隔离 staging；Spark Validation / Publish 根据每行 `business_date` 或显式快照日原子发布并注册最终 Hive `dt` 分区，不建设独立持久化的中间数据层。DataX 多表配置的字段顺序统一引用 Business Generator 的 `TABLE_COLUMNS`，字段类型以正式 MySQL DDL 为准，不重复维护第二套逐表 columns 清单。ODS 装载负责分区注册、审计字段、幂等发布和失败隔离；DataX 不负责决定正式金额精度、状态枚举和最终字段类型。ODS 保留源语义，DWD 保存原子事实，DIM 保存一致维度，DWS 保存可复用度量以及比率的分子和分母，ADS 负责最终指标表达。DolphinScheduler 只能在任务独立运行通过后接入，负责参数、依赖、重试、回补、质量阻断、装载和对账，不承载业务计算逻辑。
 
-仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。旧 19 表的 Seed、Generator、脚本和测试位于 `archive/legacy-m2-19-table/`；旧 21 表 Pilot Generator 位于 `archive/pilot-v1/ecommerce_generator_v1/`，均不得作为当前 V2 正式入口。`mock/generator/business_generator/` 与 `mock/generator/behavior_generator/` 为 `candidate / implemented / not_run`，文件存在和本地测试不替代正式 Contract、Source Gate 或 Runtime 验收。`hive/dim/`、`kafka/` 和部分 Flink/DataX/Spark/Doris 子目录已按用户批准建立为 `placeholder`，但可执行内容仍须满足 `README.md` 与 `docs/plan.md` 的对应 Milestone 门禁；`reconciliation/` 仍在结果结构稳定后创建，`tests/` 仅按已进入阶段的验证范围扩展。
+仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。旧 19 表的 Seed、Generator、脚本和测试位于 `archive/legacy-m2-19-table/`；旧 21 表 Pilot Generator 位于 `archive/pilot-v1/ecommerce_generator_v1/`，均不得作为当前正式入口。`mock/generator/business_generator/` 已完成正式规模生成、目标 MySQL 装载与 Source Gate；`mock/generator/behavior_generator/` 已完成本地正式规模与 Entity Manifest 绑定。两者的证据边界不得外推为正式 ODS、Kafka 或 CDC 已完成。`hive/dim/`、`kafka/` 和部分 Flink/DataX/Spark/Doris 子目录已按用户批准建立为 `placeholder`，但可执行内容仍须满足 `README.md` 与 `docs/plan.md` 的对应 Milestone 门禁；`reconciliation/` 仍在结果结构稳定后创建，`tests/` 仅按已进入阶段的验证范围扩展。
 
 ## 业务语义与待决策项
 
