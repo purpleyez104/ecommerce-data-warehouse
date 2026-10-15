@@ -31,6 +31,7 @@ class EntityManifest:
     visitor_first_seen_at: dict[int, datetime]
     mappings: dict[int, IdentityMapping]
     sku_ids: list[int]
+    sku_available_from: dict[int, datetime]
 
 
 def _datetime(value: object, field: str) -> datetime:
@@ -98,10 +99,12 @@ def load_entity_manifest(path: Path, config: DatasetConfig) -> EntityManifest:
     for visitor_id, first_seen_at in visitor_first_seen_at.items():
         if not config.start <= first_seen_at <= config.end:
             raise ValueError(f"entity manifest visitor is outside history range: visitor_id={visitor_id}")
+    sku_available_from = {}
     for sku_id, row in skus.items():
         available_from = _datetime(row.get("available_from"), f"skus[{sku_id}].available_from")
         if not config.start <= available_from <= config.end:
             raise ValueError(f"entity manifest sku is outside history range: sku_id={sku_id}")
+        sku_available_from[sku_id] = available_from
     parsed_mappings = {}
     for visitor_id, row in mappings.items():
         user_id = row.get("user_id")
@@ -127,4 +130,5 @@ def load_entity_manifest(path: Path, config: DatasetConfig) -> EntityManifest:
         visitor_first_seen_at=visitor_first_seen_at,
         mappings=parsed_mappings,
         sku_ids=sorted(skus),
+        sku_available_from=sku_available_from,
     )

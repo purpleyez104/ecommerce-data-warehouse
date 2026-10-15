@@ -172,12 +172,14 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
 
         # Current carts and idempotent merge history.
         user_cart_count = min(counts["biz_cart"], counts["biz_user"])
+        cart_created_at = {}
         for cart_id in range(1, counts["biz_cart"] + 1):
             is_user = cart_id <= user_cart_count
             visitor_id = "" if is_user else ((cart_id - user_cart_count - 1) % counts["biz_visitor"]) + 1
             owner_start = user_registered_at[cart_id] if is_user else visitor_first_seen_at[visitor_id]
             created = weighted_time(rng, owner_start, config.end, promotions)
             updated = min(config.end, created + timedelta(minutes=rng.randrange(1440)))
+            cart_created_at[cart_id] = created
             bundle.write("biz_cart", {"cart_id": cart_id, "user_id": cart_id if is_user else "", "visitor_id": visitor_id, "created_at": dt(created), "updated_at": dt(updated)})
         per_cart = [counts["biz_cart_item"] // counts["biz_cart"]] * counts["biz_cart"]
         for index in range(counts["biz_cart_item"] % counts["biz_cart"]):
@@ -186,12 +188,16 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
         for cart_id, item_total in enumerate(per_cart, start=1):
             for offset in range(item_total):
                 cart_item_id += 1
-                created = weighted_time(rng, config.start, config.end, promotions)
+                # 保留固定 Seed 的随机调用序列，再把子记录夹到父 Cart 就绪时间。
+                sampled = weighted_time(rng, config.start, config.end, promotions)
+                created = max(sampled, cart_created_at[cart_id])
                 bundle.write("biz_cart_item", {"cart_item_id": cart_item_id, "cart_id": cart_id, "sku_id": ((cart_id * 17 + offset) % counts["biz_sku"]) + 1, "quantity": 99 if cart_item_id % 5000 == 0 else rng.randint(1, 5), "created_at": dt(created), "updated_at": dt(created)})
         for merge_id in range(1, counts["biz_cart_merge_record"] + 1):
             user_id = ((merge_id - 1) % user_cart_count) + 1
             visitor_cart_id = user_cart_count + ((merge_id - 1) % max(1, counts["biz_cart"] - user_cart_count)) + 1
-            merged = weighted_time(rng, config.start, config.end, promotions)
+            parents_ready = max(cart_created_at[user_id], cart_created_at[visitor_cart_id])
+            sampled = weighted_time(rng, config.start, config.end, promotions)
+            merged = max(sampled, parents_ready)
             truncated = 4 if merge_id % 100 == 0 else 0
             bundle.write("biz_cart_merge_record", {"merge_id": merge_id, "operation_id": f"MERGE-{merge_id:010d}", "visitor_cart_id": visitor_cart_id, "user_cart_id": user_id, "user_id": user_id, "merge_detail": canonical_json({"sku_id": (merge_id % counts["biz_sku"]) + 1, "truncated": truncated > 0}), "truncated_quantity": truncated, "merged_at": dt(merged)})
 
@@ -359,6 +365,8 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 issued = weighted_time(rng, config.start, recorded_time_ceiling, promotions)
                 user_id = ((coupon_id - 1) % counts["biz_user"]) + 1
                 status, order_id, locked_at, used_at, locked_order_id, used_order_id = "UNUSED", "", None, None, "", ""
+            # Coupon 归属用户必须已经注册；只夹紧时间，不改变固定 Seed 的随机调用序列。
+            issued = max(issued, user_registered_at[user_id])
             expires = min(config.end if status == "EXPIRED" else config.end + timedelta(days=30), issued + timedelta(days=30))
             updated = final_at if state and final_at else (locked_at if state else (expires if status == "EXPIRED" else issued))
             bundle.write("biz_coupon", {"coupon_id": coupon_id, "coupon_code": f"CPN-{coupon_id:012d}", "template_id": ((coupon_id - 1) % counts["biz_coupon_template"]) + 1, "user_id": user_id, "coupon_status": status, "locked_order_id": locked_order_id, "used_order_id": used_order_id, "issued_at": dt(issued), "expires_at": dt(expires), "locked_at": dt(locked_at) if status == "LOCKED" else "", "used_at": dt(used_at), "updated_at": dt(updated)})

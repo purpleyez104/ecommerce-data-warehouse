@@ -16,6 +16,35 @@ bash mysql/scripts/load_csv_bundle.sh --dry-run --bundle /absolute/path/to/gener
 
 预期输出为 `status: valid` 的 JSON 装载计划、21 表 FK-safe 顺序和逐表 Manifest 信息；预期退出状态为 `0`。缺失或多余 CSV、表头、行数、大小、SHA-256、Manifest identity、Entity binding、主键或引用不一致时返回非零，并指出对象和原因。输出目录和 Generator 原始 bundle 不会被修改。
 
+## Daily Package Replay dry-run
+
+MySQL Replay Planner 只处理当前 Replay Contract 中包含 `operation_time` 的 Daily Package。它校验 Replay Manifest、Business Hash、Package Manifest、ODS Batch Contract、文件 SHA-256、时间窗口、表名、字段、主键和 `operation_time + LOAD_TABLE_ORDER` 顺序，然后生成不含 Secret 的本地执行计划和事务 SQL：
+
+```bash
+python mysql/scripts/replay_daily_package.py \
+  --replay-bundle /absolute/path/to/replay-bundle \
+  --day 61 \
+  --output runtime/mysql-replay-day-61 \
+  --dry-run
+```
+
+预期成功退出状态为 `0`，结果位于指定输出目录的 `plan.json` 和 `replay.sql`。计划固定记录 `dry_run=true`、`execution_authorized=false`、`database_contacted=false`；SQL 只作为后续单独授权前的审计产物，不能据此声称 MySQL 回放已经执行。缺少 `--dry-run`、输出目录已存在，或 Manifest、Hash、字段、主键、时间窗口、操作顺序不一致时返回 `2`，且不创建完成态输出。旧 Bundle 若缺少当前 Contract 要求的 `operation_time` 会被拒绝，不提供隐式兼容。
+
+该入口不读取数据库环境变量，不调用 MySQL Client，也不允许直接对第 90 日终态正式库回放。未来 Runtime 必须使用另行授权的隔离 Source、第 61 日切换点状态并按 Day 61～90 顺序执行。当前本地回滚只需移除本次输出目录；不会修改 Replay Bundle 或数据库。
+
+## Replay Bootstrap Source Load dry-run
+
+Bootstrap Planner 校验 Replay/Source/ODS Manifest Hash、21 张 CSV、字段、主键、FK、`LOAD_TABLE_ORDER`、Expected Result 和 Day 60 Cutover 未来状态边界，并生成不含凭据的单 Session 事务计划：
+
+```bash
+python mysql/scripts/plan_replay_bootstrap.py \
+  --replay-bundle /absolute/path/to/replay-bundle \
+  --output runtime/mysql-replay-bootstrap \
+  --dry-run
+```
+
+成功时输出 `plan.json` 与 `load.sql`，计划固定记录 `execution_authorized=false`、`database_contacted=false`、目标必须为空、获取 advisory lock 且提交前执行 Source Gate。该入口不会调用 MySQL Client；缺少 `--dry-run`、Manifest/Hash 不一致、PK/FK 孤儿或已发生状态时间不早于 Cutover 时返回非零。
+
 ## 真实装载（重跑仍需单独授权）
 
 真实模式从环境变量读取 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE`、`MYSQL_USER`、`MYSQL_PASSWORD`。`MYSQL_DATABASE` 只接受安全标识符；密码只写入 mode `0600` 的临时 `defaults-extra-file`，不进入 argv、SQL 或日志。示例变量名见 `env/.env.example`。
@@ -40,4 +69,4 @@ Gate 固定输出 `rule_id<TAB>violation_count`。Runner 对规则全集执行�
 E:/Software/Git/bin/bash.exe -c 'export PATH=/usr/bin:/mingw64/bin:$PATH; bash tests/run_unit.sh'
 ```
 
-该命令覆盖 Generator 回归、bundle 篡改、dry-run 零 MySQL 调用、Schema/非空保护、单 session SQL 顺序、MySQL/Gate 失败、严格 TSV 协议及密码不进入 argv。本地测试本身不证明 Runtime；本次目标 MySQL 的真实装载与 Gate 结论单独记录在 acceptance 文档中。目标 21 表现已非空，直接重跑会按设计 fail-fast，任何重置或重新装载都需要新的 Database Operation 授权。
+该命令覆盖 Generator 回归、Replay Bootstrap/Daily Package dry-run、bundle 篡改、Cutover 未来状态、PK/FK 孤儿、dry-run 零 MySQL 调用、Schema/非空保护、单 session SQL 顺序、MySQL/Gate 失败、严格 TSV 协议及密码不进入 argv。本地测试本身不证明 Runtime；本次目标 MySQL 的真实装载与 Gate 结论单独记录在 acceptance 文档中。目标 21 表现已非空，直接重跑会按设计 fail-fast，任何回放、重置或重新装载都需要新的 Database Operation 授权。

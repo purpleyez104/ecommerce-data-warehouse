@@ -278,8 +278,8 @@ def _json_string(value):
 
 
 def _validate_hdfs_root(value):
-    if not isinstance(value, str) or "\n" in value or "\r" in value or not value.startswith("/"):
-        raise ValueError("ODS_STAGE_ROOT must be an absolute HDFS path without newlines")
+    if not isinstance(value, str) or not re.fullmatch(r"/[A-Za-z0-9._/-]+", value):
+        raise ValueError("ODS_STAGE_ROOT must be a scoped absolute HDFS path using safe path characters")
     path = PurePosixPath(value)
     if ".." in path.parts or path == PurePosixPath("/"):
         raise ValueError("ODS_STAGE_ROOT must be a scoped absolute HDFS path without '..'")

@@ -14,6 +14,24 @@ Continuous 示例：
 ecommerce-behavior-generator continuous --config config\formal.json --entity-manifest ..\business_generator\output\formal\entity_manifest.json --seed 20260929 --generated-at 2026-09-29T10:00:00+08:00 --start 2026-03-01T00:00:00 --end 2026-03-01T00:59:59.999 --events 10000 --output output\behavior-20260301-00.jsonl
 ```
 
+60/30 Replay 使用一次 90 天生成结果保留跨日 Session，再切分为前 60 天 Bootstrap 和按 `event_time + event_id` 排序的 `day_61`～`day_90`。该入口只生成和审计本地文件，不连接 Kafka：
+
+```powershell
+$env:PYTHONPATH = 'src'
+python -m behavior_generator.replay build `
+  --config config\replay_formal_20260105.json `
+  --entity-manifest ..\..\..\runtime\formal-replay-seed-20260105-r2\source_contract\entity_manifest.json `
+  --seed 20260105 `
+  --generated-at 2026-10-15T10:00:00+08:00 `
+  --cutover-date 2026-01-30 `
+  --output ..\..\..\runtime\formal-behavior-replay-seed-20260105-r1
+
+python -m behavior_generator.replay validate `
+  --config config\replay_formal_20260105.json `
+  --entity-manifest ..\..\..\runtime\formal-replay-seed-20260105-r2\source_contract\entity_manifest.json `
+  --bundle ..\..\..\runtime\formal-behavior-replay-seed-20260105-r1
+```
+
 正式设计规模使用 `formal.json`。`smoke.json` 只作为快速单元测试 Fixture，不是独立数据规模档位。
 
 验证：
@@ -25,4 +43,6 @@ python -m unittest discover -s tests -v
 
 2026-10-12 使用同轮 Business Entity Manifest 完成本地正式下限验证：生成 3,000,000 条事件、938,435,690 bytes、256,992 条映射事件和 2,785,149 个 Session；全量检查实体引用、30 分钟 Session 边界和 `event_id` 唯一性均为 0 违规，Manifest SHA-256 绑定通过。
 
-边界：Entity Manifest 版本、时间范围、时区、实体数量、唯一性和身份映射时序不兼容时会 fail-fast。配置中的实体数量只用于核对，不再用于构造 ID。正式 Kafka Topic、Partition、Key、Schema 尚受 Milestone 8 门禁约束，因此当前只生成可检查和回放的 JSONL，不内置 Kafka Producer，也不伪装 MySQL CDC。
+2026-10-15 使用 Seed `20260105`、Dataset `v2.3-behavior-replay-formal-20260105-r1` 和 Business r2 Entity Manifest 生成正式 60/30 Bundle：总计 3,000,000 条事件，其中 Bootstrap 895,324 条、30 个 Daily Package 2,104,676 条，Bundle 938,470,211 bytes，Content SHA-256 为 `a074cab5cc0b7bf82582242b097cc24534a8f2917485c493743574d98f8baf5e`。独立 `validate` 通过并记录 `external_system_contacted=false`。
+
+边界：Entity Manifest 版本、时间范围、时区、实体数量、唯一性、身份映射时序和 SKU 生效时间不兼容时会 fail-fast。配置中的实体数量只用于核对，不再用于构造 ID。正式 Kafka Topic、Partition、Key、Schema 尚受 Milestone 8 门禁约束，因此当前只生成可检查和回放的 JSONL，不内置 Kafka Producer、通用倍速平台或 Flink 历史状态初始化，也不伪装 MySQL CDC。

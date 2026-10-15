@@ -102,6 +102,26 @@ class BehaviorGeneratorTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unsupported entity manifest version"):
                 load_entity_manifest(entity_path, cfg)
 
+    def test_events_do_not_reference_sku_before_available_time(self):
+        cfg = load_config(CONFIG)
+        with tempfile.TemporaryDirectory() as directory:
+            entity_path = Path(directory) / "entity_manifest.json"
+            write_entity_manifest(entity_path, cfg)
+            payload = json.loads(entity_path.read_text(encoding="utf-8"))
+            available_from = (cfg.start + timedelta(days=4)).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            for sku in payload["entities"]["skus"]:
+                sku["available_from"] = available_from
+            entity_path.write_text(json.dumps(payload, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+            entity_manifest = load_entity_manifest(entity_path, cfg)
+            output = Path(directory) / "events.jsonl"
+
+            generate(cfg, 7, "2026-09-28T10:00:00+08:00", output, entity_manifest)
+
+            for line in output.read_text(encoding="utf-8").splitlines():
+                event = json.loads(line)
+                if event["sku_id"] is not None:
+                    self.assertGreaterEqual(datetime.fromisoformat(event["event_time"]).replace(tzinfo=None), cfg.start + timedelta(days=4))
+
 
 if __name__ == "__main__":
     unittest.main()

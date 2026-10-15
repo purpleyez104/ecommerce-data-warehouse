@@ -62,6 +62,20 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path, 
                 event_time = weighted_time(rng, event_start, range_end, set(config.raw["promotion_dates"]))
                 mapped = mapping is not None and event_time >= mapping.effective_from and (mapping.effective_to is None or event_time <= mapping.effective_to) and rng.random() < 0.75
                 sku_id = None if event_type == "PAGE_VIEW" and rng.random() < 0.70 else rng.choices(sku_ids, weights=sku_weights, k=1)[0]
+                if sku_id is not None and entity_manifest.sku_available_from[sku_id] > event_time:
+                    # Manifest 允许 SKU 在历史窗口中途生效；行为事件不能提前引用未来实体。
+                    eligible_indexes = [
+                        index for index, candidate in enumerate(sku_ids)
+                        if entity_manifest.sku_available_from[candidate] <= event_time
+                    ]
+                    if not eligible_indexes:
+                        sku_id = None
+                    else:
+                        sku_id = rng.choices(
+                            [sku_ids[index] for index in eligible_indexes],
+                            weights=[sku_weights[index] for index in eligible_indexes],
+                            k=1,
+                        )[0]
                 visitor_events.append({
                     "event_type": event_type,
                     "event_time_value": event_time,

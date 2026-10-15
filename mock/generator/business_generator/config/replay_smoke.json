@@ -1,0 +1,30 @@
+{
+  "dataset_version": "v2.3-replay-smoke",
+  "history_start": "2025-09-01T00:00:00",
+  "history_end": "2025-11-29T23:59:59.999",
+  "timezone": "Asia/Shanghai",
+  "promotion_dates": ["2025-10-01", "2025-11-11"],
+  "counts": {
+    "biz_user": 40,
+    "biz_visitor": 80,
+    "biz_identity_mapping": 24,
+    "biz_category": 6,
+    "biz_spu": 12,
+    "biz_sku": 40,
+    "biz_product_change_event": 12,
+    "biz_cart": 50,
+    "biz_cart_item": 110,
+    "biz_cart_merge_record": 8,
+    "biz_order": 100,
+    "biz_order_item": 285,
+    "biz_order_status_event": 199,
+    "biz_payment_attempt": 96,
+    "biz_payment_event": 96,
+    "biz_refund_request": 9,
+    "biz_refund_transaction": 10,
+    "biz_refund_event": 27,
+    "biz_coupon_template": 3,
+    "biz_coupon": 60,
+    "biz_coupon_event": 150
+  }
+}
