@@ -2,13 +2,13 @@
 
 ## 开工顺序与事实来源
 
-每次修改仓库前，必须依次完整阅读 `README.md`、`docs/spec.md` 和 `docs/plan.md`，确认当前 Milestone、进入条件、交付物、验收标准和阻断项。三份文档的职责如下：
+首次接入、跨 Milestone、公共 Contract 变化或状态混乱时，完整核对 `README.md`、`docs/spec.md` 和 `docs/plan.md`。同一目标的连续开发只读取相关章节、代码、配置、测试与当前 Diff。三份文档的职责如下：
 
 - `README.md`：项目总览、当前状态和文档入口。
 - `docs/spec.md`：项目范围、业务与技术约束、指标、状态定义和验收标准。
 - `docs/plan.md`：Milestone 强制顺序、各阶段进入条件、交付物和阻断规则。
 
-发生冲突时不得自行选择或静默修正。应指出冲突位置及影响，将需要用户确认的内容记录为 `DECISION_REQUIRED`，并停留在当前阶段。旧仓库、参考规格、学习笔记和候选实现都不是本仓库的运行事实来源。
+Spec 管 Scope、Contract 与 Acceptance；Plan 管 Stage 路线；Status/Handoff 管进度摘要；当前代码、配置和实际测试管实现与运行事实。进度描述滞后时应提出同步文档，不得为适配旧计划倒推代码。只有影响整体方向或造成高返工成本的冲突才标记 `DECISION_REQUIRED` 并暂停；旧仓库、参考规格、学习笔记和候选实现都不是运行事实来源。
 
 ## 当前阶段门禁
 
@@ -32,11 +32,11 @@ Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审
 
 这是从零搭建的 Project 1 最终仓库，目标是形成真实运行、可验证、可复现、可解释的电商离实时一体化数据仓库。Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。
 
-完整 Milestone 的依赖顺序保持为：文档基线 → 基础设施与兼容性 → OLTP 模型与固定数据 → DataX 直写 Hive ODS → 离线数仓 MVP → V2 正式指标与质量 → Doris 离线服务与 DolphinScheduler → Spark 性能实验 → 实时设计评审 → 实时链路 → Project 1 发布。交付 V1 可在明确边界内同时推进一条离线最小纵向链路和一条实时最小纵向链路；这不改变各 Milestone 的完整验收条件。
+完整 Milestone 的依赖顺序保持为：文档基线 → 基础设施与兼容性 → OLTP 模型与固定数据 → DataX 直写 Hive ODS → 离线数仓 MVP → V2 正式指标与质量 → Doris 离线服务与 DolphinScheduler → Spark 性能实验 → 实时设计评审 → 实时链路 → Project 1 发布。Stage/Step 只用于控制依赖、风险和返工，不代表缩减最终交付范围；交易域可以作为实施入口，但不是项目交付终点。完整整改顺序见 `docs/design/project1-completion-remediation-plan.md`。
 
-当前 V1 同时追求离线与实时最小闭环：离线从 MySQL → DataX → Hive ODS 切片起步，实时链路的精确已完成范围由当前代码、集群运行和对账证据确认，不从 R1 快照编号推导。正式 Flink 业务作业已选定 Java DataStream Jar + YARN Application Mode，但未经 Milestone 8 契约评审不得扩大 Topic、Partition、Schema、窗口、Watermark、迟到、去重、状态 TTL、实时维度、Checkpoint 或 Doris 实时表模型；已有 candidate 不得提升为 `verified`。BI、Dashboard、Agent 暂列后续规划，不计入当前 M0～M10 已交付能力。
+Project 1 的最终目标是完成离线、实时、调度、性能、治理和可复现交付，并获得足以支撑完整简历描述的真实证据。正式 Flink 业务作业已选定 Java DataStream Jar + YARN Application Mode，但未经 Milestone 8 契约评审不得扩大 Topic、Partition、Schema、窗口、Watermark、迟到、去重、状态 TTL、实时维度、Checkpoint 或 Doris 实时表模型；已有 candidate 不得提升为 `verified`。BI、Dashboard、SQL Assistant、LLM、Agent 和 Project 2 实现不属于当前 M0～M10 交付范围。
 
-Project 2 不属于本仓库的实现范围。它只能在 Project 1 稳定后消费 `P1-METADATA-01`、`P1-LINEAGE-01`、`P1-METRIC-01`、`P1-QUALITY-01`、`P1-RECONCILIATION-01` 和 `P1-TASK-01` 六个只读契约；不得回写数据、重新定义指标、推断不存在的血缘或重复实现质量执行引擎。
+Project 1 内部建设轻量 Data Governance：真实 Metadata Snapshot、基于真实 SQL/配置的 Table-level Lineage 和 Project 1-owned Metric Registry；不建设独立平台或 Column-level Lineage。`P1-METADATA-01`、`P1-LINEAGE-01`、`P1-METRIC-01`、`P1-QUALITY-01`、`P1-RECONCILIATION-01` 和 `P1-TASK-01` 首先服务于 Project 1 自身治理、验收和证据组织，同时保留未来只读消费能力。Project 2 暂缓且不属于本仓库实现范围。
 
 ## 旧内容迁入与非目标
 
@@ -114,19 +114,13 @@ DataX 使用 HDFS Writer 将 ORC + Snappy 写入 Hive ODS 发布范围内的批�
 
 正式文档只记录已采用设计、最终配置、可复现命令、验证结果、已知限制和排障结论。学习笔记、临时实验、个人决策过程、未采用方案和安装草稿放入不提交 Git 的 `.local-notes/`；项目运行不得依赖该目录。
 
-每次变更应小而聚焦，只完成用户指定且属于当前阶段的内容。实现发生变化时，同步检查并更新相关 README、规格、计划、架构、指标、运行说明和测试；不得一次性生成整个项目或擅自引入新框架。修改前说明计划，修改后列出变更文件、验证结果、未决事项和验证边界。
+每次变更应小而聚焦，只完成用户指定且属于当前阶段的内容。Agent 自行判断文档是否具有后续参考价值，但正式文档必须先提出“文件、内容、理由、影响”，得到用户确认后再修改。Scope、Contract、Architecture、Schema、Acceptance、Migration、安全与正式决策应即时提出；普通进度和验证结果在 Step / Stage Gate 集中提出。不得一次性生成整个项目或擅自引入新框架。
 
 `CHANGELOG.md` 记录面向使用者和维护者的可交付变更，包括新增、变更、修复和移除；不得把仅讨论、未采纳方案或未完成的运行验证写成已交付事实。`docs/decision-register.md` 记录已经提出或确认、且会影响项目范围、业务口径、架构、组件版本、数据模型、接口、安全约束或验收方式的正式决策；不得用它代替一般变更日志。
 
 ## 答复收尾与记录确认
 
-Agent 每次最终答复都必须包含以下内容：
-
-1. 用简短条目总结本轮核心操作和核心决策；没有文件修改或没有形成决策时也应明确说明。
-2. 明确询问用户，是否需要把本轮总结写入 `CHANGELOG.md`、`docs/decision-register.md`，或两者都写入。
-3. 在用户明确确认前，不得仅因完成了答复就自动写入这两个文件；用户在当前请求中已经明确要求记录的内容除外。
-4. 获得确认后，按文件职责筛选内容：可交付变更写入 `CHANGELOG.md`；正式决策写入 `docs/decision-register.md`。同一事项同时属于两类时可以分别记录，但内容必须各自符合对应文件的用途。
-5. 写入后在答复中列出新增或更新的条目；决策记录必须使用下一个连续编号，并保留状态、依据、影响、验证方法和回滚方式。
+完成工程任务后使用 `Changed / Verified / Notes` 简短汇报。只有形成可交付变更或正式决策且值得长期保留时，才提出对应的 `CHANGELOG.md` 或 `docs/decision-register.md` 更新；没有记录价值时直接说明“不需要记录”，不得例行询问两份文件。
 
 ## 编码、命名与配置
 
@@ -146,19 +140,9 @@ Agent 每次最终答复都必须包含以下内容：
 禁止提交密码、密钥、Token、`.env`、真实生产地址、个人数据或原始运行日志。仓库只保留环境变量名、去敏示例和安全默认值，不硬编码密码、IP 或 Token。组件端口默认只允许 VPC 私网访问；公网暴露必须单独评审。MySQL CDC、Doris、Hive、调度器和 Project 2 使用各自的最小权限身份，其中 Project 2 必须只读。
 
 
-## Project State & Handoff Rules
+## Project State、Stage 与 Handoff
 
-本项目采用：
-
-**Development Chat → Work Handoff → Repository**
-
-协作模式。
-
-详细流程见：
-
-`docs/workflow/README.md`
-
-当前状态维护于：
+详细流程见 `docs/workflow/README.md`。当前状态维护于：
 
 ```text
 docs/status/
@@ -169,19 +153,7 @@ docs/status/
 
 ### Source of Truth
 
-项目事实优先级：
-
-1. 最新 Handoff 中有证据支持的 `VERIFIED`
-2. File Fact Ledger / 明确执行与验收结果
-3. `docs/status/`
-4. 当前正式工程文件
-5. 最新业务与指标 Contract
-6. architecture / decision-register
-7. 旧 plan / milestone / Step / 历史草稿
-
-后续 VERIFIED 事实可以覆盖早期设计和旧计划。
-
-不得为了适配旧 `plan.md` 修改真实工程状态。
+实现事实以当前代码、配置、Git Diff 和实际执行/验收结果为准；Confirmed Spec 与业务 Contract 管范围和语义；`docs/status/` 管当前进度；`docs/plan.md` 管阶段路线；Architecture / Decision Register 管长期约束；Handoff 只传递这些事实，不覆盖它们。后续 VERIFIED 事实可以纠正旧进度描述，但不得未经确认改变已冻结的 Scope 或 Contract。
 
 ### Status
 
@@ -199,52 +171,15 @@ docs/status/
 
 聊天中出现的代码、文件名或建议路径，也不代表文件真实存在或已执行。
 
-### Chat Responsibilities
+### Stage-Step Workflow
 
-Development Chat 负责：
+项目开发使用滚动设计：Stage 开始时确认 Goal、Scope、Contract、Acceptance、风险和粗粒度 Step Map，只详细设计当前 Step。Step 完成后做 Targeted Verification：局部问题直接修复；只影响后续实现时调整剩余 Step；改变 Scope、核心 Contract、Schema 或 Architecture 时执行 Correct Course 并等待确认。
 
-- 开发、执行、排错、验收
-- 维护 File Fact Ledger
-- 判断当前工程状态
-- 阶段结束后生成 Work Handoff Package
+Stage 结束时只做一次阶段 Review、完整验证、文档同步提议和一次 Git Commit 申请。普通 Step 不自动使用 BMad、Handoff、多 Agent Review 或 Commit。
 
-生成 Handoff 前必须先更新 File Fact Ledger。
+### Handoff
 
-只有确认真实创建或执行的文件，才能作为真实工程资产进入交接包。
-
-### Work Responsibilities
-
-Work 负责：
-
-- 根据 Handoff 更新仓库
-- 更新 `docs/status/`
-- 维护 File Baseline
-- 更新 Handoff 明确要求的文档
-
-Work 不得自行：
-
-- 根据旧 plan 推断开发进度
-- 修改指标或业务设计
-- 创建没有事实依据的文件
-- 根据文件名猜测用途
-- 大规模重构、移动或重命名目录
-
-发现额外问题时记录为 `Deferred Issue`。
-
-### Stage Workflow
-
-每个开发阶段结束后：
-
-```text
-开发
-→ 验收
-→ 更新 File Fact Ledger
-→ 生成 Handoff
-→ Work 更新仓库和 Status
-→ 进入 NEXT
-```
-
-每次 Handoff 只处理本阶段新增或变化的内容。
+Handoff 只用于换 Chat、换 Agent/执行环境、跨 Worktree、阶段成果交给另一执行者，或用户明确要求。同一 Chat 直接操作本 Repository 时不生成内部 Handoff。生成时只传递当前目标、状态、Diff 边界、实际验证、风险和下一入口；接收时必须用 Repository 证据复核。
 
 ### Conflict Handling
 
@@ -256,7 +191,7 @@ Work 不得自行：
 
 ### Repository Stability
 
-除非 Handoff 或用户明确要求，不得：
+除非当前任务或用户明确要求，不得：
 
 - 大规模重构目录
 - 删除历史文件
