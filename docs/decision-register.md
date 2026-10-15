@@ -55,6 +55,8 @@
 | `DR-036` | V2 版本化 LOAD DATA 与 Shared Source Gate Contract | `accepted` | 2026-10-12 | Business Bundle、MySQL 装载、Source Gate、离线与实时进入门禁 |
 | `DR-037` | 60 天历史初始化、30 天双链路回放与拉链维度 | `accepted` | 2026-10-13 | Generator、DataX/ODS、Formal CDC、离实时接管、SCD2、重跑与对账 |
 | `DR-038` | DataX 字段权威与批次隔离发布 Contract | `accepted` | 2026-10-13 | DataX 多表配置、HDFS staging、Hive ODS 分区、字段 Contract、审计与重跑 |
+| `DR-039` | 正式 60/30 Replay 固定 Seed 与历史 Source Gate 输入隔离 | `superseded` | 2026-10-15 | Business Replay、固定输入、Manifest、Bootstrap Source、ODS/CDC 时间推进式验收 |
+| `DR-040` | Replay 时间 FK 修复与正式 Dataset r2 版本化 | `accepted` | 2026-10-15 | Business Generator、Replay Bootstrap、Manifest Hash、MySQL Dry-run、数据库授权入口 |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -1645,6 +1647,166 @@ Generator 需要从“最终 90 天快照 bundle”扩展为“切换点状态 +
 ### 回滚方式
 
 若集中字段 Contract 不可维护，通过新的连续决策引入由同一权威自动生成的版本化 columns artifact，不手工恢复 21 份重复列表。若 batch staging / Publish 在目标环境不可实施，保留失败批次与 ODS Gate 证据，停止发布并通过新决策调整原子发布方式；不得绕过校验直接把失败输出注册为最终分区，也不得删除既有 Pilot 或 Source Gate 证据。
+
+## DR-039：正式 60/30 Replay 固定 Seed 与历史 Source Gate 输入隔离
+
+- 状态：`superseded`
+- 决策日期：2026-10-15
+- 决策人：用户
+- 影响范围：Milestone 2～3、8～9、Business Replay Generator、Replay Manifest、MySQL Replay Dry-run、Bootstrap Source Load、ODS/CDC 时间推进式验收
+- 关联决策：落实 `DR-037` 的 60/30 输入 Contract；保留 `DR-034`～`DR-036` 的历史正式 Source 与 Source Gate 证据边界
+- 替代决策：`DR-040` 修复时间 FK 并使用新的 `r2` Dataset Version；本记录的 Seed 选择与历史 Source Gate 隔离原则继续有效
+
+### 背景
+
+既有正式 Source Gate 输入使用 Seed `20260928`，共 1,328,502 行，已在 MySQL 8.0.46 完成装载与 45-rule Gate。新的时间推进式 Replay 需要独立固定输入。用户确认新 Replay 使用 Seed `20260105`；该 Seed 推导的 `biz_coupon_event` 为 129,691 行，比历史 `formal.json` 锁定值少 11 行。直接改写 `formal.json` 会破坏既有验收输入的可复现性，也会混淆本地 Replay 与数据库 Runtime 证据。
+
+### 决策
+
+1. 历史 `formal.json + Seed 20260928`、1,328,502 行与 Source Gate 验收保持不变，不修改或重新解释其既有证据。
+2. 新正式 60/30 Business Replay 固定使用 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00`，Dataset Version 为 `v2.3-replay-formal-20260105`。
+3. 新配置锁定 `biz_coupon_event=129691`，终态 Source Contract 合计 1,328,491 行；它是独立固定输入，不与历史 Source Gate Dataset 混用。
+4. Replay Bundle 输出前 60 天 Bootstrap、`day_61`～`day_90`、Expected Result、ODS Batch Contract 与 SHA-256 绑定。MySQL Replay Planner 只生成无 Secret 的事务 Dry-run 计划，不调用数据库。
+5. 下一入口是 Replay Bootstrap Source Load Dry-run。任何隔离库创建、Bootstrap 装载、Daily Package 写入、CDC 或 ODS Runtime 仍需单独 Database Operation 或外部操作授权。
+
+### 理由
+
+Seed 会改变业务实体、事件数量和所有下游 Hash。为新 Replay 建立独立版本化配置，可以满足用户指定的新固定输入，同时保留已验收 Source Dataset 的可追溯性。明确区分两套行数和证据，避免把本地生成结果描述成历史数据库已经重放或重新验收。
+
+### 验证方法
+
+1. 使用新固定输入生成正式 Replay Bundle；预期 30 个 Daily Package、Business Hash `9897fe86010db8e160cdfc6d353c9d931addf9a17f93ee4c98bca7ea9bf93e92`。
+2. 核对 Bootstrap 512,617 行、终态 Source Contract 1,328,491 行、30 日共 1,113,931 个操作，其中 815,874 INSERT、298,057 UPDATE。
+3. 对 Day 61～90 全部执行 `mysql/scripts/replay_daily_package.py --dry-run`；当前 30/30 通过，所有计划均记录 `database_contacted=false`。
+4. 后续 Bootstrap Loader、数据库、DataX/ODS 与 CDC 验收必须绑定本决策的 Dataset Version、Seed、Hash 和切换点，不得使用历史 Source Gate 行数冒充新 Replay 结果。
+
+### 影响与风险
+
+新 Replay 与历史 Source Gate 数据不同，任何跨链路对账必须先确认正在使用哪一个 Dataset。当前 Business Replay 已完成本地生成与审计，但 Behavior Daily Package、Bootstrap Source Load、MySQL Binlog、DataX/Hive ODS 和 Formal CDC 均未运行。若后续执行器未校验 Dataset Version 与 Business Hash，存在把不同 Seed 数据混用的高风险，因此 Runtime 必须 fail-fast。
+
+### 回滚方式
+
+数据库操作前，可停止使用新 Replay 输出并保留失败证据；不得通过改回 Hash、修改 Manifest 或覆盖 `formal.json` 伪装为历史 Dataset。若 Seed `20260105` 后续无法满足 Runtime Contract，应新增连续决策和版本化配置，不重写 `DR-039`，也不修改 Seed `20260928` 的 Source Gate 验收记录。
+
+## DR-040：Replay 时间 FK 修复与正式 Dataset r2 版本化
+
+- 状态：`accepted`
+- 决策日期：2026-10-15
+- 决策人：用户
+- 影响范围：Milestone 2～3、8～9、Business Generator、Replay Bootstrap、Manifest Hash、MySQL Replay 与数据库授权入口
+- 关联决策：连续修正 `DR-039` 的候选 Replay Dataset；不改变 Seed `20260928` 的历史 Source Gate 证据
+
+### 背景
+
+实现 Replay Bootstrap Source Load Dry-run 时，严格 FK 校验发现旧候选 Bootstrap 中存在 `biz_cart_item` 早于父 Cart、Cart Merge 早于父 Cart，以及 Coupon 早于所属用户注册的时间关系。终态 Source Gate 能证明最终引用完整，但不能证明任意历史切换点都可按 FK 安全装载。直接保留旧 Hash 会导致 Day 60 Bootstrap 在真实 MySQL 装载时失败。
+
+### 决策
+
+1. Generator 保留固定 Seed 的随机调用序列，但将 Cart Item、Cart Merge 和 Coupon 的已发生时间夹紧到父实体就绪时间，保证历史切片的时间引用完整性。
+2. 不覆盖 `DR-039` 的候选 Dataset；修正版正式 Dataset Version 为 `v2.3-replay-formal-20260105-r2`，仍使用 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00`。
+3. `r2` 终态 Source Contract 仍为 1,328,491 行；Day 60 Bootstrap 为 438,869 行，Day 61～90 共 1,189,936 个操作，其中 889,622 INSERT、300,314 UPDATE。
+4. `r2` Business Hash 固定为 `c690b3257268e342d12772984d0dc93af806072acf4ead91c5c281b5a92293e0`，Replay Manifest Hash 为 `ccfb2ec6a7883dfaf24eebace103e7ec0b0e595cd6e8c30efe17f0d04897e303`。
+5. Bootstrap Source Load 与 30 个 Daily Package 均只完成本地 Dry-run。下一门禁是取得单独 Database Operation 授权，在隔离 Source 装载 Day 60 状态；不得写入或重置 Seed `20260928` 的既有正式 Source。
+
+### 理由
+
+历史切换点必须同时满足时间语义与 FK 约束，否则生成器虽能构造最终一致状态，却无法支持真实逐日回放。使用新的 Dataset Version 保留了 `DR-039` 候选证据，同时让后续数据库、ODS 与 CDC Runtime 可以 fail-fast 绑定唯一版本和 Hash。
+
+### 验证方法
+
+1. Targeted Test 覆盖显式 `--dry-run`、Manifest/CSV Hash 篡改、Cutover 未来状态、孤儿 FK 和无数据库接触。
+2. `tests/run_unit.sh` 共 49 个测试通过：Business 5、Behavior 2、DataX 17、MySQL 25。
+3. 正式规模 Bootstrap Dry-run 校验 21 表、438,869 行、字段、PK/FK、装载顺序、Expected Result、ODS Contract 和 Cutover 边界，计划记录 `execution_authorized=false`、`database_contacted=false`。
+4. Day 61～90 共 30 个 Package 全部通过 MySQL Replay Dry-run，所有计划的 Dataset Version 与 Business Hash 一致，且均未连接数据库。
+
+### 影响与风险
+
+旧候选 Bootstrap 512,617 行、1,113,931 个操作及 Hash `9897fe...` 只保留为被替代的本地历史，不得用于数据库、ODS 或 CDC Runtime。任何下游若未绑定 `r2` Dataset Version、Business Hash 和 Replay Manifest Hash，仍存在混用错误输入的风险。
+
+### 回滚方式
+
+数据库操作前可停止使用 `r2` 并保留本地失败证据；不得把旧候选 Hash 重新标记为正式输入。若 `r2` 后续 Runtime 失败，应新增连续决策和新 Dataset Version，不重写 `DR-039` 或 `DR-040`，也不修改历史 Source Gate 验收记录。
+
+## DR-041：Behavior 60/30 单次生成与双入口回放 Contract
+
+- 状态：`accepted`
+- 决策日期：2026-10-15
+- 决策人：用户
+- 影响范围：Milestone 2～3、8～9、Behavior Generator、历史行为 Bootstrap、Kafka Daily Replay、离实时统一时间轴
+- 关联决策：细化 `DR-035` 的 Entity Manifest 绑定和 `DR-037` 的 60/30 双链路回放；沿用 `DR-040` 的 Business r2 固定输入
+
+### 背景
+
+Business 已形成 Day 60 切换点状态与 Day 61～90 操作包，但既有 Behavior 正式规模证据仍是单个 90 天 JSONL。若分别生成 60 天历史与 30 个日包，会增加跨日 Session、Event ID 重复和随机序列漂移风险；若同时建设通用倍速平台、Kafka Producer 框架和 Flink 历史状态初始化，则超出当前 Portfolio Quality 所需范围，开发与验证回报率偏低。
+
+### 决策
+
+1. Behavior 使用一次完整 90 天生成结果，再按 `event_time` 切分为 Day 1～60 Bootstrap 和 `day_61`～`day_90`；Daily Package 按 `event_time + event_id` 排序，跨日 Session 沿用单次生成时确定的稳定 `session_id`。
+2. Bundle 必须绑定精确 Business r2 Entity Manifest，并校验 Manifest/文件 SHA-256、90 天窗口、Event Schema、Visitor/User/SKU 生效时间、身份映射、Session、日包顺序和全局 `event_id` 唯一性。
+3. 正式固定输入为 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00`，Dataset Version 为 `v2.3-behavior-replay-formal-20260105-r1`，切换日为 `2026-01-30`。
+4. Day 1～60 Bundle 供后续 HDFS/Hive 历史 Bootstrap，Day 61～90 Bundle 供后续 Kafka/Flink 逐日回放；本决策不授权任何外部写入。
+5. 当前不建设通用 Replay Platform、多倍速调度、内置 Kafka Producer、Flink 历史状态恢复、多 Topic/Partition 压测或生产级故障编排。对应需求出现并通过 Milestone 8 契约后再增量设计。
+
+### 理由
+
+单次生成后切包以较小代码和验证成本同时满足固定输入、跨日连续性、批流切换和面试可讲解性。两个下游入口能够展示历史批处理与实时事件流的差异，而不需要提前承担平台化回放和状态迁移的维护成本。
+
+### 验证方法
+
+1. Behavior Targeted Test 共 6 项通过，覆盖确定性、Entity Manifest 版本、SKU 生效时间、60/30 切包、相对路径独立验证、错误切换日和文件篡改拒绝。
+2. `tests/run_unit.sh` 共 53 个测试通过：Business 5、Behavior 6、DataX 17、MySQL 25。
+3. 正式 Bundle 共 3,000,000 条事件、938,470,211 bytes；Bootstrap 895,324 条，30 个 Daily Package 共 2,104,676 条，Content SHA-256 为 `a074cab5cc0b7bf82582242b097cc24534a8f2917485c493743574d98f8baf5e`。
+4. 独立 `validate` 返回 `status=valid`、`daily_packages=30`、`external_system_contacted=false`。
+5. 同轮 Business r2 正式重生成 146 个文件，与既有 Bundle 逐文件 SHA-256 差异为 0。
+
+### 影响与风险
+
+Daily Package 已按事件时间排序，但尚未定义正式 Kafka Topic、Key、Partition、Schema、Watermark、迟到策略或发送速率。Bootstrap 文件也尚未进入 HDFS/Hive。当前证据只能提升本地固定输入和审计状态，不能提升 Kafka、Flink、CDC、ODS 或端到端对账状态。
+
+### 回滚方式
+
+外部写入前可停止使用 Behavior r1 Bundle 并保留现有验证证据；不得修改 Manifest/Hash 冒充其他版本。若后续 Kafka/Flink Contract 需要改变 Event Schema 或切包规则，应新增 Dataset Version 和连续决策，不覆盖本记录或 Business r2 输入。
+
+## DR-042：完整 Project 1 简历证据目标与轻量 Data Governance 并入
+
+- 状态：`accepted`
+- 决策日期：2026-10-15
+- 决策人：用户
+- 影响范围：Project 1 Scope、Milestone 3～10、Metadata、Lineage、Metric、六个只读 Contract、最终验收与简历证据
+- 关联决策：延续 `DR-029` 的 Project 1/Project 2 边界；细化 `DR-031`、`DR-032` 的离实时统一路线
+
+### 背景
+
+原 DataOps Lite 项目暂缓，但其用于体现数据治理能力的 Metadata、Lineage 和 Metric 仍对 Project 1 的完整简历证据有价值。若继续把六个 Contract 只定位为未来 Project 2 的输入，Project 1 将缺少可运行的数据治理闭环；若迁入原平台的前后端、SQL Assistant、LLM/Agent 和 Column-level Lineage，则会形成第二个软件项目并显著扩大开发与验证成本。
+
+### 决策
+
+1. Project 1 的统一最终目标为完成整个离实时一体化数仓，并获得覆盖离线、实时、调度、性能、治理和可复现性的完整简历证据；Stage/Step 只控制实施顺序，不缩减最终范围。
+2. 交易域可以作为实施入口，但不是项目交付终点；不再以“交易域发布”或 `offline-core Release` 作为最终交付定义。
+3. Project 1 内部增加轻量 Data Governance，范围限定为真实 Metadata Snapshot、基于真实 SQL/配置的 Table-level Lineage 和 Project 1-owned Metric Registry。
+4. 六个 `P1-*` Contract 首先服务于 Project 1 自身治理、验收和证据组织，同时保留未来只读消费能力。Quality、Reconciliation 和 Task 继续由现有执行模块产生，Data Governance 只建立关联，不重复实现执行引擎。
+5. SQL Assistant、Text-to-SQL、LLM/Agent、BI/Dashboard、独立 DataOps 前后端与 Database、Column-level Lineage 和 Lineage DAG UI 不属于当前范围。Project 2 暂缓且不在本仓库实施。
+6. Metadata、Lineage 和 Metric 必须随真实表、SQL、任务和指标逐层形成；无法采集或解析时保持 `UNKNOWN`，不得根据设计意图推断 Runtime 或血缘。
+
+### 理由
+
+该方案保留完整项目的简历能力覆盖，同时复用数仓真实资产和已有六个 Contract，避免复制平台、执行引擎和 Agent 产品。Table-level Lineage、Metadata Snapshot 和 Metric Registry 能直接增强数据治理、影响分析、可追溯性和面试表达，开发与维护成本显著低于独立 DataOps 平台。
+
+### 验证方法
+
+1. README、Spec、Plan、AGENTS 和整改方案对 Project 1 最终目标、Project 2 暂缓、六个 Contract 所有权及明确非目标保持一致。
+2. MySQL、Hive、Doris Metadata 必须完成真实采集，Snapshot 可重复生成并支持 Schema Diff；采集失败保留最后成功 Snapshot 并标记 `STALE`。
+3. Table-level Lineage 只从真实版本化 SQL、DataX 配置、Doris 装载和 DolphinScheduler 依赖生成，每条边关联 Artifact Path/Hash；解析失败标记 `UNKNOWN`。
+4. Metric Registry 只发布已实现并验收的指标，并关联 Metadata、Lineage、Quality、Reconciliation、Task 与 Evidence。
+5. 最终 Evidence Index 能将每条简历结论定位到代码、命令、结果、日志摘要或验收文件。
+
+### 影响与风险
+
+Milestone 3～10 增加随真实资产形成治理 Contract 的工作，但不改变当前 Replay/ODS 入口，也不授权外部写入。主要风险是治理模块膨胀为第二个平台、Metric Registry 与业务定义漂移、Lineage 推断失真；通过明确非目标、Definition Reference/Hash、真实 Artifact 绑定和 `UNKNOWN` 状态控制。
+
+### 回滚方式
+
+若轻量治理实现阻塞当前数仓主链路，可暂停治理代码并保留六个 Contract 的文件级设计，不回滚已验证的数据链路或业务 Contract。恢复时必须继续遵守 Metadata/Lineage/Metric 的真实证据边界；不得以删除 `DR-042` 或重写历史决策隐藏范围变化。
 
 ## 记录模板
 

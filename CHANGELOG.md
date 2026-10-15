@@ -8,6 +8,9 @@
 
 ### 新增
 
+- 新增 Project 1 完整交付整改方案与 `DR-042`：统一最终目标为完成离线、实时、调度、性能、治理和可复现交付，并将轻量 Data Governance 纳入 Project 1；治理范围限定为真实 Metadata Snapshot、Table-level Lineage 和 Metric Registry，明确排除 SQL Assistant、Text-to-SQL、LLM/Agent、独立 DataOps 平台与 Column-level Lineage。当前仅完成正式设计与文档同步，不代表治理实现或 Runtime 已完成。
+- 新增 Behavior 60/30 Replay Bundle：基于 Business r2 Entity Manifest 一次生成 90 天事件，切分为前 60 天 Bootstrap 与 `day_61`～`day_90`，并审计 Manifest、SHA-256、时间窗口、Schema、实体有效期、跨日 Session 和全局 `event_id` 唯一性；正式本地结果为 3,000,000 条事件，Kafka/Flink Runtime 仍为 `not_run`。
+- 新增 `DR-041`，采用高 ROI 的“单次生成、两个入口”行为回放方案；当前不建设通用倍速平台、Kafka Producer 框架或 Flink 历史状态初始化。
 - 新增 21 表版本化 CSV bundle preflight、FK-safe `LOAD DATA LOCAL INFILE` 单 Session 装载入口与 Shared Source Gate；本地覆盖 Manifest/Entity/CSV 完整性、目标空库与列保护、warning 阻断、计数/引用/金额/状态/事件链规则和严格 TSV 协议。2026-10-12 已在 MySQL 8.0.46 正式库完成 21 表部署、1,328,502 行装载，以及事务内和提交后独立 45-rule Source Gate，全部 0 违规；该结论不外推为 DataX/Hive ODS 或正式 CDC 已完成。
 - 新增 21 表 DataX 抽取 Contract 与通用 Job Generator：14 张可变表使用可靠 `updated_at` 半开窗口，6 张 Append-only 表使用记录水位，`biz_identity_mapping` 使用显式快照日的每日全量快照；事实/事件按行业务时间生成 `business_date`，输出进入批次隔离 staging。11 个 DataX Targeted Tests 已通过，Stage/Validate/Publish Runtime 与 ODS Gate 仍为 `not_run`。
 - 新增 `DR-038`，确认 `TABLE_COLUMNS` 为 DataX 字段顺序单一权威、正式 MySQL DDL 为字段类型权威，并以 batch staging → Validation / Publish 细化 `DR-001`、`DR-031` 的正式 ODS 发布 Contract。

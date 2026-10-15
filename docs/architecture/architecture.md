@@ -3,7 +3,7 @@
 版本：`0.3-draft`
 状态：离线 100 单与实时 R1～R3 Pilot 已完成限定验收并转为 History，当前共同进入 Shared V2 Source Data Build；Milestone 1、8、9 实施中，M1 剩余门禁为 DolphinScheduler 3.4.2
 
-总体技术路线见[最终工程架构 V1.0](final-architecture.md)，节点和 Java 角色见[部署拓扑](../deployment-topology.md)。本文件保留阶段与技术验收边界；业务源和实时设计分别见[业务源设计](../design/business-source-design.md)与[实时链路规范](../design/realtime-pipeline-design.md)。
+总体技术路线见[最终工程架构 V1.0](final-architecture.md)，节点和 Java 角色见[部署拓扑](../deployment-topology.md)。本文件保留阶段与技术验收边界；业务源、实时设计和完整交付顺序分别见[业务源设计](../design/business-source-design.md)、[实时链路规范](../design/realtime-pipeline-design.md)与[Project 1 完整交付整改方案](../design/project1-completion-remediation-plan.md)。
 
 ## 当前基础设施
 
@@ -97,6 +97,22 @@ M1 只允许使用临时对象验证组件兼容性。后续 R1～R3 小切片�
 正式 Flink 业务作业采用 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅为技术验证。YARN Flink Runtime 使用 Java 11，自行编译的业务 Job 必须保持 `javac --release 11`（class major version 55），除非运行时基线经正式升级。当前 Order / OrderItem DWD 的 `all-to-zero` 与 `kafka_offset` Sequence 只属于 Pilot，不外推为正式多分区方案。
 
 Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 和 Metrics Contract。历史初始化为 Python → CSV → `LOAD DATA`；增量业务生成器通过 MySQL Transaction 产生 Binlog，不能直接写 Kafka。正式 CDC 覆盖 21 表，Topic Namespace 在 Inventory 后冻结，Key/Partition 保证 Same Business Key → Same Partition → Ordered Events，正式 `event_version` 另行设计。Flink 工程按业务域组织 Domain Applications，运行框架通用化、业务转换分业务维护；不再一表一 Application。Shared Source Gate 已通过；当前入口是 60/30 输入 Contract、Topic / Checkpoint Inventory 与 Formal CDC Contract，之后依次进入 CDC Gate、Domain DWD/DIM、Recovery Gate 与离实时对账。
+
+## 轻量 Data Governance 边界
+
+Data Governance 是 Project 1 的内部治理与证据组织能力，不是独立平台：
+
+```text
+MySQL / Hive / Doris Runtime ──→ Metadata Snapshot
+DataX / SQL / Doris Load / Scheduler Artifact ──→ Table-level Lineage
+Released Metric Definition + Quality / Reconciliation / Task Result ──→ Metric Registry
+```
+
+- 只实现真实 Metadata Snapshot、基于真实 Artifact 的 Table-level Lineage 和 Project 1-owned Metric Registry。
+- 复用既有 Quality、Reconciliation 和 DolphinScheduler 结果，不复制执行引擎。
+- 六个 `P1-*` Contract 首先服务于 Project 1 自身验收、治理和简历证据。
+- 不建设独立前后端、权限系统、SQL Assistant、Text-to-SQL、LLM/Agent、Column-level Lineage 或 DAG UI。
+- 无法采集或解析的内容标记为 `STALE` / `UNKNOWN`，不得按目录、表名或设计意图推断运行事实。
 
 ## 配置边界
 

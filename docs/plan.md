@@ -1,12 +1,14 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
-版本：`0.5-draft`
+版本：`0.6-draft`
 状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build `VERIFIED`；批量 ODS 与 Formal CDC 接续 `DOING / DESIGNED`。Milestone 0 `completed`；Milestone 1、2、3、8、9 `in progress`；Milestone 4～7 `pending`
-更新时间：2026-10-13
+更新时间：2026-10-15
 
 ## 1. 使用方式
 
 本计划把 [项目规格](spec.md) 拆分为可独立验收的 Milestone。Milestone 编号表示模块交付和完整运行验收依赖，不表示所有规划活动必须串行，也不表示对应组件或目录已经实现。离线 100 单与实时 R1～R3 Pilot 已完成限定验收并转为 History，不能外推为正式规模能力；Shared Source Data Build 与 Source Gate 已通过。当前离线进入批量 ODS 实现，实时进入 60/30 输入 Contract、Topic / Checkpoint Inventory 与 Formal CDC 设计；M8/M9 的 Pilot Runtime 证据仍不能替代正式 CDC Gate。
+
+当前跨阶段整改和完整交付约束见[Project 1 完整交付整改方案](design/project1-completion-remediation-plan.md)。统一最终目标是完成整个 Project 1，并获得覆盖离线、实时、调度、性能、治理和可复现性的完整简历证据；Stage/Step 只用于控制依赖和返工，不缩减最终范围。
 
 每个 Milestone 都必须满足：
 
@@ -214,7 +216,7 @@ Hadoop（已通过）
 
 ## 5. Milestone 2：业务模型与数据生成
 
-**状态：`in progress`（正式源模型与 Source Gate 已验收；60/30 回放输入仍待实现）**
+**状态：`in progress`（正式源模型与 Source Gate 已验收；Seed `20260105` 的 Business/Behavior 60/30 Replay 已本地验证，数据库、ODS、Kafka 与 CDC Runtime 仍待完成）**
 
 ### 与 Milestone 1 的并行规则
 
@@ -282,7 +284,7 @@ tests/
 - 固定 seed 验收数据生成入口。
 - 可调规模的基准数据生成入口。
 - 固定输入、预期源表结果和异常数据说明。
-- 前 60 天 bootstrap、后 30 天 daily 操作包及切换点 Manifest Contract；当前为 `DESIGNED / not_run`。
+- 前 60 天 Bootstrap、后 30 天 Daily Package 及切换点 Manifest Contract；Seed `20260105` 的 Business/Behavior 输入已本地生成和审计，数据库、ODS、Kafka 与 CDC 时间推进式 Runtime 仍为 `not_run`。
 
 ### 必测场景
 
@@ -310,9 +312,9 @@ tests/
 
 ## 6. Milestone 3：DataX 直写 Hive ODS
 
-**状态：`in progress`（Pilot 已完成限定验收；正式 21 表 Job Generator 与抽取 Contract 已通过本地测试，Stage/Validate/Publish 与 ODS Gate 尚未实现）**
+**状态：`in progress`（Pilot 已完成限定验收；正式 21 表 Job Generator、Stage Runner、Spark Validation/Publish Renderer 与抽取 Contract 已通过本地测试，Runtime 与 ODS Gate 尚未执行）**
 
-`hist-v1-001` 的 100 单 `biz_order` 已在目标 ECS 完成 MySQL → DataX → HDFS ORC → Hive ODS 发布及后续 DWD 全历史对账，该结论作为 `PILOT / ACCEPTANCE / HISTORY` 保留。Shared Source Gate 已通过；根据 `DR-031`，不再继续逐表扩建 `ods_order_item`。正式 21 表 Job Generator 与抽取 Contract 已通过本地测试，下一步是实现 Stage/Validate/Publish Framework 并执行 ODS Gate。现有 Pilot 文件不得自动视为正式实现。
+`hist-v1-001` 的 100 单 `biz_order` 已在目标 ECS 完成 MySQL → DataX → HDFS ORC → Hive ODS 发布及后续 DWD 全历史对账，该结论作为 `PILOT / ACCEPTANCE / HISTORY` 保留。Shared Source Gate 已通过；根据 `DR-031`，不再继续逐表扩建 `ods_order_item`。正式 21 表 Job Generator、Stage Runner、Spark Validation/Publish Renderer、抽取 Contract 与 Replay Bootstrap Source Load Dry-run 已通过本地测试；下一步是在授权隔离环境验证正式 Runtime 和 ODS Gate。现有 Pilot 文件不得自动视为正式实现。
 
 ### 目标
 
@@ -687,7 +689,7 @@ docs/
 - 不能仅凭 YARN Application 提交命令退出 0 宣称业务作业成功；必须核对最终状态及结果。
 - 无法解释重复、丢失、迟到或对账差异时，不得标记 verified。
 
-## 13. Milestone 10：Project 1 面试发布与 Project 2 交接
+## 13. Milestone 10：Project 1 完整证据与面试发布
 
 **状态：`pending`**
 
@@ -695,12 +697,12 @@ docs/
 
 形成他人可复现、本人可解释且证据完整的 Project 1 发布版本。
 
-V1 期间可以持续完善 README、运行入口、验收记录和简历证据，但本 Milestone 仍保持 `pending`；只有发布范围内的离线/实时结论均有运行证据时，才能标记正式面试发布完成。
+各 Stage 可以持续完善 README、运行入口、验收记录和简历证据，但本 Milestone 仍保持 `pending`；只有完整 Project 1 范围内的离线、实时、调度、性能和治理结论均有对应证据时，才能标记正式面试发布完成。
 
 ### 进入条件
 
 - Milestone 0 为 `completed`，Milestone 1-7 全部为 `verified`。
-- 如果简历包含实时能力，Milestone 8-9 也必须 verified；否则实时内容只能描述为规划，不进入成果数字。
+- Milestone 8-9 全部为 `verified`，并已完成 Offline ↔ Realtime 对账和故障恢复验收。
 
 ### 涉及模块
 
@@ -720,7 +722,7 @@ scheduler/
 - 安装、运行、重跑、补数、停止和故障恢复说明。
 - 指标字典、血缘、质量、对账和性能实验结果。
 - 去敏后的日志摘要、截图和已知限制。
-- 六个 Project 2 只读契约：
+- 六个 Project 1 数据治理与只读契约：
   - `P1-METADATA-01`
   - `P1-LINEAGE-01`
   - `P1-METRIC-01`
@@ -734,7 +736,7 @@ scheduler/
 - 新环境可以按文档完成部署和最小链路运行。
 - 所有简历数字都有代码、命令、日志或截图支持。
 - 六个契约只暴露真实、稳定、只读的 Project 1 数据。
-- Project 2 不重新定义指标、不伪造血缘、不重复实现质量引擎。
+- 六个 Contract 只暴露真实、稳定、版本化的 Project 1 数据；未来消费者不得重新定义指标、伪造血缘或重复实现质量引擎。
 
 ## 14. 全阶段通用回归场景
 
@@ -753,13 +755,13 @@ scheduler/
 
 ## 15. 当前下一步
 
-根据 `DR-031`、`DR-032`、`DR-034`～`DR-037`，离线 100 单与实时 R1～R3 Pilot 已完成使命并转为 History。2026-10-12，21 表正式 DDL、90 天 Business 1,328,502 行、版本化 Entity Manifest、MySQL 装载与 45-rule Shared Source Gate 已完成 Runtime 验收；300 万 Behavior 正式规模绑定已完成本地验证。2026-10-13 已确认 60 天初始化与 30 天双链路回放设计，但实现和 Runtime 仍为 `not_run`。当前顺序为：
+根据 `DR-031`、`DR-032`、`DR-034`～`DR-041`，离线 100 单与实时 R1～R3 Pilot 已完成使命并转为 History。2026-10-12，Seed `20260928` 的 21 表正式 Source 1,328,502 行、版本化 Entity Manifest、MySQL 装载与 45-rule Shared Source Gate 已完成 Runtime 验收。2026-10-15，Seed `20260105` 的 Business r2 已本地生成 438,869 行 Bootstrap、30 个 Daily Package 与 1,189,936 个操作并通过全部 MySQL Dry-run；Behavior r1 已本地生成 895,324 条 Bootstrap 事件和 30 个 Daily Package 共 2,104,676 条事件并通过独立审计。数据库、ODS、Kafka 与 CDC Runtime 仍为 `not_run`。当前顺序为：
 
-1. 按 `DR-037` 实现并静态验收前 60 天 bootstrap、后 30 天 daily 操作包、切换点 Manifest 和预期结果；不重置当前正式 MySQL。
-2. 离线 DataX Job Generator 与 21 表抽取 Contract 已完成本地测试；下一步实现 Stage Runner、Spark Validation、Publish，验证业务日期分区和受影响历史分区重建，再执行 ODS Gate。
+1. 获得单独 Database Operation 授权后，在隔离 Source 装载 Dataset `v2.3-replay-formal-20260105-r2` 的切换点状态并先验收 `day_61`，再顺序执行 `day_62`～`day_90`。
+2. DataX Job Generator、Stage Runner 与 Spark Validation/Publish Renderer 已通过本地测试；在授权环境验证 60 天业务分区初始化、30 天连续水位、受影响历史分区重建和 ODS Gate。
 3. ODS Gate 通过后批量开发 DWD/DIM；按已确认原则实现 Type 1 与 SCD2，执行 Model Gate 后再进入 DWS、ADS 和 Doris。
-4. 实时并轨审计现有 Topic/Checkpoint，冻结 Formal CDC Topic Namespace、Partition/Key/Schema、`event_version`、切换点和正式 Checkpoint Root；不得直接复用 Pilot Topic/Offset。
-5. 在另行授权的隔离环境建立切换点源状态，执行 21 表 CDC Initial Snapshot 与 CDC Gate，再用 30 个 daily package 执行 Incremental Simulation、Recovery Gate 和 Offline ↔ Realtime Reconciliation。
+4. Behavior 60/30 本地输入已冻结；实时并轨先审计现有 Topic/Checkpoint，冻结 Formal CDC Topic Namespace、Partition/Key/Schema、`event_version`、切换点和正式 Checkpoint Root，不得直接复用 Pilot Topic/Offset。
+5. 在另行授权的隔离环境执行 21 表 CDC Initial Snapshot 与 CDC Gate，再用 30 个 daily package 执行 Incremental Simulation、Recovery Gate 和 Offline ↔ Realtime Reconciliation。
 6. M1 的 DolphinScheduler 3.4.2 门禁按独立证据边界并行推进，不改变上述离实时接续顺序。
 
 当前明确停止：继续扩展旧 100 单 Generator、为新 Generator 建设独立 Smoke 数据档位、执行 `ods_order_item_create.sql`、继续 `R4 Payment DWD` Pilot、扩展 `ods_cdc_m2_clean_v1`、一表一长期 Flink Application、把 `all-to-zero` / `kafka_offset` Sequence / Pilot Checkpoint 用于正式 V2、创建 `_v2` database、删除 acceptance 环境或混用 Pilot/V2 数据。正式 Topic/Partition/`event_version` 和初始化重置方案仍为 `DECISION_REQUIRED`；本计划不授权数据库清理。`BI / Agent` 是否进入当前 V2 正式交付仍待与 `DR-029` 的后续规划边界确认，不阻塞 Source Data Build。

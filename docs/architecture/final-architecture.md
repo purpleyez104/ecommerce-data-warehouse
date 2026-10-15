@@ -3,7 +3,7 @@
 > Status: CONFIRMED\
 > Purpose: 后续业务源开发、数据生成、ETL、实时链路建设唯一工程依据
 
-本文件固定总体技术路线和已确认的部署方式；业务规则、指标口径、21 表字段及 Milestone 门禁分别以 [业务基线](../business/business-baseline.md)、[指标口径](../business/metrics.md)、[源模型](../source/physical-model.md)和[阶段计划](../plan.md)为准。`CONFIRMED` 不等于正式业务链路已验收。BI/Dashboard/Agent 仅列为后续规划，不属于当前 M0～M10 的已交付能力。
+本文件固定总体技术路线和已确认的部署方式；业务规则、指标口径、21 表字段、Milestone 门禁及完整交付顺序分别以 [业务基线](../business/business-baseline.md)、[指标口径](../business/metrics.md)、[源模型](../source/physical-model.md)、[阶段计划](../plan.md)和[Project 1 完整交付整改方案](../design/project1-completion-remediation-plan.md)为准。`CONFIRMED` 不等于正式业务链路已验收。BI、Dashboard、SQL Assistant、LLM/Agent 和 Project 2 实现不属于当前 Project 1 范围。
 
 ------------------------------------------------------------------------
 
@@ -22,8 +22,8 @@
 
 -   T+1 离线分析
 -   分钟级实时分析
--   BI 查询
--   自然语言问数 Agent
+-   轻量 Data Governance
+-   可复现验收与简历证据
 
 ------------------------------------------------------------------------
 
@@ -47,8 +47,10 @@ Hive                Kafka
 Spark SQL           Flink Application
         \             /
              Doris
+
+MySQL / Hive / Doris + SQL / Config / Task Result
                |
-        BI / Dashboard / Agent
+ Metadata / Table Lineage / Metric Registry
 ```
 
 ------------------------------------------------------------------------
@@ -332,11 +334,13 @@ CONFIRMED
 -   Flink实时计算
 -   Doris实时表
 
-## Phase 4 数据应用
+## Phase 4 治理与交付证据
 
--   BI Dashboard（后续规划，当前未实施）
--   Agent问数（后续规划，当前未实施；只读消费已发布的 Project 1 契约）
--   数据质量
+-   Metadata Snapshot
+-   Table-level Lineage
+-   Metric Registry
+-   数据质量、对账与任务结果关联
+-   Evidence Index 与简历结论映射
 
 ------------------------------------------------------------------------
 
@@ -362,8 +366,11 @@ CONFIRMED
           +----------+------------+
                      |
                    Doris
+
+       MySQL / Hive / Doris Runtime
+       SQL / Config / Task Result
                      |
-                BI / Agent
+      Metadata / Lineage / Metric Registry
 ```
 
-后续开发必须基于该版本，不再修改基础架构。
+后续开发必须基于该版本；涉及基础架构的变化必须进入 Decision Register 并重新确认。轻量 Data Governance 不得演变为独立平台或 AI 应用。

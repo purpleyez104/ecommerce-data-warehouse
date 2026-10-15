@@ -58,26 +58,21 @@ Repository：`ecommerce-data-warehouse`
 - 从业务过程、事实粒度、维度和指标口径出发进行数仓建模。
 - 构建可重跑、可回补、可对账的离线数据链路。
 - 使用 Spark SQL 和 PySpark 完成分层加工和性能实验。
-- 在交付 V1 中以固定小数据集分别跑通离线和实时最小纵向链路，并保留离实时共享的业务主键、时间、状态和金额契约。
+- 以固定小数据集验证离线和实时最小纵向链路，并继续扩展到完整 Project 1 所需的正式规模、业务域和验收范围；离实时共享业务主键、时间、状态和金额契约。
 - 使用 DolphinScheduler 管理依赖、业务日期、失败重试、补数和质量阻断。
 - 使用固定输入、预期输出、质量规则和故障实验证明实现结果。
 - 区分开发环境方案和生产环境实践，不伪造高可用、Exactly-Once、吞吐或性能提升。
 
-Project 1 是主要面试项目。建议讲述权重：
+Project 1 是当前唯一实施与面试项目。Project 2 已暂缓，且不得重新定义 Project 1 的业务语义。
 
-```text
-Project 1：65%
-Project 2：35%
-```
+### 1.1 完整项目交付口径
 
-Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新定义 Project 1 的业务语义。
+完成整个 Project 1 并取得完整简历证据是唯一最终交付目标。下表中的 V1/V2 只保留为既有建设记录和数据规模标识，不是两个发布版本，也不是缩减后的交付终点。
 
-### 1.1 交付版本路线
-
-| 交付阶段 | 状态 | 目标 | 证据边界 |
+| 既有建设标识 | 状态 | 作用 | 证据边界 |
 | --- | --- | --- | --- |
-| V1 小规模链路与展示仓库 | `in progress` | 以固定、可人工核对的小数据集，跑通离线和实时最小纵向链路；形成可复现命令、脚本/SQL、验收记录、架构说明和简历证据 | 只陈述已真实执行的范围、数据量、结果和限制；不用小数据结果外推大规模、高吞吐或端到端 Exactly-Once |
-| V2 规模与工程能力扩展 | `in progress`（Source Data Build 已验收；批量 ODS / Formal CDC 接续中） | 以 21 表正式源模型和 Shared Source Gate 为共同基线，按层推进 ODS、DWD/DIM、DWS、ADS、Doris 与正式 CDC | 正式数据规模为 90 天、100,000 笔订单、约 285,000 条订单明细、实测 1,328,502 条 OLTP 记录和 3,000,000～5,000,000 条行为事件；性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件。性能和完整链路结论仍须绑定环境、版本、固定输入和实测结果 |
+| V1 小规模验证记录 | `HISTORY` | 保留固定小数据集的离线、实时 Pilot 与人工核对证据 | 只陈述已真实执行的范围、数据量、结果和限制；不用小数据结果外推大规模、高吞吐或端到端 Exactly-Once |
+| V2 正式建设记录 | `in progress`（Source Data Build 已验收；批量 ODS / Formal CDC 接续中） | 以 21 表正式源模型和 Shared Source Gate 为共同基线，继续完成 ODS、DWD/DIM、DWS、ADS、Doris、正式 CDC、调度、性能、治理和发布证据 | 正式数据规模为 90 天、100,000 笔订单、约 285,000 条订单明细、实测 1,328,502 条 OLTP 记录和 3,000,000～5,000,000 条行为事件；性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件。所有完整链路结论仍须绑定环境、版本、固定输入和实测结果 |
 
 “交付 V1/V2”是项目建设阶段，不替代文档中已有的“V2 业务基线”、“V2 指标体系”等模型或口径版本标识。
 
@@ -88,12 +83,12 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 | 项目 | 处理方式 |
 | --- | --- |
 | 项目名称、文档使用范围框架 | 采用，并调整为仅适用于 Project 1 |
-| 两项目关系及 65% / 35% 比例 | 作为交接约束保留 |
+| 两项目关系及 65% / 35% 比例 | 不采用；Project 2 已暂缓，当前只以完整 Project 1 证据为目标 |
 | MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris、DolphinScheduler 技术方向 | 作为目标技术栈保留 |
 | DataX 写入正式 ODS ORC 发布范围 | 采用；HDFS Writer 先写批次隔离 staging，Validation / Publish 按每行 `business_date` 发布 Hive `dt`；不建设独立持久化中间层，真实行为在 Milestone 1、3 验证 |
 | 参考文件中的候选版本 | 不直接锁定；必须重新完成兼容性和启动验证 |
 | 实时 Topic、窗口、迟到处理、维度和 Doris 表模型 | 暂不采用具体设计，保留为实时阶段待决策项 |
-| Project 2 业务和应用实现 | 不迁入，只保留六个只读契约 |
+| Project 2 业务和应用实现 | 不迁入；六个只读契约转为 Project 1 内部治理与证据 Contract |
 
 采用理由是保留数据开发岗位中具有代表性的完整链路，同时降低一次性引入过多未验证实现的风险。
 
@@ -122,9 +117,9 @@ Project 2 必须等待 Project 1 完成并稳定后再开始，且不得重新�
 
 `DR-008` 允许 M1 与 M2 分轨推进，但不取消直接依赖。上一版 M2 的代码材料保留在 `archive/legacy-m2-19-table/`，对应设计文档保留在 `docs/archive/milestone-2-business-design.md`；二者均为历史材料，不作为当前 V2 实现依据。
 
-2026-09-18 的业务重设计不沿用归档实现作为当前模型依据。当前采用已部署并通过 Source Gate 的 21 张 `biz_*` 表、独立行为事件流和新版指标口径；Milestone 2 因 60/30 回放输入尚未实现而保持 `in progress`。旧 19 表归档验证不能证明当前实现。2026-09-21 入库的 R1 冻结记录只证明指定 21 表隔离验收库到开发 Topic 的初始快照表级行数一致，以及订单主键与最终状态对账；它不证明正式源库增量 CDC、DataX 接续或 M2 完成。
+2026-09-18 的业务重设计不沿用归档实现作为当前模型依据。当前采用已部署并通过 Source Gate 的 21 张 `biz_*` 表、独立行为事件流和新版指标口径。2026-10-15 已使用 Seed `20260105` 完成本地正式 Business 与 Behavior 60/30 Replay 输入生成及审计；Business Bootstrap Source Load 与 30 日 MySQL Replay Dry-run 通过，Behavior Bundle 独立审计通过。隔离数据库装载、Kafka 写入及时间推进式 ODS/CDC Runtime 仍未完成，因此 Milestone 2 保持 `in progress`。旧 19 表归档验证不能证明当前实现。2026-09-21 入库的 R1 冻结记录只证明指定 21 表隔离验收库到开发 Topic 的初始快照表级行数一致，以及订单主键与最终状态对账；它不证明正式源库增量 CDC、DataX 接续或 M2 完成。
 
-Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提供的 2026-09-22 Chat 终端记录进一步证明 `hist-v1-001` 的 100 单 `biz_order` 在限定范围完成 MySQL → DataX → HDFS ORC → Hive ODS 发布和 Spark 固定基线汇总，共 88 个业务日期分区；该历史事实记录在 `docs/acceptance/biz_order_ods_acceptance.md`。当前正式 DDL、固定 Business 数据与 Source Gate 已闭合，21 表 DataX Job Generator、抽取 Contract 与失败路径已通过本地测试；Stage Runner、Validation / Publish、正式 Runtime 与 ODS Gate 尚未完成，因此 M3 保持 `in progress`。
+Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提供的 2026-09-22 Chat 终端记录进一步证明 `hist-v1-001` 的 100 单 `biz_order` 在限定范围完成 MySQL → DataX → HDFS ORC → Hive ODS 发布和 Spark 固定基线汇总，共 88 个业务日期分区；该历史事实记录在 `docs/acceptance/biz_order_ods_acceptance.md`。当前正式 DDL、固定 Business 数据与 Source Gate 已闭合，21 表 Replay Bootstrap Source Load Dry-run、DataX Job Generator、Stage Runner、Spark Validation/Publish Renderer、抽取 Contract 与失败路径已通过本地测试；隔离 Source 装载、正式 DataX/HDFS/Hive/Spark Runtime、分区发布与 ODS Gate 尚未完成，因此 M3 保持 `in progress`。
 
 用户于 2026-09-22 确认实时链路已经建设到一半，因此 Milestone 8、9 记录为 `in progress`。后续实时链路 R1～R3 的历史输出证明 `biz_product_change_event` 的 `op=c/d`、Order / OrderItem DWD Java Job 构建与首次装载、CDC / Order DWD Checkpoint 恢复、订单与明细正常顺序 `op=u`，以及 Doris 101 单、320 明细汇总；当前在线、全字段/乱序、物理 DELETE、更新故障恢复和完整对账仍未验证。R1/R1-7 只是限定切片记录，不是项目阶段编号，也不把 M9 提升为完整 `verified`。这些事实现作为 Pilot History 保留，不解除 M2/M3 或 M8/M9 其余门禁。
 
@@ -154,6 +149,8 @@ Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提
 - 优惠券 3 张：`biz_coupon_template`、`biz_coupon`、`biz_coupon_event`。
 
 行为事件不计入 21 张 MySQL 表，逻辑上包含页面浏览、商品曝光、商品点击、加购和移除，至少保留稳定事件键、事件时间、采集时间、访客/用户、会话及按事件适用的 SKU、页面和数量字段。精确 Kafka Schema、Topic key 和保留策略仍待实施设计。
+
+Behavior Replay 固定采用一次生成完整 90 天事件后切包：Day 1～60 形成历史 Bootstrap，Day 61～90 形成 30 个按 `event_time + event_id` 排序的 Daily Package。Bundle 必须绑定精确 Business Entity Manifest，并校验 SHA-256、窗口、Schema、Visitor/User/SKU 有效期、Session 与全局 `event_id` 唯一性。当前范围不包含通用倍速回放平台、内置 Kafka Producer 或 Flink 历史状态初始化。
 
 21 表设计已作为当前正式源模型落地。`mysql/ddl/001_ecommerce_oltp.sql` 与 21 CSV Contract 对齐，订单/优惠券采用 `biz_order.coupon_id` 单向物理 FK，券表反向订单引用由索引与 Source Gate 校验；生成列不进入 CSV。2026-10-12 已完成 Business 21 表 1,328,502 行的目标 MySQL 装载与 45-rule Source Gate，Behavior 3,000,000 事件的 Entity Manifest 绑定验证也已完成；DataX/CDC 初始化接续尚未完成。
 
@@ -418,6 +415,10 @@ Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architectu
 
 根据 `DR-037`，正式 90 天数据的链路验收采用统一切换点：前 60 天建立历史初始化基线，后 30 天逐日驱动离线 DataX 与实时 CDC/Flink。切换点为第 61 个业务日零点；初始化数据必须是该时点的正确状态，不得包含后 30 天才发生的最终变化。现有一次性 90 天最终 bundle、正式 MySQL 装载和 Shared Source Gate 继续作为规模与业务 Contract 证据，不自动证明时间推进式回放已经实现。
 
+2026-10-15，正式 Replay 固定输入采用 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00`，修正版 Dataset 为 `v2.3-replay-formal-20260105-r2`，本地生成 438,869 行 Bootstrap、30 个 Daily Package 和 1,189,936 个操作，Business Hash 为 `c690b3257268e342d12772984d0dc93af806072acf4ead91c5c281b5a92293e0`。其终态 Source Contract 为 1,328,491 行，与 Seed `20260928`、1,328,502 行的既有 Source Gate 输入不同；Bootstrap 与 30 日 Dry-run 证据不得提升或替换历史数据库验收事实。
+
+同日，Behavior Replay 固定输入采用 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00`，Dataset 为 `v2.3-behavior-replay-formal-20260105-r1`，绑定上述 Business r2 Entity Manifest。本地生成 3,000,000 条事件，其中 Day 1～60 Bootstrap 895,324 条、Day 61～90 共 2,104,676 条，Content SHA-256 为 `a074cab5cc0b7bf82582242b097cc24534a8f2917485c493743574d98f8baf5e`；独立审计通过且未连接 Kafka。
+
 后续 Generator Contract 必须提供 bootstrap 与 30 个 daily 操作包。事实和事件按照业务发生时间归属 `dt`，维度快照按照快照日期归属；`source_updated_at` 或事件记录水位只决定增量抽取范围，`extract_time`/`load_time` 只用于审计。历史记录在后续日发生变化时，离线任务必须重建受影响的原业务日期分区。
 
 需要历史属性的维度使用 SCD2：前 60 天由变更事件、可靠增量历史或每日快照差异构建版本，后 30 天按业务生效时间关闭旧版本和插入新版本；迟到变化重建受影响业务键的完整时间线。没有切换点前历史输入时，不得虚构旧版本。稳定且只关心当前值的维度使用 Type 1。完整设计见[历史初始化与双链路回放设计](design/historical-incremental-replay-design.md)。
@@ -470,9 +471,11 @@ Spark 性能实验至少覆盖：
 
 实验必须固定版本、配置和输入，保存执行计划、扫描量、Shuffle、阶段耗时和作业耗时。没有真实实验时不得声称优化有效。
 
-## 12. Project 2 只读交接契约
+## 12. Project 1 数据治理与只读契约
 
-Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。保留以下六个只读契约：
+Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。当前内部建设轻量 Data Governance：真实 Metadata Snapshot、基于真实 SQL/配置的 Table-level Lineage 和 Project 1-owned Metric Registry；不建设独立平台、SQL Assistant、LLM/Agent 或 Column-level Lineage。完整实施顺序见[Project 1 完整交付整改方案](design/project1-completion-remediation-plan.md)。
+
+保留以下六个稳定、版本化、只读契约，首先服务于 Project 1 自身治理、验收和证据组织，同时保留未来供其他项目只读消费的能力：
 
 | 契约编号 | Project 1 提供内容 | 当前状态 |
 | --- | --- | --- |
@@ -483,7 +486,7 @@ Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。�
 | `P1-RECONCILIATION-01` | `reconciliation_result` 的实时值、离线值、差异和状态 | draft |
 | `P1-TASK-01` | DolphinScheduler 工作流、任务状态、时间、耗时、失败日志和依赖 | draft |
 
-Project 2 不得：
+任何未来消费者不得：
 
 - 回写 Project 1 的业务数据和结果表。
 - 修改指标名称、公式、粒度或状态。
@@ -491,11 +494,11 @@ Project 2 不得：
 - 重复实现第二套质量执行引擎。
 - 把样例 SQL、候选结果或未验证数据描述为正式事实。
 
-具体 REST 路径、认证方式和序列化结构只有在真实服务确定后才能进入稳定契约，本规格不虚构接口实现。
+Project 2 已暂缓且不属于本仓库实现范围。具体 REST 路径、认证方式和序列化结构只有在真实服务确定后才能进入稳定契约；Project 1 当前可以通过版本化文件、Metadata Snapshot 和 Registry 交付这些 Contract，不虚构服务接口。
 
 ## 13. 阶段顺序与进入条件
 
-Milestone 0～10 仍用于跟踪模块责任和完整验收。交付 V1 采用范围受限的纵向切片：离线切片按 MySQL → DataX → Hive ODS → Spark DWD/DWS/ADS → Doris 逐段验收，实时切片按 MySQL Binlog → Flink CDC → Kafka → Flink DWD → Doris 逐段验收。进入某个切片不等于该 Milestone 的全部交付已完成，也不允许跳过当前切片直接扩展为 V2。
+Milestone 0～10 用于跟踪模块责任和完整验收。离线按 MySQL → DataX → Hive ODS → Spark DWD/DWS/ADS → Doris 逐段验收，实时按 MySQL Binlog → Flink CDC → Kafka → Flink DWD → Doris 逐段验收。进入某个 Stage 不等于对应 Milestone 的全部交付已完成，也不改变完整 Project 1 的最终验收范围。
 
 1. **规格、环境和兼容性基线**：规格通过评审；阻断决策有记录；核心组件具备最小验证方案。
 2. **OLTP 模型与数据生成器**：按当前 V2 基线确认业务过程、21 表字段、状态机、事实粒度和固定验收数据，并完成 DDL、Seed、Generator 与运行验收。
@@ -507,11 +510,9 @@ Milestone 0～10 仍用于跟踪模块责任和完整验收。交付 V1 采用�
 8. **实时设计评审**：确认 Topic、Schema、窗口、迟到、去重、维度、状态、Doris 模型、归档和阈值。
 9. **实时链路与可靠性**：完成 CDC、Kafka、Flink、Doris、恢复及五项离实时对账。
 10. **Project 1 面试发布**：所有简历表述均有代码和运行证据。
-11. **Project 2**：只消费 Project 1 已稳定发布的只读契约。
+BI、Dashboard、SQL Assistant、LLM/Agent 和 Project 2 实现不属于当前 Project 1 范围，不在 M0～M10 中插入新的实施门禁。
 
-BI/Dashboard/Agent 仅为 M0～M10 之后的数据应用规划，不在本阶段顺序中插入新的实施门禁；其归属、安全、接口和验收需另行评审。Project 2 当前的只读边界不变。
-
-2026-09-27 用户确认离线 100 单 Pilot 已完成使命并转为 History，离线开发入口切换到 Shared Source Data Build。2026-10-11 用户进一步确认正式数据规模和性能实验规模，并明确跳过独立 Smoke 数据档位；同日完成目标 MySQL 只读结构核对、21 表 DDL 和 CSV 字段同步。2026-10-12 已完成关系/时间及数量契约修复、Targeted Test、正式规模生成、目标 MySQL 21 表部署、1,328,502 行装载与 45-rule Source Gate。下一步是批量 ODS 与 Formal CDC Contract/初始化；M3、M8、M9 的完整状态不因 Source Gate 通过而自动提升。
+2026-09-27 用户确认离线 100 单 Pilot 已完成使命并转为 History，离线开发入口切换到 Shared Source Data Build。2026-10-11 用户进一步确认正式数据规模和性能实验规模，并明确跳过独立正式 Smoke 数据档位；同日完成目标 MySQL 只读结构核对、21 表 DDL 和 CSV 字段同步。2026-10-12 已完成关系/时间及数量契约修复、Targeted Test、正式规模生成、目标 MySQL 21 表部署、1,328,502 行装载与 45-rule Source Gate。2026-10-15 已完成 Seed `20260105` 的正式 Business/Behavior 60/30 本地 Bundle；Business Bootstrap Source Load 与 30 日 Dry-run、Behavior 独立审计均通过。下一步是取得 Database Operation 授权后装载隔离 Source，并在完成 Topic/Checkpoint Contract 后另行授权 Kafka/CDC Runtime。M3、M8、M9 的完整状态不因本地 Replay 或 Source Gate 通过而自动提升。
 
 ## 14. 验收标准
 
@@ -576,7 +577,7 @@ V1 可以在完整 V2 扩展前形成可展示版本，但必须同时满足：
 - 当前实时链路已确认实际开发 Topic、订单 DWD 代码/构建/提交、Doris 表模型、两作业 Checkpoint 恢复与正常顺序订单 Upsert；仍须确认当前 YARN/Flink/BE 状态、21 表全字段、乱序/物理 DELETE、R2 更新恢复、完整对账及正式 Topic/Schema。完成这些验收和 M8 评审前不得将 M9 提升为完整 `verified` 或扩展到其他实时表和指标。
 - 21 表 DDL、正式装载与 Source Gate 已通过 Runtime 验收；后续结构变更仍需逐项记录与重新验收。
 - 21 表的状态分布、跨表关系、依赖和生成顺序已由 45-rule Source Gate 验证；更大性能实验规模仍为 `DESIGNED / not_run`。
-- 现有正式 Business / Behavior Generator 的确定性 Seed、显式时间范围、输出 Contract 与失败行为已完成对应证据范围验收；bootstrap 与 30 个 daily package 的重跑语义、依赖锁定和预期结果仍待实现。
+- 现有正式 Business / Behavior Generator 的确定性 Seed、显式时间范围、输出 Contract 与失败行为已完成对应证据范围验收；Seed `20260105` 的 Business Bootstrap、30 个 Daily Package、Manifest、预期结果、Bootstrap Source Load Dry-run 及 MySQL Replay Dry-run 已完成本地验证，正式规模重生成的 146 个文件逐文件 SHA-256 一致。Behavior Bootstrap、30 个 Daily Package、Manifest、Hash 和实体/时间审计也已完成本地验证。隔离数据库装载、Kafka 写入、依赖锁定和跨链路 Runtime 仍待实现或验收。
 - `LOAD DATA` 的文件格式、装载顺序、事务/失败边界与 Source Gate 入口已实现并验收；非空目标的重跑按设计 fail-fast，任何重置方案仍须单独批准。
 - `ecommerce_ods`、`ecommerce_dwd` 中 Pilot 数据的精确隔离/重置对象、备份、验证和回滚方式；未经单独授权不得执行清理。
 - `BI / Agent` 是否进入当前 V2 正式交付，还是继续遵循 `DR-029` 作为 M0～M10 之后规划。

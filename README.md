@@ -8,7 +8,7 @@
 | --- | --- |
 | 当前阶段 | 离线与实时 Pilot：`completed / HISTORY`；Shared Source Data Build：`VERIFIED`；批量 ODS 与 Formal CDC 接续：`DOING / DESIGNED`。Milestone 0：`completed`；Milestone 1、2、3、8、9：`in progress`；Milestone 4～7：`pending` |
 | 规格版本 | `0.5-draft` |
-| 实现状态 | M1 Step 2～12 已完成限定范围 Runtime 验收，剩余门禁为 DolphinScheduler 3.4.2。离线 `hist-v1-001` 与实时 R1～R3 均作为 Pilot History 保留；正式源模型为 7 域 21 表。MySQL 8.0.46 已部署 21 表并通过 1,328,502 行 `LOAD DATA`、事务内与提交后独立 45-rule Source Gate；Behavior Generator 已完成本地 3,000,000 事件验证。正式 CDC Contract、Kafka Raw Layer、Domain Flink Applications 和正式批量 ODS 尚未实现 |
+| 实现状态 | M1 Step 2～12 已完成限定范围 Runtime 验收，剩余门禁为 DolphinScheduler 3.4.2。离线 `hist-v1-001` 与实时 R1～R3 均作为 Pilot History 保留；正式源模型为 7 域 21 表。历史正式 Source 仍是 Seed `20260928`、1,328,502 行及 45-rule Source Gate；Seed `20260105` 的 Business r2 已在本地生成 438,869 行 Bootstrap、30 个 Daily Package 和 1,189,936 个操作，Behavior r1 已生成 895,324 条 Bootstrap 事件和 30 个 Daily Package 共 2,104,676 条事件。两类 Bundle 均完成本地 Hash/Contract 审计；DataX Stage 与 Spark Validation/Publish 已本地实现。隔离 Source 装载、正式批量 ODS Runtime、Formal CDC、Kafka Raw Layer 与 Domain Flink Applications 仍为 `not_run` 或尚未实现 |
 | 当前允许活动 | Source Gate 已通过；离线可进入通用 DataX/Stage/Validate/Publish 的批量 ODS 实现，实时可进入 Formal CDC Contract 与初始化设计。暂停 `R4 Payment DWD` 和 `ods_order_item_create.sql`，不继续扩展 Pilot 源库或 Topic |
 | 运行验证 | 除三条临时技术验收链路外，`hist-v1-001` 已在历史限定范围证明 100 单、69 `PAID`、31 `CANCELED`、88 个 ODS 业务日期分区及三项金额基线；证据来源为用户提供的 2026-09-22 Chat 终端输出。实时 R1～R3 在历史限定范围证明 21 表 1,178 条 Snapshot、Binlog 增量、CDC/Order DWD 从 Checkpoint 恢复、订单 `CREATED → CANCELED` Upsert，以及 OrderItem DWD 320 行 Initial Load 与一次同键增量更新；Doris 订单为 101 单（69 `PAID`、32 `CANCELED`），订单明细为 320 行、320 个不同明细、101 个订单、627 件。当前在线和最新 Checkpoint 仍为 `UNKNOWN`；上述结果不等于 M3/M9 完整业务链路、全字段/乱序、恢复一致性或端到端 Exactly-Once 已完成 |
 | 精确组件版本 | Hadoop 3.4.1、MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6.0、Doris 4.0.8 和 Flink Doris Connector 26.1.1 已在目标 ECS 验证；DolphinScheduler 3.4.2 待验证 |
@@ -31,22 +31,16 @@
 - 建设 V2 交易资金、流量转化、商品、用户、退款售后和营销指标体系，并在实现前冻结稳定发布 ID。
 - 提供固定 seed 数据、逐层预期结果、数据质量、幂等重跑和连续回补能力。
 - 使用 Spark SQL/PySpark 完成分层加工，并真实开展数据倾斜、Join 和分区裁剪实验。
-- 在 V1 内以独立可验收切片同步推进 Kafka、Flink CDC、Flink 和 Doris 实时链路，但实时范围扩展仍须通过 Milestone 8 契约评审。
+- 以独立可验收 Stage 推进 Kafka、Flink CDC、Flink 和 Doris 实时链路，实时范围扩展仍须通过 Milestone 8 契约评审。
 - 使用 DolphinScheduler 管理业务日期、依赖、重试、补数、质量阻断和对账。
-- 为 Project 2 提供元数据、血缘、指标、质量、对账和任务状态六个只读契约。
+- 建设轻量 Data Governance：真实 Metadata Snapshot、基于真实 SQL/配置的 Table-level Lineage 和 Project 1-owned Metric Registry，并关联质量、对账和调度结果。
+- 发布元数据、血缘、指标、质量、对账和任务状态六个只读契约，首先服务于 Project 1 自身治理、验收和证据组织。
 
 ## 项目边界
 
-Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。Project 2 必须等待 Project 1 完成并稳定后再开始，且只能消费已发布的只读接口，不得回写或重新定义指标。
+Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。当前目标是完成整个 Project 1，并获得足以支撑完整简历描述的真实证据；Stage/Step 只控制实施顺序，不缩减最终范围。Project 2 已暂缓，不属于本仓库实现范围。
 
-建议面试讲述权重：
-
-```text
-Project 1：65%
-Project 2：35%
-```
-
-V1 不建设库存域，不建设生产级 Hadoop HA，不引入阿里云专有中间件、Kafka ZooKeeper 模式、Spark/Flink Standalone、Kubernetes、HBase、Redis、Elasticsearch、ClickHouse、Iceberg、Hudi 或 Paimon。
+Project 1 不建设完整库存域、生产级 Hadoop HA，也不引入阿里云专有中间件、Kafka ZooKeeper 模式、Spark/Flink Standalone、Kubernetes、HBase、Redis、Elasticsearch、ClickHouse、Iceberg、Hudi 或 Paimon。
 
 ## 目标数据链路
 
@@ -64,7 +58,7 @@ MySQL ecommerce_oltp
   → Doris 离线服务表
 ```
 
-DataX 使用 HDFS Writer 将 ORC + Snappy 写入 Hive ODS 发布范围内的批次隔离 staging，不建设独立持久化的中间数据层。事实和事件在抽取结果中按行业务时间携带 `business_date`，维度全量快照使用显式快照日；后续 Spark Validation / Publish 再按 `business_date` 原子发布并注册最终 Hive `dt` 分区。审计字段、幂等发布和失败隔离属于 ODS 装载责任。Job Generator 与 21 表抽取 Contract 已通过本地测试，Stage Runner、Validation、Publish 和完整 Runtime 仍须在 Milestone 3 验证。
+DataX 使用 HDFS Writer 将 ORC + Snappy 写入 Hive ODS 发布范围内的批次隔离 staging，不建设独立持久化的中间数据层。事实和事件在抽取结果中按行业务时间携带 `business_date`，维度全量快照使用显式快照日；后续 Spark Validation / Publish 再按 `business_date` 原子发布并注册最终 Hive `dt` 分区。审计字段、幂等发布和失败隔离属于 ODS 装载责任。Replay Builder、MySQL Replay Dry-run、Job Generator、Stage Runner 与 Validation/Publish Renderer 已通过本地测试；正式 MySQL Replay、DataX/HDFS/Hive/Spark Runtime、分区发布和 ODS Gate 仍须在 Milestone 3 验证。
 
 ### 实时目标链路
 
@@ -76,7 +70,7 @@ MySQL Binlog
   → Kafka 标准事件 / HDFS-Hive 归档 / Doris 实时服务表
 ```
 
-实时链路当前状态为 `in progress`，依据是用户确认链路正在建设。R1 初始 Snapshot 只证明冻结范围内的行数与订单对账，不是项目阶段或当前实施进度。Topic、Partition、Schema、窗口、Watermark、迟到、去重、状态 TTL、实时维度、Checkpoint 和 Doris 实时表模型的当前完成情况须以实时 Chat、仓库文件和运行证据核对。
+实时链路当前状态为 `in progress`，依据是用户确认链路正在建设。R1 初始 Snapshot 只证明冻结范围内的行数与订单对账，不是项目阶段或当前实施进度。正式 Behavior 60/30 本地输入已经冻结，但尚未写入 Kafka；Topic、Partition、Schema、窗口、Watermark、迟到、去重、状态 TTL、实时维度、Checkpoint 和 Doris 实时表模型仍须经过 Milestone 8 契约和 Runtime 验收。
 
 ## 技术栈
 
@@ -105,16 +99,16 @@ MySQL Binlog
 | `infra/` | 主机、端口、组件配置、版本锁定和兼容性记录 | Milestone 1 | implemented |
 | `env/` | 不含秘密值的环境变量示例 | Milestone 0-1 | implemented |
 | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | Business CSV 与 Behavior JSONL Generator | Milestone 2 | Business 21 表 1,328,502 行已在目标服务器正式生成并装载；Behavior 3,000,000 事件已在本机正式规模生成。Entity Manifest SHA-256 绑定、全量实体引用、Session 与事件唯一性检查通过 |
-| `mysql/` | 正式源库 DDL、装载和验收入口 | Milestone 2 | MySQL 8.0.46 已部署 21 表，装载 1,328,502 行；事务内与提交后独立 Shared Source Gate 均为 45/45 通过，`local_infile` 已恢复为 `OFF` |
+| `mysql/` | 正式源库 DDL、装载、Replay 计划和验收入口 | Milestone 2-3 | MySQL 8.0.46 已部署 21 表，装载 1,328,502 行；事务内与提交后独立 Shared Source Gate 均为 45/45 通过，`local_infile` 已恢复为 `OFF`。Seed `20260105` 的 30 个 Daily Package 已全部通过本地 Replay Dry-run，但没有写入 MySQL |
 | `archive/pilot-v1/` | 旧 Pilot Generator、离线参考资产与实时 R1 工程/验收资产 | Milestone 2-3、8-9 历史 | `PILOT / ACCEPTANCE / HISTORY`；不作为 V2 正式入口，归档移动不提升 Runtime 状态 |
-| `tests/` | Generator / DataX Targeted Test 与后续阶段测试入口 | Milestone 2-10 | 2026-10-13 本地 32 个 Unit Tests 通过，其中 DataX 11 个；Pilot 对账脚本已移入 `archive/pilot-v1/` |
+| `tests/` | Generator / DataX / MySQL Targeted Test 与后续阶段测试入口 | Milestone 2-10 | 2026-10-15 本地 53 个 Unit Tests 通过，其中 Business Generator 5 个、Behavior 6 个、DataX 17 个、MySQL 25 个；Pilot 对账脚本已移入 `archive/pilot-v1/` |
 | `archive/legacy-m2-19-table/` | 旧 19 表 Seed、Generator、脚本、测试和固定结果 | 历史归档 | 不作为当前 V2 实现或验收依据 |
-| `datax/config/`、`datax/scripts/`、`datax/templates/` | MySQL 到 Hive ODS batch staging 的抽取 Contract 和 Job 生成入口 | Milestone 3 | 21 表三类抽取策略、逐行业务日期、受限私有 Job 与失败路径已通过本地测试；正式 DataX/HDFS/Hive Runtime、Stage/Validate/Publish 和 ODS Gate 仍为 `not_run` |
+| `datax/config/`、`datax/scripts/`、`datax/templates/` | MySQL 到 Hive ODS batch staging 的抽取 Contract、Job 生成和批次编排入口 | Milestone 3 | 21 表三类抽取策略、Replay Manifest 绑定、Dry-run Stage Runner、Validate/Publish Plan 与失败传播已通过本地测试；正式 DataX/HDFS/Hive Runtime 和 ODS Gate 仍为 `not_run` |
 | `hive/ods/` | ODS 表、分区注册、审计字段和发布规则 | Milestone 3 | 当前正式实现区为 placeholder；`hist-v1-001` 的历史参考 DDL、发布与质量入口已归档到 `archive/pilot-v1/offline/reference/`，M3 仍为 `in progress` |
 | `hive/dwd/` | 原子事实、去重、状态和字段标准化 | Milestone 4 | placeholder |
 | `hive/dws/` | 可复用主题汇总、比率分子和分母 | Milestone 4-5 | placeholder |
 | `hive/ads/` | V2 正式指标和面向查询的结果表 | Milestone 5 | placeholder |
-| `spark/sql/`、`spark/scripts/` | ODS、DIM/DWD、DWS、ADS 转换、提交脚本和性能实验入口 | Milestone 4-7 | placeholder |
+| `spark/sql/`、`spark/scripts/` | ODS Publish、DIM/DWD、DWS、ADS 转换、提交脚本和性能实验入口 | Milestone 3-7 | ODS Validation/Publish SQL Renderer 为 `implemented / not_run`；其余仍为 placeholder |
 | `quality/checks/` | 唯一性、完整性、状态、分区和守恒检查 | Milestone 3-6 | 当前正式实现区为 placeholder；Pilot 订单 ODS 检查已归档 |
 | `doris/ddl/`、`doris/sql/` | 离线服务表与验证 SQL；实时表在 Milestone 8 后确定 | Milestone 6 | placeholder；Pilot `dwd_order` DDL 已归档 |
 | `scheduler/dolphinscheduler/` | T+1 DAG、参数、重试、补数、阻断和对账 | Milestone 6 | placeholder |
@@ -181,6 +175,7 @@ V2 指标按六个域组织：交易与资金 `TR-01`～`TR-14`、流量与转�
 - [业务源设计](docs/design/business-source-design.md)：V2 21 表和独立行为源的交付及验收边界。
 - [历史初始化与双链路回放设计](docs/design/historical-incremental-replay-design.md)：60 天初始化、30 天离实时回放、重跑时间契约和 SCD2 拉链维度。
 - [实时链路规范](docs/design/realtime-pipeline-design.md)：DataStream Application 方案与 Milestone 8 待评审契约。
+- [Project 1 完整交付整改方案](docs/design/project1-completion-remediation-plan.md)：跨阶段实施顺序、完整简历证据目标与轻量 Data Governance 边界。
 - [集群事实基线](docs/cluster-baseline.md)：当前 ECS、网络、磁盘、用户、Java 和 Hadoop 的确认事实及验证结论。
 - [组件兼容性矩阵](docs/compatibility-matrix.md)：精确版本候选、官方依据、项目状态和验证门禁。
 - [安装与排障记录](docs/installation-troubleshooting.md)：目标 ECS 上真实发生的问题、修复、复测和回滚。

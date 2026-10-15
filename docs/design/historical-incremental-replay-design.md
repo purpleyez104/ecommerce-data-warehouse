@@ -1,6 +1,6 @@
 # 历史初始化、双链路回放与拉链维度设计
 
-状态：`DESIGNED / not_run`
+状态：本地 Business/Behavior Replay 输入 `implemented / verified`；数据库、ODS、Kafka、CDC Runtime `not_run`
 
 更新时间：2026-10-13
 
@@ -36,7 +36,7 @@
   │    ├─ DataX → HDFS batch staging → Hive ODS → Spark DIM/DWD → DWS → ADS
   │    │                                              └→ Doris 离线历史基线
   │    └─ Flink CDC Initial Snapshot → Kafka Snapshot Gate → 实时源状态基线
-  └─ Historical Behavior → HDFS/Hive 行为历史基线（具体装载入口待实现）
+  └─ Historical Behavior Bundle → HDFS/Hive 行为历史基线（Bundle 已验证；装载入口待实现）
 
 后 30 天 daily package
   ├─ Business Operations → MySQL Transaction → Binlog → Flink CDC → Kafka
@@ -48,7 +48,7 @@
 
 DataX 与 CDC 共享 MySQL 业务源和切换点，但职责不同：DataX 形成可重跑、可回补和可对账的离线结果；CDC/Flink 提供切换点后的低延迟结果。Kafka Raw CDC 只承担传输和有界重放，不是长期数仓存储。
 
-历史 Behavior 与交易数据共享 90 天时间轴和 Entity Manifest，但不经过 MySQL/DataX。前 60 天 Behavior 的批量归档入口、后 30 天 Kafka Topic、Schema、Partition 和保留期仍须在对应阶段实现并验收。
+历史 Behavior 与交易数据共享 90 天时间轴和 Entity Manifest，但不经过 MySQL/DataX。Behavior 使用一次 90 天生成结果切分为前 60 天 Bootstrap 与后 30 天 Daily Package，以保留跨日 Session；本地 Bundle 已完成。前 60 天批量归档入口、后 30 天 Kafka Topic、Schema、Partition 和保留期仍须在对应阶段实现并验收。
 
 ## 3. 切换点建立
 
@@ -247,6 +247,6 @@ batch_id
 
 ## 10. 实施边界与回滚
 
-下一步实现应先扩展 Generator 输出 bootstrap/daily Contract 和预期结果，再实现 DataX 受影响分区发布、SCD2 SQL 和 Formal CDC 初始化/回放。任何数据库重置、重新装载、Topic 创建、CDC 启动、Doris 清理或正式回放都需要对应授权和可回滚方案。
+Business Generator 已输出并本地审计 Seed `20260105`、Dataset `v2.3-replay-formal-20260105-r2` 的正式 Bootstrap、30 个 Daily Package、Manifest 和预期结果；正式规模重生成的 146 个文件逐文件 SHA-256 一致。Behavior 已基于同一时间轴和 Business r2 Entity Manifest 输出 Dataset `v2.3-behavior-replay-formal-20260105-r1`，共 3,000,000 条事件、一个 Day 1～60 Bootstrap 和 30 个 Daily Package，独立审计通过。下一步需单独授权后装载隔离 Source，再接续 DataX 受影响分区发布；Kafka Topic/Checkpoint Contract 冻结后另行授权 Behavior/CDC Runtime。任何数据库重置、重新装载、Topic 创建、CDC 启动、Doris 清理或正式回放都需要对应授权和可回滚方案。
 
 若时间推进式实现失败，保留现有 90 天正式 bundle、正式 MySQL 与 Source Gate 证据不变；隔离失败的 replay 数据库、Topic、Checkpoint、HDFS staging 和 Doris 目标，保存失败证据后修正 Contract。不得通过直接修改既有正式数据、复用 Pilot Offset/Checkpoint 或降低 Gate 规则来绕过失败。
