@@ -1,0 +1,45 @@
+{
+  "contract_version": "2026-10-18",
+  "source_kind": "behavior_replay_jsonl",
+  "source_schema": [
+    {"name": "event_id", "type": "STRING", "nullable": false},
+    {"name": "event_type", "type": "STRING", "nullable": false},
+    {"name": "event_time", "type": "TIMESTAMP", "nullable": false},
+    {"name": "identity_version", "type": "BIGINT", "nullable": true},
+    {"name": "ingest_time", "type": "TIMESTAMP", "nullable": false},
+    {"name": "page_id", "type": "STRING", "nullable": false},
+    {"name": "quantity", "type": "INT", "nullable": true},
+    {"name": "session_id", "type": "STRING", "nullable": false},
+    {"name": "sku_id", "type": "BIGINT", "nullable": true},
+    {"name": "user_id", "type": "BIGINT", "nullable": true},
+    {"name": "visitor_id", "type": "BIGINT", "nullable": false}
+  ],
+  "audit_columns": [
+    {"name": "batch_id", "type": "STRING"},
+    {"name": "source_file", "type": "STRING"},
+    {"name": "load_time", "type": "TIMESTAMP"}
+  ],
+  "target": {
+    "database": "ecommerce_ods",
+    "table": "ods_behavior_event",
+    "format": "ORC",
+    "compression": "SNAPPY",
+    "location": "/warehouse/ecommerce/ods/ods_behavior_event",
+    "partition_column": "dt",
+    "partition_source": "to_date(event_time)"
+  },
+  "event_types": ["PAGE_VIEW", "PRODUCT_EXPOSURE", "PRODUCT_CLICK", "ADD_CART", "REMOVE_CART"],
+  "quality_rules": [
+    "event_id_not_null",
+    "event_id_unique",
+    "event_type_allowed",
+    "event_time_not_null",
+    "ingest_time_not_before_event_time",
+    "visitor_id_not_null",
+    "session_id_not_null",
+    "quantity_only_for_cart_events",
+    "manifest_row_count",
+    "manifest_event_type_counts",
+    "manifest_sha256"
+  ]
+}

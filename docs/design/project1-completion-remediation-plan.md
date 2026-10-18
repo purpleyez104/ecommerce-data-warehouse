@@ -105,7 +105,9 @@ Project 1 最终必须覆盖：
 5. 顺序执行 `day_62`～`day_90`。
 6. 验证历史业务日期分区重建、同批重跑和失败恢复。
 
-ODS Gate 至少覆盖 21 表行数、主键、字段、业务日期、审计字段、分区集合、跨表引用以及失败批次禁止发布。
+MySQL/DataX ODS Gate 至少覆盖 21 表行数、主键、字段、业务日期、审计字段、分区集合、跨表引用以及失败批次禁止发布。Behavior 60/30 Bundle 另以 `ods_behavior_event` 作为第 22 张离线 ODS 表，必须校验 Manifest/SHA-256、`event_id` 唯一、事件枚举、时间、身份、Session 和按业务日分区。
+
+2026-10-18，Business 21 表 ODS Stage Gate 与独立 Behavior ODS Gate 均已完成；Behavior 结果为 3,000,000 行、90 个业务日分区、95/95 项断言通过。当前入口转入 Stage 3 的 DIM/DWD Model Contract、实现与 Model Gate。
 
 同步形成 MySQL/Hive ODS Metadata Snapshot 与 MySQL → ODS Table-level Lineage；没有真实采集或真实 SQL 时不得生成 `VERIFIED` 治理结果。
 

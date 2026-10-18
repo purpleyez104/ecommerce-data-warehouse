@@ -8,6 +8,7 @@
 
 ### 新增
 
+- 新增并验证独立 Behavior ODS Contract、Hive DDL Generator 与 Spark Load/Gate Renderer：60/30 JSONL Bundle 已通过第 22 张 `ods_behavior_event` 接入离线链路，按 `event_time` 发布 3,000,000 行和 90 个业务日分区；最终 YARN Application `application_1792297746029_0005` 为 `FINISHED / SUCCEEDED`，95/95 项 Gate 通过。该表继续与 MySQL/DataX 21 表 Contract 隔离，Kafka/Flink Runtime 不在本次验收范围。
 - 完成 Milestone 3 的 21 表 Day 60～90 ODS 链路：新增范围 Runner、可恢复 Checkpoint、正式 Bootstrap Contract、独立目标期望与 ODS Gate Renderer；目标环境已完成 29/29 Daily Checkpoint，最终 21 表共 1,632,345 行，1,498/1,498 项 Gate 断言通过。中断后仅清理失败批次的精确 staging 路径并恢复 Day 63，未重放已验收 Day 62；临时数据库权限、Secret 文件和归档 Job 残留已回收或清理。
 - 新增 Project 1 完整交付整改方案与 `DR-042`：统一最终目标为完成离线、实时、调度、性能、治理和可复现交付，并将轻量 Data Governance 纳入 Project 1；治理范围限定为真实 Metadata Snapshot、Table-level Lineage 和 Metric Registry，明确排除 SQL Assistant、Text-to-SQL、LLM/Agent、独立 DataOps 平台与 Column-level Lineage。当前仅完成正式设计与文档同步，不代表治理实现或 Runtime 已完成。
 - 新增 Behavior 60/30 Replay Bundle：基于 Business r2 Entity Manifest 一次生成 90 天事件，切分为前 60 天 Bootstrap 与 `day_61`～`day_90`，并审计 Manifest、SHA-256、时间窗口、Schema、实体有效期、跨日 Session 和全局 `event_id` 唯一性；正式本地结果为 3,000,000 条事件，Kafka/Flink Runtime 仍为 `not_run`。

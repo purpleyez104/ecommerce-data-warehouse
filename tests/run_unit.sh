@@ -26,7 +26,9 @@ PYTHONPATH="$repo/mock/generator/business_generator/src${PYTHONPATH:+:$PYTHONPAT
   mysql/scripts/execute_replay_daily_package.py \
   datax/scripts/run_ods_batch.py \
   datax/scripts/generate_ods_target_expectations.py \
-  spark/scripts/render_ods_batch_sql.py
+  hive/ods/generate_behavior_ods_ddl.py \
+  spark/scripts/render_ods_batch_sql.py \
+  spark/scripts/render_behavior_ods_sql.py
 
 PYTHONPATH="$repo/mock/generator/behavior_generator/src${PYTHONPATH:+:$PYTHONPATH}" \
   "$python_bin" -m unittest discover \

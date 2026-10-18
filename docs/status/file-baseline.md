@@ -114,7 +114,7 @@
 | 21 表正式 DDL 与 Source Gate | `mysql/ddl/001_ecommerce_oltp.sql`、`mysql/scripts/`、`mysql/sql/` | `VERIFIED_EXECUTED` | MySQL 8.0.46 已部署 21 表并装载 1,328,502 行；事务内与提交后独立 45-rule Source Gate 均通过，`local_infile` 已恢复为 `OFF` |
 | Business / Behavior Generator | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | `VERIFIED_EXECUTED` | Business 21 表 1,328,502 行已在目标服务器生成并装载；Behavior 3,000,000 事件已完成本地正式规模验证；Entity Manifest 绑定及全量引用/Session/事件唯一性检查通过 |
 | 60/30 Business Replay | `mock/generator/business_generator/src/business_generator/replay.py`、`mock/generator/business_generator/config/replay_formal_20260105.json`、`mysql/ddl/002_replay_batch_ledger.sql`、`mysql/scripts/plan_replay_bootstrap.py`、`mysql/scripts/replay_daily_package.py`、`mysql/scripts/execute_replay_daily_package.py`、`mysql/scripts/execute_replay_range.py` | 当前 worktree 存在；Ledger/Range Executor 已部署到 r6 数据盘独立目录 | 当前正式 Baseline 已由本地重生成复现；r6 Day 60～90、30/30 Acceptance、最终独立 Source Gate与权限回收均已验证。批量 ODS、Formal CDC、SCD2 与离实时接管仍为 `not_run` |
-| 60/30 Behavior Replay | `mock/generator/behavior_generator/src/behavior_generator/replay.py`、`mock/generator/behavior_generator/config/replay_formal_20260105.json` | 当前 worktree 存在 | Dataset `v2.3-behavior-replay-formal-20260105-r1` 已绑定 Business r2 Entity Manifest 并本地生成 3,000,000 条事件：Bootstrap 895,324 条、30 个 Daily Package 2,104,676 条；Manifest/Hash/窗口/实体有效期/全局 Event ID 审计通过且未连接 Kafka。HDFS/Hive Bootstrap 与 Kafka/Flink Runtime 仍为 `not_run` |
+| 60/30 Behavior Replay | `mock/generator/behavior_generator/src/behavior_generator/replay.py`、`mock/generator/behavior_generator/config/replay_formal_20260105.json` | 当前 worktree 存在 | Dataset `v2.3-behavior-replay-formal-20260105-r1` 已绑定 Business r2 Entity Manifest 并生成 3,000,000 条事件：Bootstrap 895,324 条、30 个 Daily Package 2,104,676 条；Manifest/Hash/窗口/实体有效期/全局 Event ID 审计通过。Hive `ods_behavior_event` 已完成 3,000,000 行、90 分区 Runtime Gate；Kafka/Flink Runtime 仍为 `not_run` |
 
 ## 正式 Source Data Build 文件边界
 
@@ -122,7 +122,7 @@
 - 正式数据规模、90 天时间范围、21 张 CSV 字段、装载顺序、状态分布、跨表关系及 Behavior 对 Business Entity Manifest 的复用已确认；Source Gate 验收边界见 `docs/acceptance/source-load-gate-acceptance.md`。
 - `LOAD DATA` 初始化脚本与 Shared Source Gate 已实现并通过本地失败路径与目标 MySQL Runtime 验收；正式 ODS 21 表抽取 Contract、Job Generator、Stage Runner 与 Spark Validation/Publish Renderer 已创建并通过本地测试，DataX/HDFS/Hive/Spark Runtime 与 ODS Gate 尚未验证。
 - Formal CDC 配置、正式 Kafka Topic、`event_version`、Domain Flink Applications、Incremental Business Generator、正式 Checkpoint Root 与 V2 Doris 初始化脚本均尚未创建或验证。
-- Seed `20260105` 的 60 天 Business Bootstrap、30 个 Daily Package、Expected Result、Bootstrap 与 Daily Dry-run Plan 已在本地生成并审计；Behavior 60 天 Bootstrap、30 个 Daily Package、Manifest 与 Hash 审计也已完成。切换点隔离 Source 数据库装载、行为历史归档、Kafka/Flink 写入、SCD2 SQL、历史分区重建和离实时逐日接管仍为 `DESIGNED / not_run`。Seed `20260928` 的既有最终 90 天 Source Gate 数据不替代这些 Runtime 资产。
+- Seed `20260105` 的 60 天 Business Bootstrap、30 个 Daily Package、Expected Result、Bootstrap 与 Daily Dry-run Plan 已生成并审计；Behavior 60 天 Bootstrap、30 个 Daily Package、Manifest 与 Hash 审计也已完成。隔离 Source/ODS 与 Behavior ODS 历史归档均已通过 Runtime Gate；Kafka/Flink 写入、SCD2 SQL、DIM/DWD 历史分区构建和离实时逐日接管仍为 `DESIGNED / not_run`。Seed `20260928` 的既有最终 90 天 Source Gate 数据不替代这些 Runtime 资产。
 - 旧 Pilot 文件继续保存历史证据；后续若需要复用通用算法，必须逐项确认来源与 V2 Contract，不得整体继承旧生成器或逐条 INSERT 路径。
 
 ## Evidence Assets

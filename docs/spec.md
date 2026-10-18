@@ -117,7 +117,7 @@ Project 1 是当前唯一实施与面试项目。Project 2 已暂缓，且不得
 
 `DR-008` 允许 M1 与 M2 分轨推进，但不取消直接依赖。上一版 M2 的代码材料保留在 `archive/legacy-m2-19-table/`，对应设计文档保留在 `docs/archive/milestone-2-business-design.md`；二者均为历史材料，不作为当前 V2 实现依据。
 
-2026-09-18 的业务重设计不沿用归档实现作为当前模型依据。当前采用已部署并通过 Source Gate 的 21 张 `biz_*` 表、独立行为事件流和新版指标口径。Seed `20260105` 的 Business Replay Baseline 已完成 r6 Day 60～90 隔离 MySQL Runtime，另一个隔离环境已完成 Day 60 + Day 61 ODS Smoke；Seed `20260928` 的正式终态 Snapshot 已完成正式 21 表 ODS Bootstrap 与独立 Gate。Behavior Bundle、Day 62～90 ODS、Kafka 与时间推进式 CDC Runtime 仍未完成完整验收，因此 Milestone 2、3 保持 `in progress`。
+2026-09-18 的业务重设计不沿用归档实现作为当前模型依据。当前采用已部署并通过 Source Gate 的 21 张 `biz_*` 表、独立行为事件流和新版指标口径。Seed `20260105` 的 Business Replay Baseline 已完成 Day 60～90 MySQL 与 21 表 ODS Runtime，Seed `20260928` 的正式终态 Snapshot 也已完成正式 21 表 ODS Bootstrap 与独立 Gate，因此 Milestone 3 已完成。Behavior 60/30 Bundle 的本地生成与审计已验证，并已通过独立的第 22 张 ODS 表 `ods_behavior_event` 完成 3,000,000 行、90 分区的离线 Runtime Gate，不改变 MySQL/DataX 21 表 Contract。Kafka 与时间推进式 CDC Runtime 仍待验收。
 
 Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。2026-10-17 正式 `ecommerce_oltp` 1,328,502 行终态 Snapshot 已完成 DataX/HDFS/Hive/Spark Runtime、21 表分区发布和 1,476 项独立 ODS Gate；旧 100 单 Pilot 三表保留为 HISTORY。2026-10-18 又完成 Day 60～90 时间推进式链路、跨日恢复、29/29 Daily Checkpoint、连续回补和 1,498 项最终 ODS Gate，因此 M3 已完成；该证据不外推到 M4 及后续分层。
 
@@ -152,7 +152,7 @@ Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。2026-10-1
 
 Behavior Replay 固定采用一次生成完整 90 天事件后切包：Day 1～60 形成历史 Bootstrap，Day 61～90 形成 30 个按 `event_time + event_id` 排序的 Daily Package。Bundle 必须绑定精确 Business Entity Manifest，并校验 SHA-256、窗口、Schema、Visitor/User/SKU 有效期、Session 与全局 `event_id` 唯一性。当前范围不包含通用倍速回放平台、内置 Kafka Producer 或 Flink 历史状态初始化。
 
-21 表设计已作为当前正式源模型落地。`mysql/ddl/001_ecommerce_oltp.sql` 与 21 CSV Contract 对齐，订单/优惠券采用 `biz_order.coupon_id` 单向物理 FK，券表反向订单引用由索引与 Source Gate 校验；生成列不进入 CSV。2026-10-12 已完成 Business 21 表 1,328,502 行的目标 MySQL 装载与 45-rule Source Gate，Behavior 3,000,000 事件的 Entity Manifest 绑定验证也已完成；DataX/CDC 初始化接续尚未完成。
+21 表设计已作为当前正式源模型落地。`mysql/ddl/001_ecommerce_oltp.sql` 与 21 CSV Contract 对齐，订单/优惠券采用 `biz_order.coupon_id` 单向物理 FK，券表反向订单引用由索引与 Source Gate 校验；生成列不进入 CSV。2026-10-12 已完成 Business 21 表 1,328,502 行的目标 MySQL 装载与 45-rule Source Gate。Behavior 3,000,000 事件已完成 Entity Manifest 绑定验证，并于 2026-10-18 发布到独立第 22 张 Hive ODS 表 `ods_behavior_event`，90 个业务日分区和 95/95 项 Gate 通过；该证据不包含 Kafka/Flink Runtime。
 
 ### 3.6 历史材料边界
 

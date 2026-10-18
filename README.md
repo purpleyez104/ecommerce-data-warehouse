@@ -1,6 +1,6 @@
 # ecommerce-data-warehouse
 
-“电商离实时一体化数据仓库”是一个从零搭建、面向数据开发岗位求职的工程项目。项目以真实运行、可验证、可复现和可解释为基本要求。离线 100 单 Pilot 已完成限定范围验收并转为 `PILOT / ACCEPTANCE / HISTORY`；当前正式业务源与 Hive ODS 已完成 21 表 DDL、固定数据、Shared Source Gate、正式 Snapshot Bootstrap，以及 Day 60～90 时间推进式 ODS Stage Gate。下一步进入 DIM/DWD Model Gate 与 Formal CDC。
+“电商离实时一体化数据仓库”是一个从零搭建、面向数据开发岗位求职的工程项目。项目以真实运行、可验证、可复现和可解释为基本要求。离线 100 单 Pilot 已完成限定范围验收并转为 `PILOT / ACCEPTANCE / HISTORY`；当前 MySQL 21 表 ODS 已完成 Snapshot 与 Day 60～90 Stage Gate，Behavior 独立源也已通过第 22 张 ODS 表 `ods_behavior_event` 完成 3,000,000 事件、90 个业务日分区的 Runtime Gate。下一步进入交易域与行为域 DIM/DWD Model Contract、实现和 Model Gate；Formal CDC 保持独立并行支线。
 
 ## 当前状态
 
@@ -8,7 +8,7 @@
 | --- | --- |
 | 当前阶段 | 离线与实时 Pilot：`completed / HISTORY`；Shared Source Data Build 与批量 ODS：`VERIFIED`；DIM/DWD 与 Formal CDC 接续：`DOING / DESIGNED`。Milestone 0、3：`completed`；Milestone 1、2、4、8、9：`in progress`；Milestone 5～7：`pending` |
 | 规格版本 | `0.5-draft` |
-| 实现状态 | M1 Step 2～12 已完成限定范围 Runtime 验收，剩余门禁为 DolphinScheduler 3.4.2。Seed `20260105` 的隔离 ODS 已完成 Day 60～90、29/29 Checkpoint、跨日中断恢复和 1,498/1,498 最终 Gate；Seed `20260928` 的正式 `ecommerce_oltp` 已完成 1,328,502 行终态 Snapshot → `ecommerce_ods` 21 表 Bootstrap，独立 Gate 为 1,476/1,476。Formal CDC、Kafka Raw Layer 与 Domain Flink Applications 仍为 `not_run` 或未完成 |
+| 实现状态 | M1 Step 2～12 已完成限定范围 Runtime 验收，剩余门禁为 DolphinScheduler 3.4.2。Seed `20260105` 的隔离 ODS 已完成 Day 60～90、29/29 Checkpoint、跨日中断恢复和 1,498/1,498 最终 Gate；同一时间轴的 Behavior Bundle 已发布为 3,000,000 行、90 分区的 `ods_behavior_event`，最终 95/95 项 Gate 通过；Seed `20260928` 的正式 `ecommerce_oltp` 已完成 1,328,502 行终态 Snapshot → `ecommerce_ods` 21 表 Bootstrap，独立 Gate 为 1,476/1,476。Formal CDC、Kafka Raw Layer 与 Domain Flink Applications 仍为 `not_run` 或未完成 |
 | 当前允许活动 | Source Gate 已通过；离线可进入通用 DataX/Stage/Validate/Publish 的批量 ODS 实现，实时可进入 Formal CDC Contract 与初始化设计。暂停 `R4 Payment DWD` 和 `ods_order_item_create.sql`，不继续扩展 Pilot 源库或 Topic |
 | 运行验证 | 除三条临时技术验收链路外，`hist-v1-001` 已在历史限定范围证明 100 单、69 `PAID`、31 `CANCELED`、88 个 ODS 业务日期分区及三项金额基线；正式 M3 已通过 Snapshot 与 Day 60～90 ODS Stage Gate。实时 R1～R3 在历史限定范围证明 21 表 1,178 条 Snapshot、Binlog 增量、CDC/Order DWD 从 Checkpoint 恢复、订单 `CREATED → CANCELED` Upsert，以及 OrderItem DWD 320 行 Initial Load 与一次同键增量更新；当前实时在线状态仍为 `UNKNOWN`，上述 Pilot 结果不等于 M9 完整业务链路、全字段/乱序、恢复一致性或端到端 Exactly-Once 已完成 |
 | 精确组件版本 | Hadoop 3.4.1、MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6.0、Doris 4.0.8 和 Flink Doris Connector 26.1.1 已在目标 ECS 验证；DolphinScheduler 3.4.2 待验证 |
@@ -101,10 +101,10 @@ MySQL Binlog
 | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | Business CSV 与 Behavior JSONL Generator | Milestone 2 | Business 21 表 1,328,502 行已在目标服务器正式生成并装载；Behavior 3,000,000 事件已在本机正式规模生成。Entity Manifest SHA-256 绑定、全量实体引用、Session 与事件唯一性检查通过 |
 | `mysql/` | 正式源库 DDL、装载、Replay 计划、执行和验收入口 | Milestone 2-3 | MySQL 8.0.46 已部署 21 表并通过历史 Shared Source Gate；Seed `20260105` 的 r6 隔离 Source 已完成 Day 60～90、30 条 Ledger、30/30 Acceptance、最终独立 Gate与权限回收 |
 | `archive/pilot-v1/` | 旧 Pilot Generator、离线参考资产与实时 R1 工程/验收资产 | Milestone 2-3、8-9 历史 | `PILOT / ACCEPTANCE / HISTORY`；不作为 V2 正式入口，归档移动不提升 Runtime 状态 |
-| `tests/` | Generator / DataX / MySQL Targeted Test 与后续阶段测试入口 | Milestone 2-10 | 2026-10-17 本地 75 个 Unit Tests 通过，其中 Business Generator 6 个、Behavior 6 个、DataX 26 个、MySQL 37 个；Pilot 对账脚本已移入 `archive/pilot-v1/` |
+| `tests/` | Generator / DataX / MySQL Targeted Test 与后续阶段测试入口 | Milestone 2-10 | 2026-10-18 本地 81 个 Unit Tests 通过，其中 Business Generator 6 个、Behavior 6 个、DataX/ODS 32 个、MySQL 37 个；Pilot 对账脚本已移入 `archive/pilot-v1/` |
 | `archive/legacy-m2-19-table/` | 旧 19 表 Seed、Generator、脚本、测试和固定结果 | 历史归档 | 不作为当前 V2 实现或验收依据 |
 | `datax/config/`、`datax/scripts/`、`datax/templates/`、`datax/jobs/` | MySQL 到 Hive ODS 的 Contract、Job 生成、可审计导出和批次编排入口 | Milestone 3 | 正式 21 表 Snapshot Bootstrap、Day 60～90 隔离增量、跨日恢复及 1,498 项最终 Gate 已验证 |
-| `hive/ods/` | ODS 外部表、Pilot History 迁移、分区注册、审计字段和发布规则 | Milestone 3 | 正式 21 表使用显式 `/warehouse/ecommerce/ods/<table>` 路径；旧 Pilot 三表保留为 `pilot_20260921_*`，M3 已完成 |
+| `hive/ods/` | ODS 外部表、Pilot History 迁移、分区注册、审计字段和发布规则 | Milestone 3-4 | MySQL/DataX 21 表已验证；独立 Behavior Source 使用第 22 张 `ods_behavior_event`，3,000,000 行、90 个业务日分区与 95/95 项 Gate 已验证 |
 | `hive/dwd/` | 原子事实、去重、状态和字段标准化 | Milestone 4 | placeholder |
 | `hive/dws/` | 可复用主题汇总、比率分子和分母 | Milestone 4-5 | placeholder |
 | `hive/ads/` | V2 正式指标和面向查询的结果表 | Milestone 5 | placeholder |

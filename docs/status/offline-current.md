@@ -76,7 +76,8 @@
 - Day 61 同日恢复重跑复用 `r4` staging，不接触 MySQL、DataX 或 Secret；状态历史为 `planned → staged_reused → validated → published`，重跑后独立 Gate 再次通过 1,034 项断言且目标仍为 457,571 行。后续 Day 62～90 与跨日恢复状态已由 2026-10-18 Stage Gate 更新。
 - 2026-10-17 正式 `ecommerce_oltp` 终态 Snapshot 已发布到正式 `ecommerce_ods` 21 张 EXTERNAL ORC + Snappy 表，显式根路径为 `/warehouse/ecommerce/ods/`。Source 21 表实时行数仍与 Manifest 一致，合计 1,328,502；Runner 状态为 `published`，独立 ODS Gate 通过 1,476/1,476 项断言、0 失败。旧 Pilot 三表已保留为 `pilot_20260921_*`，原 EXTERNAL 数据和 88 个历史分区未删除。临时正式库 `SELECT` grant 已回收，hadoop202 Secret 配置已删除。证据见 `docs/acceptance/formal-ods-bootstrap-acceptance.md`。
 - 2026-10-18 隔离 Source/ODS 完成 Day 62～90 逐日交替回放：29/29 Checkpoint、Range State `verified`，Source Ledger Day 61～90 共 30 条、1,210,882 operations，最终 Source 21 表合计 1,328,491 行。Day 63 DataX 中断后按精确 `batch_id` 清理未发布 staging 并从 Checkpoint 恢复，未重放 Day 62。Day 90 独立 ODS Gate 使用最终 Source 分组计数与 31 日快照合约，验证目标 1,632,345 行，1,498/1,498 条断言成功。临时 grant 与全部 Secret runtime 文件已回收；Milestone 3 Stage Gate 完成。
-- 2026-10-17 最新统一测试共 75 项通过：Business 6、Behavior 6、DataX 26、MySQL 37；新增覆盖正式 Snapshot Contract 与 21 个导出 job 的完整性、Hash 和 Secret 占位符。该测试证据与 Runtime 证据分别记录。
+- 2026-10-18 Behavior 60/30 Bundle 已通过独立第 22 张 ODS 表 `ecommerce_ods.ods_behavior_event` 完成 Runtime Gate：Dataset `v2.3-behavior-replay-formal-20260105-r1` 共 3,000,000 行，发布为 2025-12-01～2026-02-28 的 90 个 `dt` 分区，HDFS 目标为 `/warehouse/ecommerce/ods/ods_behavior_event`。最终 Gate Application `application_1792297746029_0005` 为 `FINISHED / SUCCEEDED`，95/95 项断言通过并输出 `BEHAVIOR_ODS_GATE_PASS`；证据见 `docs/acceptance/behavior-ods-acceptance.md`。
+- 2026-10-18 最新统一测试共 81 项通过：Business 6、Behavior 6、DataX/ODS 32、MySQL 37；新增覆盖 Behavior ODS DDL、完整 Bundle 预检、动态分区 Publish/Gate 和只读取 `events.jsonl` 的递归输入边界。该测试证据与 Runtime 证据分别记录。
 
 ### Source Data Build 后续接续
 
@@ -91,7 +92,8 @@
 
 ## DESIGNED
 
-- `DR-037`、`DR-041`、`DR-044` 已确认正式 90 天观察窗口和当前 Replay Baseline；Business Source 与 ODS 的 Day 60～90 时间推进式 Runtime、正式终态 Snapshot ODS Bootstrap 和最终 ODS Gate 已完成。Behavior、Kafka、CDC Runtime 和对应 Gate 仍为 `not_run`。
+- Behavior 60/30 Bundle 已以独立第 22 张 ODS 表 `ods_behavior_event` 接入离线链路并完成 Runtime Gate。未来 Kafka Raw 仍须共用事件 Schema 和 `event_id` 去重语义，但 Kafka/Flink Gate 不由本次离线验收替代。
+- `DR-037`、`DR-041`、`DR-044` 已确认正式 90 天观察窗口和当前 Replay Baseline；Business Source 与 ODS 的 Day 60～90 时间推进式 Runtime、正式终态 Snapshot ODS Bootstrap、Behavior ODS Runtime 和对应最终 Gate 已完成。Kafka、CDC Runtime 和对应 Gate 仍为 `not_run`。
 - 需要历史属性的维度按前 60 天变化历史初始化 SCD2，后 30 天关闭旧版本、插入新版本并处理迟到修正；精确 `dim_*` 映射仍待 Milestone 4 实施前冻结。
 - 正式源模型继续采用 7 个业务域、21 张 `biz_*` 业务表；Generator 必须统一覆盖一期业务表，而不是逐表补小样本。
 - 工程实施改为按层批量推进：21 表 Source → 批量 ODS → ODS Gate → DWD/DIM → Model Gate → DWS → ADS → Doris。
@@ -122,13 +124,13 @@
 - Handoff 标记为已验证的 ODS/DWD 工程文件当前未出现在本 worktree；在取得真实文件内容前，不根据 ECS 路径或文件名自行重建。
 - 当前 ECS 服务是否仍保持 Handoff 验收时的在线状态不在本次离线基线证明范围内。
 - 21 表 DDL、CSV 字段映射、正式库部署、`LOAD DATA`、数据库约束和 Shared Source Gate 已在记录环境中 `VERIFIED`；该结论不包含 DataX/Hive ODS 或正式 CDC。
-- Behavior Generator 已强制读取 Business Generator 的版本化 Entity Manifest；正式 60/30 Bundle 的跨源身份、Session、商品生效时间和事件唯一性本地检查为 `VERIFIED`，但行为数据尚未进入正式 HDFS/Hive Bootstrap 或 Kafka Raw Layer。
+- Behavior Generator 已强制读取 Business Generator 的版本化 Entity Manifest；正式 60/30 Bundle 的跨源身份、Session、商品生效时间和事件唯一性本地检查为 `VERIFIED`，且 3,000,000 行已进入 HDFS/Hive `ods_behavior_event` 并通过 Gate；Kafka Raw Layer 仍为 `not_run`。
 - 性能实验规模约 900,000 笔订单和 9,000,000 条行为事件仍为 `DESIGNED / not_run`，不得用本轮正式规模耗时外推性能结论。
 - V2 初始化重置的精确对象、备份/回滚、执行命令与验收方法：`DECISION_REQUIRED`；不得直接清理现有数据库。
 - `BI / Agent` 是否进入当前 V2 正式交付，还是继续遵循 `DR-029` 作为 M0～M10 之后规划：`DECISION_REQUIRED`。
 
 ## NEXT
 
-1. 进入 Milestone 4，基于已验收 ODS 批量实现 Type 1/SCD2 DIM 与 DWD，并执行 Model Gate。
+1. 基于 21 表交易 ODS + 1 表 Behavior ODS 冻结 DIM/DWD Model Contract，批量实现 Type 1/SCD2 DIM 与 DWD，并执行 Model Gate。
 2. Model Gate 通过后进入 DWS、ADS 与 Doris 离线 Serving；不提前接入 DolphinScheduler。
 3. 任何隔离库构建、重置、回滚或重新装载需要新的 Database Operation 授权；不继续执行 `ods_order_item_create.sql`，不删除旧 acceptance 环境。

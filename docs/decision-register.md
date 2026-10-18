@@ -1924,6 +1924,34 @@ Dataset Version 字符串仍为 `v2.3-replay-formal-20260105-r2`，因此下游�
 
 仓库提供 `hive/ods/rollback_archive_pilot_20260921.sql`。只有正式同名表已按单独授权移除并确认不会丢失正式数据时，才能把 Pilot HISTORY 名称恢复为原名；不得为回滚直接删除 `/warehouse/ecommerce/ods/` 或旧 Pilot HDFS 数据。
 
+## DR-046：Behavior Bundle 通过独立第 22 张 ODS 表进入离线链路
+
+- 状态：`accepted`
+- 决策日期：2026-10-18
+- 决策人：用户
+- 影响范围：Milestone 4、Behavior 60/30 Replay、Hive ODS、`dwd_behavior_event`、离实时对账
+- 替代决策：等待 Kafka/Flink 完成后才建设 Behavior DWD
+
+### 背景
+
+MySQL/DataX 的 21 表 ODS Stage Gate 已完成，但 Behavior 事件是独立行为源，不存在于 21 张 `biz_*` 表中。已冻结的 60/30 Bundle 包含 3,000,000 条本地审计通过的 JSONL 事件，但尚未进入 Hive ODS。如果直接跳到 `dwd_behavior_event`，将缺失可回放、可对账的离线 Raw Layer；如果必须等待 Kafka/Flink，则会不必要地阻塞 M4 离线建模。
+
+### 决策
+
+1. 在 `ecommerce_ods` 新增独立 EXTERNAL ORC + Snappy 表 `ods_behavior_event`，路径为 `/warehouse/ecommerce/ods/ods_behavior_event`。
+2. 该表不计入 MySQL/DataX 21 表 Contract；其源是已绑定 Business Entity Manifest 的 Behavior 60/30 JSONL Bundle。
+3. 分区 `dt` 使用 `event_time` 的 Asia/Shanghai 自然日，`ingest_time` 只用于迟到和审计，不决定业务归属。
+4. Bundle Validation 必须校验 Manifest/SHA-256、字段、行数、事件枚举、`event_id` 唯一、身份、Session、SKU 生效时间和 `ingest_time >= event_time`。
+5. 离线 `dwd_behavior_event` 与未来 Kafka/Flink Behavior DWD 共用字段、事件时间和 `event_id` 去重语义，但各自需要 Runtime Gate，不互相替代。
+
+### 理由
+
+这一边界既保留 MySQL/DataX 21 表已验收 Contract，又为流量与转化指标提供真实的离线原始输入。它允许 M4 在不等待完整实时链路的情况下开发，同时为后续 Offline ↔ Realtime Reconciliation 保留稳定对账键。
+
+### 验证与回滚
+
+本地 Contract、DDL 和 SQL Renderer 已验证。2026-10-18 在目标环境完成完整 Bundle Validation 与 Spark Load/Publish：3,000,000 行发布到 90 个 `dt` 分区；最终 Gate Application `application_1792297746029_0005` 为 `FINISHED / SUCCEEDED`，95/95 项断言通过并输出 `BEHAVIOR_ODS_GATE_PASS`。首次全量尝试因递归读取 30 个 `package_manifest.json` 在 staging 行数断言处失败，未执行 INSERT；修复为仅匹配 `events.jsonl` 后重新发布成功。回滚仓库实现可移除新 Contract/Generator；建表或写入后的 Hive/HDFS 清理需要新的外部写入授权，不得直接删除数据。
+
 ## 记录模板
 
 复制以下模板新增记录；不要直接修改模板内容。
