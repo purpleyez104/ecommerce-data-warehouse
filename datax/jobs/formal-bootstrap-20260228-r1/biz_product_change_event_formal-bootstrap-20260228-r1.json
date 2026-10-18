@@ -1,0 +1,96 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `change_id`,\n  `event_key`,\n  `target_type`,\n  `target_id`,\n  `change_type`,\n  `before_data`,\n  `after_data`,\n  `effective_at`,\n  `recorded_at`,\n  DATE_FORMAT(`effective_at`, '%Y-%m-%d') AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_product_change_event' AS `source_table`\nFROM `biz_product_change_event`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_product_change_event/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_product_change_event_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "change_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "event_key",
+                "type": "STRING"
+              },
+              {
+                "name": "target_type",
+                "type": "STRING"
+              },
+              {
+                "name": "target_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "change_type",
+                "type": "STRING"
+              },
+              {
+                "name": "before_data",
+                "type": "STRING"
+              },
+              {
+                "name": "after_data",
+                "type": "STRING"
+              },
+              {
+                "name": "effective_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "recorded_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

@@ -47,6 +47,27 @@
 
 ## VERIFIED_EXECUTED：路径待确认或非正式仓库资产
 
+### 60/30 Replay Day 60 独立运行目录
+
+2026-10-15 已在 `hadoop201` 只读核对 `/home/yee/replay-r3-bootstrap-20261015/`。该目录不是服务器旧 Git 副本的一部分，以下文件只证明隔离 Source Day 60 Bootstrap 与 Source Gate：
+
+| 路径或文件 | 状态 | 证据边界 |
+| --- | --- | --- |
+| `bootstrap/biz_*.csv`（21 个） | `VERIFIED_EXECUTED` | Day 60 固定输入；不代表 Day 61～90 已应用 |
+| `bootstrap/expected_result.json` | `VERIFIED_EXECUTED` | 21 表精确计数基线；只读复核全部匹配 |
+| `bootstrap/ods_batch_contract.json` | `CONFIRMED_CREATED` | Day 60 ODS Contract；不证明 ODS Runtime |
+| `load.sql`、`source_gate.sql` | `VERIFIED_EXECUTED` | 当次 Bootstrap 装载与 Gate 输入；不作为当前仓库代码版本替代品 |
+| `day60-load-r3.out` | `VERIFIED_EXECUTED` | 事务内 45-rule Gate 全部 0，`EXIT_STATUS=0` |
+| `day60-postcommit-gate-r3.out` | `VERIFIED_EXECUTED` | 提交后独立 45-rule Gate 全部 0，`EXIT_STATUS=0` |
+
+服务器 Git 副本位于 `/data/projects/ecommerce-data-warehouse`，只读核对时停留在 `codex/m1-infrastructure-compatibility` 的 2026-09-05 HEAD，并包含大量历史删除与未跟踪文件。它不是当前 Replay/ODS 实现来源；不得直接 `git pull`、切分支或清理来部署 Executor。后续部署使用独立运行目录和精确文件/Hash 清单。
+
+### Replay Executor 数据盘部署目录
+
+`/data/ecommerce-replay-runtime-20261015/` 是后续使用的 mode `0700` 数据盘独立部署目录，不属于服务器旧 Git 副本。它由 `/home/yee/ecommerce-replay-runtime-20261015/` 逐文件复制而来；源/目标均为 31 个文件、47M，`diff -qr` 无差异，Day 62 两份关键证据 SHA-256 保持一致。目录包含 Planner/Executor、Source Gate、最小 Python Contract、r3 Replay Manifest 与 Day 61～62 Package。`results/day61/result.json` 与 `results/day62/result.json` 分别记录 19,456 和 22,995 个操作已提交且事务内 Gate 通过；对应提交后独立 45-rule Gate 全部为 0。Day 63～90 Package 尚未部署到该目录。原 `/home/yee/ecommerce-replay-runtime-20261015/` 暂作为已验收备份保留，尚未删除。
+
+`/data/ecommerce-replay-runtime-20261016-r6/` 是已完成的 Batch Ledger/Range Executor 运行目录，目标库为 `ecommerce_oltp_replay_20260105_r6`。目录包含完整 Day 61～90 Bundle、30 份逐日 Acceptance/Checkpoint、最终独立 Gate 与审计日志；Range State 为 `verified`，30 条 Ledger 覆盖 Day 61～90，最终独立 Source Gate 为 45/45、0 违规，`local_infile=OFF`。Replay 身份对 r6 的临时权限已回收；r5/r4/r2 目录、数据库与权限未在本次操作中修改。
+
 | 文件 | 类型 | Runtime 事实 | Repository 处理 |
 | --- | --- | --- | --- |
 | `offline_m3_source_preflight.sh` | Acceptance | 已执行；实际路径 `UNKNOWN` | 路径确认前不移动、不新建替代品 |
@@ -92,12 +113,12 @@
 | 旧 Pilot Generator | `archive/pilot-v1/ecommerce_generator_v1/` | 已归档并恢复原 package layout | `PILOT / ACCEPTANCE / HISTORY`；不作为新的 V2 Python → CSV Generator 实现基础或正式入口 |
 | 21 表正式 DDL 与 Source Gate | `mysql/ddl/001_ecommerce_oltp.sql`、`mysql/scripts/`、`mysql/sql/` | `VERIFIED_EXECUTED` | MySQL 8.0.46 已部署 21 表并装载 1,328,502 行；事务内与提交后独立 45-rule Source Gate 均通过，`local_infile` 已恢复为 `OFF` |
 | Business / Behavior Generator | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | `VERIFIED_EXECUTED` | Business 21 表 1,328,502 行已在目标服务器生成并装载；Behavior 3,000,000 事件已完成本地正式规模验证；Entity Manifest 绑定及全量引用/Session/事件唯一性检查通过 |
-| 60/30 Business Replay | `mock/generator/business_generator/src/business_generator/replay.py`、`mock/generator/business_generator/config/replay_formal_20260105.json`、`mysql/scripts/plan_replay_bootstrap.py`、`mysql/scripts/replay_daily_package.py` | 当前 worktree 存在 | Dataset `v2.3-replay-formal-20260105-r2` 已本地生成：Bootstrap 438,869 行、30 个 Daily Package、1,189,936 个操作；Bootstrap 与 30 日 Dry-run 通过且未连接数据库。隔离 Source 装载、批量 ODS、Formal CDC、SCD2 与离实时接管仍为 `not_run` |
+| 60/30 Business Replay | `mock/generator/business_generator/src/business_generator/replay.py`、`mock/generator/business_generator/config/replay_formal_20260105.json`、`mysql/ddl/002_replay_batch_ledger.sql`、`mysql/scripts/plan_replay_bootstrap.py`、`mysql/scripts/replay_daily_package.py`、`mysql/scripts/execute_replay_daily_package.py`、`mysql/scripts/execute_replay_range.py` | 当前 worktree 存在；Ledger/Range Executor 已部署到 r6 数据盘独立目录 | 当前正式 Baseline 已由本地重生成复现；r6 Day 60～90、30/30 Acceptance、最终独立 Source Gate与权限回收均已验证。批量 ODS、Formal CDC、SCD2 与离实时接管仍为 `not_run` |
 | 60/30 Behavior Replay | `mock/generator/behavior_generator/src/behavior_generator/replay.py`、`mock/generator/behavior_generator/config/replay_formal_20260105.json` | 当前 worktree 存在 | Dataset `v2.3-behavior-replay-formal-20260105-r1` 已绑定 Business r2 Entity Manifest 并本地生成 3,000,000 条事件：Bootstrap 895,324 条、30 个 Daily Package 2,104,676 条；Manifest/Hash/窗口/实体有效期/全局 Event ID 审计通过且未连接 Kafka。HDFS/Hive Bootstrap 与 Kafka/Flink Runtime 仍为 `not_run` |
 
 ## 正式 Source Data Build 文件边界
 
-- Business / Behavior Generator 已完成固定输入的正式规模生成与 Targeted Test；Business 21 表已进一步完成历史目标 MySQL Runtime 验收，Seed `20260105` 的 Business/Behavior 60/30 仍仅覆盖本地 Bundle 与 Dry-run/Manifest 验证。
+- Business / Behavior Generator 已完成固定输入的正式规模生成与 Targeted Test；Business 21 表已完成历史目标 MySQL Runtime，Seed `20260105` 的 Business 60/30 已完成 r6 Day 60～90 MySQL Runtime，Behavior 60/30 仍只覆盖本地 Bundle 与审计。
 - 正式数据规模、90 天时间范围、21 张 CSV 字段、装载顺序、状态分布、跨表关系及 Behavior 对 Business Entity Manifest 的复用已确认；Source Gate 验收边界见 `docs/acceptance/source-load-gate-acceptance.md`。
 - `LOAD DATA` 初始化脚本与 Shared Source Gate 已实现并通过本地失败路径与目标 MySQL Runtime 验收；正式 ODS 21 表抽取 Contract、Job Generator、Stage Runner 与 Spark Validation/Publish Renderer 已创建并通过本地测试，DataX/HDFS/Hive/Spark Runtime 与 ODS Gate 尚未验证。
 - Formal CDC 配置、正式 Kafka Topic、`event_version`、Domain Flink Applications、Incremental Business Generator、正式 Checkpoint Root 与 V2 Doris 初始化脚本均尚未创建或验证。

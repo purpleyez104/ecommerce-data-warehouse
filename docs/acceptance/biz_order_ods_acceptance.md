@@ -12,7 +12,7 @@ MySQL ecommerce_oltp_m2_acceptance.biz_order
   → Spark SQL 固定基线汇总
 ```
 
-该结论只适用于 100 单历史切片。Milestone 3 保持 `in progress`，不代表 21 表、增量抽取、同日重跑、连续回补、异常批次保护或后续 DIM/DWD/DWS/ADS/Doris 离线链路已完成。
+该结论只适用于 100 单历史切片，不能单独证明 21 表、增量抽取、同日重跑、连续回补或异常批次保护。Milestone 3 的当前完成结论及其独立证据见 [`formal-ods-smoke-acceptance.md`](formal-ods-smoke-acceptance.md)；后续 DIM/DWD/DWS/ADS/Doris 离线链路仍未由本历史验收证明。
 
 ## 2. 固定输入与结果
 

@@ -30,7 +30,41 @@ python mysql/scripts/replay_daily_package.py \
 
 预期成功退出状态为 `0`，结果位于指定输出目录的 `plan.json` 和 `replay.sql`。计划固定记录 `dry_run=true`、`execution_authorized=false`、`database_contacted=false`；SQL 只作为后续单独授权前的审计产物，不能据此声称 MySQL 回放已经执行。缺少 `--dry-run`、输出目录已存在，或 Manifest、Hash、字段、主键、时间窗口、操作顺序不一致时返回 `2`，且不创建完成态输出。旧 Bundle 若缺少当前 Contract 要求的 `operation_time` 会被拒绝，不提供隐式兼容。
 
-该入口不读取数据库环境变量，不调用 MySQL Client，也不允许直接对第 90 日终态正式库回放。未来 Runtime 必须使用另行授权的隔离 Source、第 61 日切换点状态并按 Day 61～90 顺序执行。当前本地回滚只需移除本次输出目录；不会修改 Replay Bundle 或数据库。
+该入口不读取数据库环境变量，不调用 MySQL Client，也不允许直接对第 90 日终态正式库回放。Runtime 必须使用另行授权的隔离 Source 并按日顺序执行。当前本地回滚只需移除本次输出目录；不会修改 Replay Bundle 或数据库。
+
+## Daily Package Replay Executor
+
+Executor 使用 Planner 的同一套 Manifest、Hash、Schema、主键、窗口与操作顺序校验，并通过 MySQL Client 在同一事务中执行 Daily 操作和 45-rule Source Gate。默认拒绝数据库访问；只有同时提供 `--execute` 与匹配的 `--confirm-day` 才会调用 Client：
+
+```bash
+python mysql/scripts/execute_replay_daily_package.py \
+  --replay-bundle /absolute/path/to/replay-bundle \
+  --day 61 \
+  --confirm-day 61 \
+  --output /absolute/path/to/mysql-replay-day-61-result \
+  --execute
+```
+
+真实模式只从环境变量读取 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE`、`MYSQL_USER`、`MYSQL_PASSWORD`。密码写入 mode `0600` 的临时 defaults file，不进入 argv、日志或 `result.json`。MySQL Client 或 Source Gate 失败时返回非零，不生成成功结果；只有事务提交后才写出 `status=executed`、Package/SQL/Gate Hash 和操作数。输出目录已存在时 fail-fast，避免覆盖既有验收证据。
+
+Executor 以 `replay_batch_ledger` 作为数据库提交事实：`batch_id` 与 `day_number` 唯一，Daily 操作、Ledger 写入和 45-rule Source Gate 位于同一事务。相同 Day 与相同 Hash 重跑返回 `already_applied`；同 Day 但 Hash/操作数冲突时 fail-fast。该机制避免进程中断后从 Day 61 盲目重放。
+
+完整范围批量入口为：
+
+```bash
+python mysql/scripts/execute_replay_range.py \
+  --replay-bundle /absolute/path/to/replay-bundle \
+  --start-day 61 \
+  --end-day 90 \
+  --output /absolute/path/to/range-result \
+  --execute
+```
+
+入口先对完整日期范围执行无数据库写入的 Preflight，再按日执行并保存自动 Checkpoint。中断后使用相同参数增加 `--resume`；Resume 会核对现有 Acceptance、目标数据库 Ledger 与最新 Source Gate，只跳过证据一致的已提交日期。默认 MySQL Client Timeout 为 300 秒，可通过 `MYSQL_COMMAND_TIMEOUT_SECONDS` 调整，最大 3600 秒。
+
+当前本地实现和测试已完成。服务器运行目录 `/data/ecommerce-replay-runtime-20261016-r6/` 和隔离库 `ecommerce_oltp_replay_20260105_r6` 已完成 Day 60～90 Replay：Range State 为 `verified`，30 条 Ledger 覆盖 Day 61～90，30/30 Acceptance 完整，最终独立 Source Gate 为 45/45、0 违规，`local_infile=OFF`。Day 75 曾在事务提交后、Acceptance 落盘前被 signal 中断；修复后的 Resume 先核对下一日 Ledger，再通过 `already_applied` 补齐 Gate/Acceptance，没有重复业务写入。Replay 身份对 r6 的临时权限已精确回收；旧 r5/r4/r2 环境和权限未在本次操作中修改。真实回滚、重置或重放继续遵守新的 Database Operation 授权边界。
+
+同一 Replay Baseline 的 Day 60～90 DataX/Hive ODS Stage Gate 也已完成，具体运行证据与边界见 [`formal-ods-smoke-acceptance.md`](../docs/acceptance/formal-ods-smoke-acceptance.md)；本节 Source Replay 结论仍不替代 ODS 或下游分层的独立验收。
 
 ## Replay Bootstrap Source Load dry-run
 

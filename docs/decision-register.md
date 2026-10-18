@@ -1808,6 +1808,122 @@ Milestone 3～10 增加随真实资产形成治理 Contract 的工作，但不�
 
 若轻量治理实现阻塞当前数仓主链路，可暂停治理代码并保留六个 Contract 的文件级设计，不回滚已验证的数据链路或业务 Contract。恢复时必须继续遵守 Metadata/Lineage/Metric 的真实证据边界；不得以删除 `DR-042` 或重写历史决策隐藏范围变化。
 
+## DR-043：Replay Batch Ledger 与批量范围验收
+
+- 状态：`accepted`
+- 决策日期：2026-10-16
+- 决策人：用户
+- 影响范围：Milestone 2～3、MySQL Daily Replay、批量回放、幂等重跑、断点恢复与验收方式
+- 关联决策：落实 `DR-037`、`DR-040` 的 Day 61～90 时间推进式回放，不改变 Dataset、业务语义或 Shared Source Gate
+
+### 背景
+
+逐日人工启动和验收使 Day 61～90 被拆成 30 个重复 Gate，进程中断后又容易从固定首日重新尝试。仅依赖本地结果文件无法证明目标数据库是否已提交，也不足以安全区分“已提交但结果文件未写完”和“数据库未提交”。
+
+### 决策
+
+1. 采用数据库 `replay_batch_ledger` 记录已提交批次，以 `batch_id` 和 `day_number` 唯一约束绑定 Business Hash、Package Manifest Hash 与操作数。
+2. Daily 业务操作、Ledger 写入和 45-rule Source Gate 必须位于同一事务；Gate 失败时全部回滚。
+3. 同一 Day、相同 Hash 与操作数的重跑返回 `already_applied`，不重复执行业务 SQL；同 Day 输入冲突必须 fail-fast。
+4. Day 61～90 使用 Range Executor 一次推进。运行前完成完整范围 Preflight，运行中按日保存 Checkpoint/Acceptance；中断后通过 `--resume` 核对本地证据、数据库 Ledger 和实时 Gate，从一致位置继续。
+5. 每日只作为自动 Checkpoint 和失败定位点，不作为用户逐日验收 Gate；完整范围结束后统一执行 Ledger、Expected Result、Source Gate、权限和证据完整性验收。
+6. 该模式后续可用于 DataX/ODS 等批量阶段的工作流设计，但不直接复用 MySQL Ledger 表；各阶段使用自身适用的批次状态、幂等发布和质量规则。
+
+### 理由
+
+数据库 Ledger 能把提交事实与业务写入绑定，Range Executor 能减少人工轮询和重复验收，同时保留逐日定位与安全恢复能力。相比继续逐日人工推进，新增代码和表结构成本较小，能够直接降低误重放、状态漂移和长任务中断后的恢复风险。
+
+### 验证方法
+
+1. Unit Test 覆盖 Ledger 校验、相同输入幂等、冲突拒绝、完整范围 Preflight、Checkpoint 与 Resume 状态核对。
+2. 隔离 MySQL Integration Test 证明 Day 72 首次提交、同日重跑不重复写入，以及 Day 73 Gate 失败时 Ledger 与业务数据共同回滚。
+3. 正式范围完成后核对 30 个 Ledger Day、30 份 Acceptance、Day 90 Expected Result、独立 45-rule Source Gate、`local_infile=OFF` 和最小权限回收。
+
+### 影响与风险
+
+Replay Schema 增加一张技术 Ledger 表，不改变 21 张业务表和业务数据 Contract。若本地 Acceptance 与数据库 Ledger 不一致，Range Executor 必须停止并保留现场，不能自动猜测或覆盖。r6 已完成 Day 61～90、30 条 Ledger、30/30 Acceptance 和最终独立 Gate；Day 75 提交后中断暴露的恢复顺序问题已修复并增加回归测试。
+
+### 回滚方式
+
+在未执行新批次时可停止使用 Range Executor，但已经写入的 Ledger 是已提交业务批次的审计事实，不得单独删除。若实现存在缺陷，应保留数据库、Ledger、Checkpoint 和日志，修正 Executor 后从一致状态 `--resume`；数据库重置、数据删除或 Ledger 清理仍需新的破坏性 Database Operation 授权。
+
+## DR-044：采用 r6 作为正式 Business Replay Baseline
+
+- 状态：`accepted`
+- 决策日期：2026-10-17
+- 决策人：用户
+- 影响范围：Milestone 2～3、8～9、Business Replay 固定输入、ODS/CDC 输入绑定、验收证据与状态文档
+- 关联决策：替代 `DR-040` 中 `c690b325...` 的当前 Baseline 地位；保留 `DR-040`、r3 `4abcd890...` 及其历史证据，不重写历史运行事实
+
+### 背景
+
+退款终态、不可变事件流与逐日 Source Gate 规则修复后，当前 worktree 使用 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00` 生成的内容已不同于 `DR-040` 的早期 r2 Bundle。r6 隔离运行使用的新 Bundle 完成了 Day 60～90 Runtime，但在正式同步前，其 Business Hash 和操作数与 Spec 中旧值冲突。若继续让 ODS/CDC 绑定旧 Hash，将导致代码、Runtime 和正式 Contract 三者漂移；若回退到旧 Bundle，则会放弃已修复的业务一致性规则和完整 Runtime 证据。
+
+### 决策
+
+1. 当前正式 Business Replay Baseline 使用 Dataset Version `v2.3-replay-formal-20260105-r2`，并以 Business Hash `ecea32d620bfbf44671ff2c1e1ff765fe4638f330f621229b9dd8f543578deb5` 与 Replay Manifest SHA-256 `5e09633896125c487a9a2d55632507621eb058679f4e30bc83c313c42e46533c` 精确标识。
+2. 固定输入仍为 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00`；Day 60 Bootstrap 为 438,869 行，Day 61～90 共 1,210,882 个操作，其中 INSERT 889,622、UPDATE 321,260。
+3. `c690b325...` 和 `4abcd890...` 分别保留为初始 r2 与 r3 修复过程的历史 Baseline，不得再作为 ODS、CDC 或后续模型的当前输入。
+4. ODS Batch Contract、Formal CDC 与后续离实时对账必须绑定本决策的 Business Hash、Replay Manifest SHA-256 和对应 Package Manifest，不得只依赖未变化的 Dataset Version 字符串。
+5. 本决策只确认 Business Replay 输入及其 MySQL Runtime，不提升 Behavior、ODS、Kafka、CDC、Flink、Doris 或下游模型状态。
+
+### 理由
+
+当前 worktree 已使用相同固定参数重生成 146 个文件，并复现 r6 的 Business Hash、Replay Manifest SHA-256、30 个 Package Manifest 和操作总数；r6 同时完成 Day 60～90、30/30 Acceptance、最终独立 45-rule Gate 与权限回收。因此采用 r6 能保持代码、可复现输入和真实 Runtime 一致，成本和风险均低于回退旧 Bundle 后重新执行整段链路。
+
+### 验证方法
+
+1. 本地重生成得到 Business Hash `ecea32d...`、Replay Manifest SHA-256 `5e096338...`、30 个 Package 和 1,210,882 个操作。
+2. r6 Range State 为 `verified`，30 条 Ledger 覆盖 Day 61～90，30/30 Acceptance 完整。
+3. Day 90 最终独立 Source Gate 为 45/45、0 违规，`local_infile=OFF`。
+4. `SHOW GRANTS` 证明 Replay 身份对 r6 的临时权限已回收，未修改正式库和旧 r5/r4/r2 权限。
+
+### 影响与风险
+
+Dataset Version 字符串仍为 `v2.3-replay-formal-20260105-r2`，因此下游必须同时校验 Business Hash 和 Replay Manifest SHA-256，不能只按版本名判断输入一致性。Behavior r1 仍是本地验证输入；其与当前 Business Entity Manifest 的绑定应在 Formal CDC/Kafka Runtime 前重新核对，不得由本决策自动提升。
+
+### 回滚方式
+
+在 ODS/CDC 外部写入前可停止使用 r6，但不得把旧 Hash 重新标记为当前正式 Baseline。若后续发现 r6 Contract 缺陷，应新增 Dataset Version 和连续决策，保留现有数据库、Ledger、Acceptance 和 Gate 证据；数据库重置或重新回放需要新的 Database Operation 授权。
+
+## DR-045：正式 ODS 使用独立显式根路径并保留 Pilot History
+
+- 状态：`accepted`
+- 决策日期：2026-10-17
+- 决策人：用户
+- 影响范围：Milestone 3、Hive ODS Schema、HDFS 路径、Pilot 历史资产、DataX Job 导出与回滚边界
+- 替代决策：无
+
+### 背景
+
+正式 `ecommerce_ods` 仍存在三张 2026-09-21 Pilot 表，其中旧 `ods_order` 使用 Hive 默认 warehouse 路径并注册 88 个历史分区。直接用新 21 表 DDL 覆盖会造成同名表和物理路径冲突；继续只在隔离库运行则不能形成正式 Source → ODS 证据。仓库此前也只有 Runtime job，没有可见的无 Secret DataX job 导出。
+
+### 决策
+
+1. 将三张旧 Pilot 表重命名为 `pilot_20260921_*` HISTORY 名称，保留其 EXTERNAL HDFS 数据、分区和原 LOCATION，不删除、不覆盖。
+2. 正式 21 张 ODS 表固定为 EXTERNAL、ORC + Snappy、按 `dt` 分区，显式路径为 `/warehouse/ecommerce/ods/<target_table>`。
+3. Seed `20260928` 的终态正式 Source 使用 Snapshot Contract 执行一次正式 Bootstrap；Seed `20260105` Replay 继续承担时间推进式增量、恢复和回补验收，两者证据不得混用。
+4. `datax/jobs/` 保存仅含占位符的可审计 job 与 SHA-256 Manifest；Secret 仅在私有 Runtime 临时注入并在运行后删除。
+
+### 理由
+
+显式新根路径把正式 21 表与 Pilot warehouse 路径物理隔离；元数据 rename 保留历史数据且具备清晰回滚映射。正式 Snapshot Bootstrap 直接证明现有 `ecommerce_oltp` 到正式 ODS 的完整规模链路，同时不替代 Replay 的时间推进式 Acceptance。
+
+### 验证方法
+
+1. Hive 盘点确认三张 Pilot 表重命名后仍为 EXTERNAL，旧 `ods_order` 原 LOCATION、88 分区和 194,126 bytes 保持。
+2. 正式 Batch `formal-bootstrap-20260228-r1` 状态为 `planned → staged → validated → published`。
+3. 正式 Source 21 表逐表行数与 Dataset Manifest 一致，合计 1,328,502；独立 ODS Gate 为 1,476/1,476、0 失败。
+4. `SHOW GRANTS` 与文件检查证明临时正式源 `SELECT` 已回收，hadoop202 `datax.env` 和临时 Secret job 已删除。
+
+### 影响与风险
+
+任何依赖旧表名 `ecommerce_ods.ods_order` 作为 Pilot 的脚本必须改用 HISTORY 名称；正式 `ods_order` 现在指向 V2 正式数据。Hive 表为 EXTERNAL，删除元数据不会自动删除数据，但任何表删除、HDFS 路径清理或正式 Bootstrap 重跑仍需单独授权。M3 在 Day 62～90、跨日恢复和连续回补完成前保持 `in progress`。
+
+### 回滚方式
+
+仓库提供 `hive/ods/rollback_archive_pilot_20260921.sql`。只有正式同名表已按单独授权移除并确认不会丢失正式数据时，才能把 Pilot HISTORY 名称恢复为原名；不得为回滚直接删除 `/warehouse/ecommerce/ods/` 或旧 Pilot HDFS 数据。
+
 ## 记录模板
 
 复制以下模板新增记录；不要直接修改模板内容。

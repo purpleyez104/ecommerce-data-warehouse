@@ -244,25 +244,25 @@ WHERE e.order_id IS NOT NULL AND NOT (o.coupon_id <=> e.coupon_id);
 -- RULE: event.order_final_state
 INSERT INTO source_gate_results
 SELECT 'event.order_final_state', COUNT(*) FROM biz_order o
-LEFT JOIN (SELECT e.order_id,e.to_status FROM biz_order_status_event e JOIN (SELECT order_id,MAX(occurred_at) occurred_at FROM biz_order_status_event GROUP BY order_id) x ON x.order_id=e.order_id AND x.occurred_at=e.occurred_at) final USING(order_id)
+LEFT JOIN (SELECT order_id,to_status FROM (SELECT e.order_id,e.to_status,ROW_NUMBER() OVER (PARTITION BY e.order_id ORDER BY e.occurred_at DESC,e.order_event_id DESC) AS rn FROM biz_order_status_event e) ranked WHERE rn=1) final USING(order_id)
 WHERE final.to_status IS NULL OR final.to_status<>o.order_status;
 
 -- RULE: event.refund_final_state
 INSERT INTO source_gate_results
 SELECT 'event.refund_final_state', COUNT(*) FROM biz_refund_request r
-LEFT JOIN (SELECT e.refund_request_id,e.to_status FROM biz_refund_event e JOIN (SELECT refund_request_id,MAX(occurred_at) occurred_at FROM biz_refund_event GROUP BY refund_request_id) x ON x.refund_request_id=e.refund_request_id AND x.occurred_at=e.occurred_at) final USING(refund_request_id)
+LEFT JOIN (SELECT refund_request_id,to_status FROM (SELECT e.refund_request_id,e.to_status,ROW_NUMBER() OVER (PARTITION BY e.refund_request_id ORDER BY e.occurred_at DESC,e.refund_event_id DESC) AS rn FROM biz_refund_event e) ranked WHERE rn=1) final USING(refund_request_id)
 WHERE final.to_status IS NULL OR final.to_status<>r.refund_status;
 
 -- RULE: event.payment_final_state
 INSERT INTO source_gate_results
 SELECT 'event.payment_final_state', COUNT(*) FROM biz_payment_attempt p
-LEFT JOIN (SELECT e.payment_attempt_id,e.to_status FROM biz_payment_event e JOIN (SELECT payment_attempt_id,MAX(occurred_at) occurred_at FROM biz_payment_event GROUP BY payment_attempt_id) x ON x.payment_attempt_id=e.payment_attempt_id AND x.occurred_at=e.occurred_at) final USING(payment_attempt_id)
-WHERE final.to_status IS NULL OR final.to_status<>p.payment_status;
+LEFT JOIN (SELECT payment_attempt_id,to_status FROM (SELECT e.payment_attempt_id,e.to_status,ROW_NUMBER() OVER (PARTITION BY e.payment_attempt_id ORDER BY e.occurred_at DESC,e.payment_event_id DESC) AS rn FROM biz_payment_event e) ranked WHERE rn=1) final USING(payment_attempt_id)
+WHERE (final.to_status IS NULL AND p.payment_status<>'INIT') OR (final.to_status IS NOT NULL AND final.to_status<>p.payment_status);
 
 -- RULE: event.coupon_final_state
 INSERT INTO source_gate_results
 SELECT 'event.coupon_final_state', COUNT(*) FROM biz_coupon c
-LEFT JOIN (SELECT e.coupon_id,e.to_status FROM biz_coupon_event e JOIN (SELECT coupon_id,MAX(occurred_at) occurred_at FROM biz_coupon_event GROUP BY coupon_id) x ON x.coupon_id=e.coupon_id AND x.occurred_at=e.occurred_at) final USING(coupon_id)
+LEFT JOIN (SELECT coupon_id,to_status FROM (SELECT e.coupon_id,e.to_status,ROW_NUMBER() OVER (PARTITION BY e.coupon_id ORDER BY e.occurred_at DESC,e.coupon_event_id DESC) AS rn FROM biz_coupon_event e) ranked WHERE rn=1) final USING(coupon_id)
 WHERE final.to_status IS NULL OR final.to_status<>c.coupon_status;
 
 -- RULE: event.recorded_after_occurred

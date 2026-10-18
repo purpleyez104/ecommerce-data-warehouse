@@ -1,0 +1,92 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `merge_id`,\n  `operation_id`,\n  `visitor_cart_id`,\n  `user_cart_id`,\n  `user_id`,\n  `merge_detail`,\n  `truncated_quantity`,\n  `merged_at`,\n  DATE_FORMAT(`merged_at`, '%Y-%m-%d') AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_cart_merge_record' AS `source_table`\nFROM `biz_cart_merge_record`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_cart_merge_record/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_cart_merge_record_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "merge_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "operation_id",
+                "type": "STRING"
+              },
+              {
+                "name": "visitor_cart_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "user_cart_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "user_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "merge_detail",
+                "type": "STRING"
+              },
+              {
+                "name": "truncated_quantity",
+                "type": "INT"
+              },
+              {
+                "name": "merged_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

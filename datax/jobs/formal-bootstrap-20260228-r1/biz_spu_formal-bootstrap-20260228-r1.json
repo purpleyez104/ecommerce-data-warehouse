@@ -1,0 +1,96 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `spu_id`,\n  `spu_code`,\n  `category_id`,\n  `brand_code`,\n  `brand_name`,\n  `spu_name`,\n  `spu_status`,\n  `created_at`,\n  `updated_at`,\n  DATE_FORMAT(`created_at`, '%Y-%m-%d') AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_spu' AS `source_table`\nFROM `biz_spu`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_spu/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_spu_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "spu_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "spu_code",
+                "type": "STRING"
+              },
+              {
+                "name": "category_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "brand_code",
+                "type": "STRING"
+              },
+              {
+                "name": "brand_name",
+                "type": "STRING"
+              },
+              {
+                "name": "spu_name",
+                "type": "STRING"
+              },
+              {
+                "name": "spu_status",
+                "type": "STRING"
+              },
+              {
+                "name": "created_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "updated_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

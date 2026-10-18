@@ -1,0 +1,128 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `order_item_id`,\n  `order_id`,\n  `sku_id`,\n  `spu_id`,\n  `category_id`,\n  `brand_code`,\n  `sku_name`,\n  `quantity`,\n  `unit_price_cents`,\n  `gross_amount_cents`,\n  `allocated_discount_cents`,\n  `payable_amount_cents`,\n  `refund_reserved_cents`,\n  `refunded_cents`,\n  `refunded_quantity`,\n  `created_at`,\n  `updated_at`,\n  DATE_FORMAT(`created_at`, '%Y-%m-%d') AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_order_item' AS `source_table`\nFROM `biz_order_item`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_order_item/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_order_item_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "order_item_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "order_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "sku_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "spu_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "category_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "brand_code",
+                "type": "STRING"
+              },
+              {
+                "name": "sku_name",
+                "type": "STRING"
+              },
+              {
+                "name": "quantity",
+                "type": "INT"
+              },
+              {
+                "name": "unit_price_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "gross_amount_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "allocated_discount_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "payable_amount_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "refund_reserved_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "refunded_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "refunded_quantity",
+                "type": "INT"
+              },
+              {
+                "name": "created_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "updated_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

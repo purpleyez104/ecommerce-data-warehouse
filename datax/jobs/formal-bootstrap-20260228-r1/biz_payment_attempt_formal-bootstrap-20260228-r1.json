@@ -1,0 +1,100 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `payment_attempt_id`,\n  `order_id`,\n  `attempt_no`,\n  `funding_txn_id`,\n  `amount_cents`,\n  `payment_status`,\n  `initiated_at`,\n  `succeeded_at`,\n  `created_at`,\n  `updated_at`,\n  DATE_FORMAT(`initiated_at`, '%Y-%m-%d') AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_payment_attempt' AS `source_table`\nFROM `biz_payment_attempt`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_payment_attempt/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_payment_attempt_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "payment_attempt_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "order_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "attempt_no",
+                "type": "INT"
+              },
+              {
+                "name": "funding_txn_id",
+                "type": "STRING"
+              },
+              {
+                "name": "amount_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "payment_status",
+                "type": "STRING"
+              },
+              {
+                "name": "initiated_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "succeeded_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "created_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "updated_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

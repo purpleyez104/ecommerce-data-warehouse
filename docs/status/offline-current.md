@@ -57,13 +57,26 @@
 
 - 已新增确定性 Replay Builder：使用 90 日输入重建第 61 日切换点 Bootstrap，并输出 30 个左闭右开 Daily Package、操作流、表级水位、受影响业务日期、Expected Result、31 个 ODS Batch Contract 与 SHA-256 Replay Manifest。现有正式终态 Generator 未改变。
 - 已新增 MySQL Replay Planner：严格校验 Replay/Package/ODS Contract Hash、表名、字段、主键、时间窗口与 `operation_time + LOAD_TABLE_ORDER` 顺序，并在强制 `--dry-run` 下生成 `plan.json` 和事务化 `replay.sql`。真实 P0 `day_61` Smoke 生成 28 个操作（19 INSERT、9 UPDATE），计划明确记录 `execution_authorized=false`、`database_contacted=false`。
-- 2026-10-15 使用 `replay_formal_20260105.json`、Seed `20260105` 和显式 `generated_at` 完成本地正式 Replay：Dataset `v2.3-replay-formal-20260105-r2`，Bootstrap 438,869 行，30 个 Daily Package 共 1,189,936 个操作（889,622 INSERT、300,314 UPDATE），Bundle 626,679,286 bytes，Business Hash 为 `c690b3257268e342d12772984d0dc93af806072acf4ead91c5c281b5a92293e0`。Bootstrap Source Load 与 30 个 Package Dry-run 全部通过，均为 `database_contacted=false`、`execution_authorized=false`。
-- 同一 Business r2 固定参数正式重生成 146 个文件，并与原 Bundle 逐文件比较 SHA-256；差异文件数为 0，证明当前版本可精确复现该固定输入。
+- 已新增 MySQL Replay Executor：必须同时提供 `--execute` 与匹配的 `--confirm-day`，密码只从 `MYSQL_PASSWORD` 读取且不进入参数、日志或结果；Daily 操作与 45-rule Source Gate 位于同一事务，Client/Gate 失败返回非零且不生成成功结果。该入口已部署到服务器独立目录；Day 61 Planner Dry-run 识别 19,456 个操作，Business Hash、Expected Result 与订单状态分布核对通过，`database_contacted=false`、`execution_authorized=false`，拒绝路径退出码为 2。
+- 初次 Day 61 执行在业务写入前因 MySQL 身份失败，数据库仍保持 Day 60；获得单独授权后，`ecommerce_user@localhost` 仅增加隔离库的 `SELECT / INSERT / UPDATE / CREATE TEMPORARY TABLES` 临时权限。随后 Day 61 成功提交 19,456 个操作，Executor 记录 `database_contacted=true`、`committed_after_source_gate=true`。
+- Day 61 提交后独立验收为 45/45 规则、0 违规；21 表精确计数全部匹配 Expected Result，合计 453,809 行。订单状态为 21,783 `PAID`、8,970 `CANCELED`、315 `CREATED`，`local_infile=OFF`。
+- 2026-10-16，旧 r2 链路的 Day 62 Package 四个输入文件的服务器端 SHA-256 与本地固定清单一致；Planner Dry-run 记录 `operation_count=22995`、`database_contacted=false`、`execution_authorized=false`。Executor 随后提交 22,995 个操作并记录 `committed_after_source_gate=true`；事务内及提交后独立 Source Gate 均为 45/45 规则、0 违规。21 表合计 471,317 行，订单状态为 22,686 `PAID`、9,373 `CANCELED`、326 `CREATED`，`local_infile=OFF`。该逐日链路停在 Day 62，后续由下述 r6 Batch Ledger/Range Executor 接续验证，不把 r2 状态外推到 r6。
+- 独立运行目录已逐文件无差异复制到数据盘 `/data/ecommerce-replay-runtime-20261015/`，源/目标均为 31 个文件、47M，目标目录 mode `0700`；后续从该路径继续。`/home/yee/ecommerce-replay-runtime-20261015/` 暂作为已验收备份保留，尚未删除。MySQL `datadir` 仍为 `/var/lib/mysql/`，本 Step 未迁移数据库物理文件。
+- `c690b325...` 与 `4abcd890...` 分别保留为初始 r2 和 r3 修复过程的历史 Baseline。根据 `DR-044`，当前正式 Replay Baseline 使用相同固定参数、Dataset `v2.3-replay-formal-20260105-r2`、Business Hash `ecea32d620bfbf44671ff2c1e1ff765fe4638f330f621229b9dd8f543578deb5` 和 Replay Manifest SHA-256 `5e09633896125c487a9a2d55632507621eb058679f4e30bc83c313c42e46533c`：Bootstrap 438,869 行，30 个 Daily Package 共 1,210,882 个操作（889,622 INSERT、321,260 UPDATE）。
+- 2026-10-17 当前 worktree 使用同一固定参数重生成 146 个文件、638,956,763 bytes，Business Hash、Replay Manifest SHA-256、30 个 Package Manifest 和操作总数均与 r6 Runtime Bundle 一致，证明当前版本可精确复现正式输入。
 - 2026-10-15 使用 Seed `20260105`、Dataset `v2.3-behavior-replay-formal-20260105-r1` 和 Business r2 Entity Manifest 完成 Behavior 60/30 Bundle：3,000,000 条事件中 Bootstrap 895,324 条、30 个 Daily Package 2,104,676 条，Bundle 938,470,211 bytes，Content SHA-256 为 `a074cab5cc0b7bf82582242b097cc24534a8f2917485c493743574d98f8baf5e`。独立审计通过，记录 `external_system_contacted=false`。
 - Seed `20260105` 推导的 `biz_coupon_event` 为 129,691 行，Replay 终态 Source Contract 合计 1,328,491 行。历史 Source Gate 的 Seed `20260928`、1,328,502 行证据保持不变；两者是不同固定输入，不得混称为同一次 Runtime 验收。
 - 已新增 21 表 ODS Batch Runner：绑定 Replay Manifest Hash，生成不含 Secret 的私有 Job、Validation/Publish SQL 与分区计划，状态机为 `planned → staged → validated → publish_ready`；任一失败进入 `failed` 并保持 `publish_allowed=false`。
 - 已新增 Spark SQL Renderer，覆盖必需字段 Projection、PK 非空/唯一、总行数、逐业务日期行数、业务日期集合、审计字段及受影响 `dt` 的合并覆盖/分区注册计划；Dry-run 不授权真实 Publish。
-- 2026-10-15 本地统一入口共 53 个 Unit Tests 通过，其中 Business Generator 5 个、Behavior 6 个、DataX 17 个、MySQL 25 个。上述新增 Pipeline 结论仍仅为本地实现与本地验证；本 Step 没有连接 MySQL、Kafka、DataX、HDFS、Hive、Spark 或 Flink Runtime，没有发布任何 ODS 分区，也没有执行 ODS/CDC Gate。
+- 2026-10-15 当时的本地统一入口共 56 个 Unit Tests 通过，其中 Business Generator 5 个、Behavior 6 个、DataX 17 个、MySQL 28 个；该日尚未发布 ODS 分区或执行 ODS Gate，后续状态已由 2026-10-17 隔离 Smoke 更新。
+- 2026-10-15 对 `hadoop201` 执行只读复核：隔离库 21 表精确行数全部匹配 Day 60 `expected_result.json`，`MISMATCH_COUNT=0`，`local_infile=OFF`；事务内与提交后证据文件均为 45 条规则、0 违规、`EXIT_STATUS=0`，未发现 Day 61 执行结果。该复核不证明服务持续在线或 Day 61 已执行。
+- 2026-10-16 新增数据库 Batch Ledger 与 Day 61～90 Range Executor。Daily 操作、Ledger 和 45-rule Gate 在同一事务；Range 在写库前完成 30 日 Preflight，按日保存 Checkpoint，并可通过 `--resume` 对照 Acceptance、Ledger 和实时 Gate 断点恢复。隔离 Integration Test 已证明 Day 72 首次提交、同日幂等返回 `already_applied`，以及强制 Day 73 Gate 失败时 Ledger 与业务写入均回滚。
+- r6 环境位于数据盘 `/data/ecommerce-replay-runtime-20261016-r6/`，目标库为 `ecommerce_oltp_replay_20260105_r6`。Day 60 Bootstrap 与 Day 61～90 Replay 已完成：Range State 为 `verified`，30 条 Ledger 覆盖 Day 61～90、操作总数 1,210,882，30/30 Acceptance 完整，最终独立 Source Gate 为 45/45、0 违规，`local_infile=OFF`。Day 75 在提交后、Acceptance 落盘前被 signal 中断；修复后的 Resume 通过 Ledger 识别 `already_applied` 并补齐证据，没有重复业务写入。`ecommerce_user@localhost` 对 r6 的临时权限已回收，正式库和旧 r5/r4/r2 权限未修改。
+- 2026-10-17 在独立 MySQL `ecommerce_oltp_ods_20260105_r1` 与 Hive `ecommerce_ods_replay_20260105_r1` 完成 Day 60 Bootstrap + Day 61 Incremental ODS Smoke。Day 60 ODS Gate 为 1,000 个断言结果；Day 61 Source Replay 为 19,675 operations、45/45 Source Gate、0 违规，发布后 ODS Gate 为 1,034 个断言结果。增量 Publish 使用批次隔离的两阶段 ORC merge；隔离库临时 grants 已撤销，hadoop202 临时 Secret 文件已删除。证据见 `docs/acceptance/formal-ods-smoke-acceptance.md`。
+- Day 61 同日恢复重跑复用 `r4` staging，不接触 MySQL、DataX 或 Secret；状态历史为 `planned → staged_reused → validated → published`，重跑后独立 Gate 再次通过 1,034 项断言且目标仍为 457,571 行。后续 Day 62～90 与跨日恢复状态已由 2026-10-18 Stage Gate 更新。
+- 2026-10-17 正式 `ecommerce_oltp` 终态 Snapshot 已发布到正式 `ecommerce_ods` 21 张 EXTERNAL ORC + Snappy 表，显式根路径为 `/warehouse/ecommerce/ods/`。Source 21 表实时行数仍与 Manifest 一致，合计 1,328,502；Runner 状态为 `published`，独立 ODS Gate 通过 1,476/1,476 项断言、0 失败。旧 Pilot 三表已保留为 `pilot_20260921_*`，原 EXTERNAL 数据和 88 个历史分区未删除。临时正式库 `SELECT` grant 已回收，hadoop202 Secret 配置已删除。证据见 `docs/acceptance/formal-ods-bootstrap-acceptance.md`。
+- 2026-10-18 隔离 Source/ODS 完成 Day 62～90 逐日交替回放：29/29 Checkpoint、Range State `verified`，Source Ledger Day 61～90 共 30 条、1,210,882 operations，最终 Source 21 表合计 1,328,491 行。Day 63 DataX 中断后按精确 `batch_id` 清理未发布 staging 并从 Checkpoint 恢复，未重放 Day 62。Day 90 独立 ODS Gate 使用最终 Source 分组计数与 31 日快照合约，验证目标 1,632,345 行，1,498/1,498 条断言成功。临时 grant 与全部 Secret runtime 文件已回收；Milestone 3 Stage Gate 完成。
+- 2026-10-17 最新统一测试共 75 项通过：Business 6、Behavior 6、DataX 26、MySQL 37；新增覆盖正式 Snapshot Contract 与 21 个导出 job 的完整性、Hash 和 Secret 占位符。该测试证据与 Runtime 证据分别记录。
 
 ### Source Data Build 后续接续
 
@@ -78,12 +91,12 @@
 
 ## DESIGNED
 
-- `DR-037`、`DR-041` 已确认正式 90 天观察窗口按前 60 天历史初始化、后 30 天逐日双链路回放；Business/Behavior 正式规模 Bundle 与本地审计已完成，目标数据库、ODS/Kafka/CDC Runtime 和对应 Gate 仍未执行。现有本地 Bundle 与历史 Source Gate 不证明时间推进式链路已验证。
+- `DR-037`、`DR-041`、`DR-044` 已确认正式 90 天观察窗口和当前 Replay Baseline；Business Source 与 ODS 的 Day 60～90 时间推进式 Runtime、正式终态 Snapshot ODS Bootstrap 和最终 ODS Gate 已完成。Behavior、Kafka、CDC Runtime 和对应 Gate 仍为 `not_run`。
 - 需要历史属性的维度按前 60 天变化历史初始化 SCD2，后 30 天关闭旧版本、插入新版本并处理迟到修正；精确 `dim_*` 映射仍待 Milestone 4 实施前冻结。
 - 正式源模型继续采用 7 个业务域、21 张 `biz_*` 业务表；Generator 必须统一覆盖一期业务表，而不是逐表补小样本。
 - 工程实施改为按层批量推进：21 表 Source → 批量 ODS → ODS Gate → DWD/DIM → Model Gate → DWS → ADS → Doris。
 - ODS 复用边界为“一套代码 + 多表配置”：通用 DataX Job Generator、Stage Runner、Spark Validation 和 Publish；每表提供 source/target、primary key、partition、extract 与 quality rule，columns 统一引用 Business Generator 的 `TABLE_COLUMNS`，字段类型以正式 MySQL DDL 为准。
-- 通用 DataX Job Generator、Stage Runner、Spark Validation/Publish Renderer 与 21 表 Contract 已完成本地实现和 17 个 DataX Targeted Tests：可变表按 `updated_at`、Append-only 表按记录水位、`biz_identity_mapping` 按日全量快照；事实/事件按行业务时间生成 `business_date`，输出固定进入 `<target_table>/batch_id=<batch_id>` staging。该结论是本地 `implemented / not_run`，不证明 DataX/HDFS/Hive Runtime、业务分区发布或 ODS Gate。
+- 通用 DataX Job Generator、Snapshot Contract Generator、Stage Runner、Spark Validation/Publish Renderer 与 21 表 Contract 已完成实现；正式 Snapshot Runtime、Day 60～90 时间推进式业务分区发布、跨日恢复和独立 ODS Gate 已验证。
 - DWD/DIM 的业务转换 SQL 分表维护；Spark submit、日志、锁、失败保护、参数解析和 precheck 统一复用。
 - 主要验收门禁收敛为 Source Gate、ODS Gate、Model Gate；取消重复逐表端到端验收，不取消必要测试、失败传播和最终整链路验收。
 - 正式数据库继续使用 `ecommerce_oltp`、`ecommerce_ods`、`ecommerce_dwd`、`ecommerce_dim`、`ecommerce_dws`、`ecommerce_ads`，不新增 `_v2` database。
@@ -116,8 +129,6 @@
 
 ## NEXT
 
-1. 申请新的 Database Operation 授权，在隔离 Source 装载 Dataset `v2.3-replay-formal-20260105-r2` 的 Day 60 切换点状态；不得直接重置或覆盖 Seed `20260928` 的正式 Source Gate 数据。
-2. 在隔离 Source 先执行并验收 Seed `20260105` 的 `day_61`，再依次应用 `day_62`～`day_90`；不得直接对第 90 日终态库回放。
-3. 在另行授权的目标环境为可注入执行器接入 DataX/Spark，验证 60 天业务分区初始化、30 天连续水位、失败隔离和受影响历史分区重建，再执行 ODS Gate。
-4. ODS Gate 通过后实现 Type 1/SCD2 DIM 与 DWD，并执行 Model Gate。
-5. 任何隔离库构建、重置、回滚或重新装载需要新的 Database Operation 授权；不继续执行 `ods_order_item_create.sql`，不删除旧 acceptance 环境。
+1. 进入 Milestone 4，基于已验收 ODS 批量实现 Type 1/SCD2 DIM 与 DWD，并执行 Model Gate。
+2. Model Gate 通过后进入 DWS、ADS 与 Doris 离线 Serving；不提前接入 DolphinScheduler。
+3. 任何隔离库构建、重置、回滚或重新装载需要新的 Database Operation 授权；不继续执行 `ods_order_item_create.sql`，不删除旧 acceptance 环境。

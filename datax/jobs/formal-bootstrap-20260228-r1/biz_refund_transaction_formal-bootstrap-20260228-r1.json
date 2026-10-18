@@ -1,0 +1,100 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `refund_txn_id`,\n  `refund_request_id`,\n  `attempt_no`,\n  `funding_refund_txn_id`,\n  `refund_amount_cents`,\n  `refund_txn_status`,\n  `initiated_at`,\n  `succeeded_at`,\n  `created_at`,\n  `updated_at`,\n  DATE_FORMAT(`initiated_at`, '%Y-%m-%d') AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_refund_transaction' AS `source_table`\nFROM `biz_refund_transaction`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_refund_transaction/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_refund_transaction_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "refund_txn_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "refund_request_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "attempt_no",
+                "type": "INT"
+              },
+              {
+                "name": "funding_refund_txn_id",
+                "type": "STRING"
+              },
+              {
+                "name": "refund_amount_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "refund_txn_status",
+                "type": "STRING"
+              },
+              {
+                "name": "initiated_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "succeeded_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "created_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "updated_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

@@ -89,7 +89,11 @@ class ReplayDailyPackageTests(unittest.TestCase):
         operations_path = package_dir / "operations.jsonl"
         operations_path.write_text("".join(canonical_json(item) + "\n" for item in operations), encoding="utf-8", newline="\n")
         expected_path = package_dir / "expected_result.json"
-        write_json(expected_path, {"window_end": "2026-03-03 00:00:00.000", "table_row_counts": {}})
+        write_json(expected_path, {
+            "window_end": "2026-03-03 00:00:00.000",
+            "table_row_counts": {table: 0 for table in TABLE_ORDER},
+            "order_status_counts": {"CREATED": 0, "PAID": 0, "CANCELED": 0},
+        })
         counts = {table: 0 for table in TABLE_ORDER}
         for operation in operations:
             counts[operation["table"]] += 1
@@ -200,7 +204,12 @@ class ReplayDailyPackageTests(unittest.TestCase):
         self.assertEqual(plan["operation_count"], 3)
         self.assertIn("START TRANSACTION;", sql)
         self.assertIn("COMMIT;", sql)
-        self.assertEqual(sql.count("INSERT INTO"), 2)
+        self.assertIn("INSERT INTO `replay_batch_ledger`", sql)
+        self.assertLess(sql.index("INSERT INTO `replay_batch_ledger`"), sql.index("INSERT INTO `biz_"))
+        self.assertLess(sql.index("source_gate_results"), sql.index("COMMIT;"))
+        self.assertIn("SET @expected_biz_user = 0;", sql)
+        self.assertIn("SET @expected_paid_orders = 0;", sql)
+        self.assertEqual(sql.count("INSERT INTO `biz_"), 2)
         self.assertEqual(sql.count("UPDATE `biz_user`"), 1)
         self.assertIn("e6b58be8af95e794a8", sql)
         for forbidden in ("MYSQL_PASSWORD", "--password", "127.0.0.1"):

@@ -1,0 +1,116 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `order_id`,\n  `order_no`,\n  `user_id`,\n  `visitor_id`,\n  `coupon_id`,\n  `order_status`,\n  `gross_amount_cents`,\n  `discount_amount_cents`,\n  `payable_amount_cents`,\n  `created_at`,\n  `payment_deadline_at`,\n  `paid_at`,\n  `canceled_at`,\n  `updated_at`,\n  DATE_FORMAT(`created_at`, '%Y-%m-%d') AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_order' AS `source_table`\nFROM `biz_order`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_order/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_order_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "order_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "order_no",
+                "type": "STRING"
+              },
+              {
+                "name": "user_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "visitor_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "coupon_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "order_status",
+                "type": "STRING"
+              },
+              {
+                "name": "gross_amount_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "discount_amount_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "payable_amount_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "created_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "payment_deadline_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "paid_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "canceled_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "updated_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

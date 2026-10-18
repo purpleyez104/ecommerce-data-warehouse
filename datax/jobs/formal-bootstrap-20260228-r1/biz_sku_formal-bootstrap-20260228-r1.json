@@ -1,0 +1,92 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `sku_id`,\n  `sku_code`,\n  `spu_id`,\n  `sku_name`,\n  `sale_price_cents`,\n  `sku_status`,\n  `created_at`,\n  `updated_at`,\n  DATE_FORMAT(`created_at`, '%Y-%m-%d') AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_sku' AS `source_table`\nFROM `biz_sku`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_sku/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_sku_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "sku_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "sku_code",
+                "type": "STRING"
+              },
+              {
+                "name": "spu_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "sku_name",
+                "type": "STRING"
+              },
+              {
+                "name": "sale_price_cents",
+                "type": "BIGINT"
+              },
+              {
+                "name": "sku_status",
+                "type": "STRING"
+              },
+              {
+                "name": "created_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "updated_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

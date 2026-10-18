@@ -2,7 +2,7 @@
 
 状态：业务规则已形成基线；21 表 DDL、Business Generator、正式源库 `LOAD DATA` 与 Shared Source Gate 已完成 Runtime 验收。离线 100 单与实时 R1～R3 已转为 Pilot / Acceptance / History；60 天初始化与 30 天双链路回放为 `DESIGNED / not_run`，批量 ODS、Formal CDC 和离线接续仍未验收。更新时间：2026-10-13。
 
-本文件是[最终工程架构](../architecture/final-architecture.md)的业务源视图。业务语义以[业务基线](../business/business-baseline.md)、指标以[指标口径](../business/metrics.md)、实体关系以[逻辑模型](../source/logical-model.md)、字段以[当前物理设计](../source/physical-model.md)为准；本文不复制字段级契约。Milestone 2 的 Source Gate 已通过，Milestone 3 当前为 `in progress`，但 ODS Runtime Gate 尚未通过。
+本文件是[最终工程架构](../architecture/final-architecture.md)的业务源视图。业务语义以[业务基线](../business/business-baseline.md)、指标以[指标口径](../business/metrics.md)、实体关系以[逻辑模型](../source/logical-model.md)、字段以[当前物理设计](../source/physical-model.md)为准；本文不复制字段级契约。Milestone 2 的 Source Gate 和 Milestone 3 的 ODS Runtime Gate 已通过，当前进入 Milestone 4 DIM/DWD 模型门禁。
 
 ## 数据源与业务边界
 

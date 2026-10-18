@@ -219,6 +219,14 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
             raise ValueError("refund_request target requires enough paid orders with multiple items")
         refund_statuses = [name for name, total in zip(("SUCCESS", "FAILED", "PROCESSING", "REQUESTED"), allocate(counts["biz_refund_request"], [80, 15, 3, 2])) for _ in range(total)]
         rng.shuffle(refund_statuses)
+        natural_refund_txns = sum(
+            2 if status == "SUCCESS" and index < round(refund_statuses.count("SUCCESS") * 0.10)
+            else (1 if status != "REQUESTED" else 0)
+            for index, status in enumerate(refund_statuses)
+        )
+        extra_refund_txns = counts["biz_refund_transaction"] - natural_refund_txns
+        if extra_refund_txns < 0:
+            raise ValueError("refund_transaction target is below rule-derived count")
         coupon_order_total = min(counts["biz_coupon"], round(counts["biz_order"] * 0.30))
         coupon_order_ids = set(rng.sample(range(1, counts["biz_order"] + 1), coupon_order_total))
         coupon_for_order = {order_id: index + 1 for index, order_id in enumerate(sorted(coupon_order_ids))}
@@ -281,15 +289,34 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 refund_status = refund_statuses[request_number - 1]
                 refund_amount = max(1, row["payable_amount_cents"] // (2 if request_number % 3 == 0 else 1))
                 refund_quantity = "" if request_number % 10 == 0 else min(row["quantity"], 1)
+                retry = refund_status == "SUCCESS" and request_number <= round(refund_statuses.count("SUCCESS") * 0.10)
+                txn_statuses = (
+                    ["FAILED", "SUCCESS"] if retry
+                    else ([refund_status] if refund_status in {"SUCCESS", "FAILED"}
+                          else (["INIT"] if refund_status == "PROCESSING" else []))
+                )
+                if extra_refund_txns > 0 and refund_status == "SUCCESS" and not retry:
+                    txn_statuses.insert(0, "FAILED")
+                    extra_refund_txns -= 1
                 if refund_status == "SUCCESS":
                     row["refunded_cents"] = refund_amount
                     row["refunded_quantity"] = refund_quantity or 0
                 elif refund_status in {"REQUESTED", "PROCESSING"}:
                     row["refund_reserved_cents"] = refund_amount
                 requested = min(config.end - timedelta(hours=2), paid_at + timedelta(days=1 + request_number % 20))
-                completed = requested + timedelta(hours=2) if refund_status in {"SUCCESS", "FAILED"} else None
-                row["updated_at"] = dt(completed or requested)
-                refund_meta.append((order_id, row, paid_at, refund_status, refund_amount, refund_quantity, requested, completed))
+                if refund_status in {"SUCCESS", "FAILED"}:
+                    completed = requested + timedelta(minutes=5 * len(txn_statuses), seconds=30)
+                else:
+                    completed = None
+                item_state_at = completed or (
+                    requested + timedelta(minutes=5)
+                    if refund_status == "PROCESSING" else requested
+                )
+                row["updated_at"] = dt(item_state_at)
+                refund_meta.append((
+                    order_id, row, paid_at, refund_status, refund_amount,
+                    refund_quantity, requested, completed, txn_statuses,
+                ))
             for row in order_item_rows:
                 bundle.write("biz_order_item", row)
             for attempt_no, attempt_status in enumerate(attempts, start=1):
@@ -310,19 +337,22 @@ def generate(config: DatasetConfig, seed: int, generated_at: str, output: Path) 
                 else:
                     coupon_state_by_id[coupon_id] = ("UNUSED", order_id, user_id, created, canceled_at)
 
+        if extra_refund_txns != 0:
+            raise ValueError("refund transaction target could not be allocated")
+
         # Refund current state and immutable history.
-        natural_txns = sum(2 if status == "SUCCESS" and index < round(refund_statuses.count("SUCCESS") * 0.10) else (1 if status != "REQUESTED" else 0) for index, status in enumerate(refund_statuses))
-        extra_txns = counts["biz_refund_transaction"] - natural_txns
-        if extra_txns < 0:
-            raise ValueError("refund_transaction target is below rule-derived count")
         refund_txn_id = refund_event_id = 0
-        for request_id, (order_id, item, paid_at, status, amount, quantity, requested, completed) in enumerate(refund_meta, start=1):
-            retry = status == "SUCCESS" and request_id <= round(refund_statuses.count("SUCCESS") * 0.10)
-            txn_statuses = (["FAILED", "SUCCESS"] if retry else ([status] if status in {"SUCCESS", "FAILED"} else (["INIT"] if status == "PROCESSING" else [])))
-            if extra_txns > 0 and status == "SUCCESS" and not retry:
-                txn_statuses.insert(0, "FAILED")
-                extra_txns -= 1
-            bundle.write("biz_refund_request", {"refund_request_id": request_id, "refund_request_no": f"RR-{request_id:012d}", "order_id": order_id, "order_item_id": item["order_item_id"], "requested_amount_cents": amount, "refund_quantity": quantity, "refund_status": status, "requested_at": dt(requested), "completed_at": dt(completed), "created_at": dt(requested), "updated_at": dt(completed or requested)})
+        for request_id, (
+            order_id, item, paid_at, status, amount, quantity,
+            requested, completed, txn_statuses,
+        ) in enumerate(refund_meta, start=1):
+            # PROCESSING 是申请后 5 分钟由 PROCESS 事件推进的状态，不能把终态
+            # updated_at 提前写成 requested_at；否则跨日 Replay 会先出现主表终态，
+            # 下一日才出现对应事件与 INIT 交易。
+            current_state_at = completed or (
+                requested + timedelta(minutes=5) if status == "PROCESSING" else requested
+            )
+            bundle.write("biz_refund_request", {"refund_request_id": request_id, "refund_request_no": f"RR-{request_id:012d}", "order_id": order_id, "order_item_id": item["order_item_id"], "requested_amount_cents": amount, "refund_quantity": quantity, "refund_status": status, "requested_at": dt(requested), "completed_at": dt(completed), "created_at": dt(requested), "updated_at": dt(current_state_at)})
             refund_event_id += 1
             bundle.write("biz_refund_event", {"refund_event_id": refund_event_id, "event_key": f"RE-{refund_event_id:012d}", "refund_request_id": request_id, "refund_txn_id": "", "event_type": "REQUEST", "from_status": "", "to_status": "REQUESTED", "occurred_at": dt(requested), "recorded_at": dt(requested + timedelta(milliseconds=100))})
             if txn_statuses:

@@ -1,0 +1,30 @@
+{
+  "job_manifest_version": 1,
+  "batch_id": "formal-bootstrap-20260228-r1",
+  "dataset_version": "v2.3-bootstrap",
+  "source_database": "ecommerce_oltp",
+  "target_database": "ecommerce_ods",
+  "files": [
+    {"file": "biz_cart_formal-bootstrap-20260228-r1.json", "sha256": "848d2036481495d137a4a57361c30102d6ec156e5ae0f1641555aded0533654c"},
+    {"file": "biz_cart_item_formal-bootstrap-20260228-r1.json", "sha256": "a9b880771a9f26cafdf4272c4184142bc35c5963f1cb4962b2efe8a392beafbc"},
+    {"file": "biz_cart_merge_record_formal-bootstrap-20260228-r1.json", "sha256": "9e6bc6aa354cd18f16daa7ee6c19c7843395e7daa888cf09d503a3301f331fd6"},
+    {"file": "biz_category_formal-bootstrap-20260228-r1.json", "sha256": "5d62327f2aa1bede3dc90fbc32f533b7650018ed5140af6424910a4541430846"},
+    {"file": "biz_coupon_event_formal-bootstrap-20260228-r1.json", "sha256": "adc943ea79a455767d0913398a557a28ae6f7aff1535198c2babc3942470ac7d"},
+    {"file": "biz_coupon_formal-bootstrap-20260228-r1.json", "sha256": "c2e1501c9e194fe3e179acb96b80e6b9f37131e8da1189b75b45bc61d4606e2d"},
+    {"file": "biz_coupon_template_formal-bootstrap-20260228-r1.json", "sha256": "fcadecce551b3246745b9bd9f4dc7f1e378a4e56e907c20b24137de0fdbf2492"},
+    {"file": "biz_identity_mapping_formal-bootstrap-20260228-r1.json", "sha256": "02b72938e5a7944cd8955fa105ac59cb46dff7dd260f09c5c927ecb83f9bd836"},
+    {"file": "biz_order_formal-bootstrap-20260228-r1.json", "sha256": "362966a438c95fa5ba82d2607f5de35d7a891008ba91f002907207d25a379fc3"},
+    {"file": "biz_order_item_formal-bootstrap-20260228-r1.json", "sha256": "f05e026e2f52cf6424e391cbd7389d566c5ffc58686ca979c7a2e7fd867ab164"},
+    {"file": "biz_order_status_event_formal-bootstrap-20260228-r1.json", "sha256": "522bbd0c2d4baa3bb19ccc58437f57b47d2b06fac494e357a12eb15ed8e43e6d"},
+    {"file": "biz_payment_attempt_formal-bootstrap-20260228-r1.json", "sha256": "1601d2770cac70dca232b410f52605f7d2a913e346509527480e74e5ba0d87db"},
+    {"file": "biz_payment_event_formal-bootstrap-20260228-r1.json", "sha256": "e3fdcfad76addb5bcec55fad2adfb0897efb25c8eacb71e7d5737fb94bcdec9c"},
+    {"file": "biz_product_change_event_formal-bootstrap-20260228-r1.json", "sha256": "3ecabb72c019475ba4f599e64ed92c02f069c60a6a633dc7077aeb6722980c11"},
+    {"file": "biz_refund_event_formal-bootstrap-20260228-r1.json", "sha256": "21de101042361bdbfa9acc1f85d5df81fd7f97970225192c3de52bea2057d64f"},
+    {"file": "biz_refund_request_formal-bootstrap-20260228-r1.json", "sha256": "664db7dc20cf3830044cba55951f1083af4794959b4658b276c70df0c1e1642e"},
+    {"file": "biz_refund_transaction_formal-bootstrap-20260228-r1.json", "sha256": "23cd093d59f646e7b8279abb9d7beeb9c83c1ac0951d9b40c0c7ff89934cefb0"},
+    {"file": "biz_sku_formal-bootstrap-20260228-r1.json", "sha256": "344551d731febe9d1f0f9e7e067c20dc3de4076c64d4fa6de0539fbbea540d8a"},
+    {"file": "biz_spu_formal-bootstrap-20260228-r1.json", "sha256": "1738aee22bcc9da615824887ec6cf061d19c543b5b07717ff75e6297cd41a4b2"},
+    {"file": "biz_user_formal-bootstrap-20260228-r1.json", "sha256": "e9e2e268c545f18148484ac7fca41086199af3bb7dc0ec0babeabc8aec19393e"},
+    {"file": "biz_visitor_formal-bootstrap-20260228-r1.json", "sha256": "db75a6a8d383fbb1aebbb5a0a83640ddce368149efeaadc4b2e87b5f547e1fd9"}
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `mapping_id`,\n  `visitor_id`,\n  `user_id`,\n  `session_id`,\n  `evidence_type`,\n  `evidence_id`,\n  `mapping_scope`,\n  `identity_version`,\n  `effective_from`,\n  `effective_to`,\n  `mapping_status`,\n  `recorded_at`,\n  '2026-02-28' AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_identity_mapping' AS `source_table`\nFROM `biz_identity_mapping`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_identity_mapping/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_identity_mapping_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "mapping_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "visitor_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "user_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "session_id",
+                "type": "STRING"
+              },
+              {
+                "name": "evidence_type",
+                "type": "STRING"
+              },
+              {
+                "name": "evidence_id",
+                "type": "STRING"
+              },
+              {
+                "name": "mapping_scope",
+                "type": "STRING"
+              },
+              {
+                "name": "identity_version",
+                "type": "BIGINT"
+              },
+              {
+                "name": "effective_from",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "effective_to",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "mapping_status",
+                "type": "STRING"
+              },
+              {
+                "name": "recorded_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

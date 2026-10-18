@@ -171,21 +171,64 @@ def _build_actions(all_rows: dict[str, list[dict[str, str]]]) -> list[dict]:
             changes["succeeded_at"] = event["occurred_at"]
         add("biz_payment_attempt", "UPDATE", event["occurred_at"], key=event["payment_attempt_id"], changes=changes)
 
-    items = final["biz_order_item"]
-    updated_items: set[str] = set()
+    # 退款申请和订单明细累计值都由不可变事件的 occurred_at 推进。这样跨日时
+    # REQUESTED / PROCESSING / SUCCESS 状态与 reserved/refunded 聚合始终同步。
+    requests = {row["refund_request_id"]: row for row in all_rows["biz_refund_request"]}
+    requests_by_item: dict[str, list[dict[str, str]]] = {}
     for request in all_rows["biz_refund_request"]:
-        if request["updated_at"] != request["created_at"] or request["refund_status"] != "REQUESTED":
+        requests_by_item.setdefault(request["order_item_id"], []).append(request)
+    current_refund_status: dict[str, str] = {}
+    for event in sorted(
+        all_rows["biz_refund_event"],
+        key=lambda row: (_parse(row["occurred_at"]), int(row["refund_event_id"])),
+    ):
+        request = requests[event["refund_request_id"]]
+        current_refund_status[event["refund_request_id"]] = event["to_status"]
+        if event["to_status"] == "REQUESTED":
+            # INSERT 已写入 REQUESTED 初态，无需同一时刻再更新申请主表。
+            pass
+        else:
+            changes = {
+                "refund_status": event["to_status"],
+                "updated_at": event["occurred_at"],
+            }
+            if event["to_status"] in {"SUCCESS", "FAILED"}:
+                changes["completed_at"] = event["occurred_at"]
             add(
-                "biz_refund_request", "UPDATE", request["updated_at"],
-                key=request["refund_request_id"], changes=request,
+                "biz_refund_request",
+                "UPDATE",
+                event["occurred_at"],
+                key=event["refund_request_id"],
+                changes=changes,
             )
-        item = items[request["order_item_id"]]
-        if item["updated_at"] != item["created_at"] and request["order_item_id"] not in updated_items:
-            add(
-                "biz_order_item", "UPDATE", item["updated_at"],
-                key=request["order_item_id"], changes=item,
-            )
-            updated_items.add(request["order_item_id"])
+        item_requests = requests_by_item[request["order_item_id"]]
+        reserved = sum(
+            int(row["requested_amount_cents"])
+            for row in item_requests
+            if current_refund_status.get(row["refund_request_id"]) in {"REQUESTED", "PROCESSING"}
+        )
+        refunded = sum(
+            int(row["requested_amount_cents"])
+            for row in item_requests
+            if current_refund_status.get(row["refund_request_id"]) == "SUCCESS"
+        )
+        refunded_quantity = sum(
+            int(row["refund_quantity"] or 0)
+            for row in item_requests
+            if current_refund_status.get(row["refund_request_id"]) == "SUCCESS"
+        )
+        add(
+            "biz_order_item",
+            "UPDATE",
+            event["occurred_at"],
+            key=request["order_item_id"],
+            changes={
+                "refund_reserved_cents": str(reserved),
+                "refunded_cents": str(refunded),
+                "refunded_quantity": str(refunded_quantity),
+                "updated_at": event["occurred_at"],
+            },
+        )
     for row in all_rows["biz_refund_transaction"]:
         if row["updated_at"] != row["created_at"] or row["refund_txn_status"] != "INIT":
             add("biz_refund_transaction", "UPDATE", row["updated_at"], key=row["refund_txn_id"], changes={

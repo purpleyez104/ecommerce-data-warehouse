@@ -23,7 +23,9 @@ PYTHONPATH="$repo/mock/generator/business_generator/src${PYTHONPATH:+:$PYTHONPAT
   mock/generator/business_generator/src/business_generator/replay.py \
   mysql/scripts/plan_replay_bootstrap.py \
   mysql/scripts/replay_daily_package.py \
+  mysql/scripts/execute_replay_daily_package.py \
   datax/scripts/run_ods_batch.py \
+  datax/scripts/generate_ods_target_expectations.py \
   spark/scripts/render_ods_batch_sql.py
 
 PYTHONPATH="$repo/mock/generator/behavior_generator/src${PYTHONPATH:+:$PYTHONPATH}" \

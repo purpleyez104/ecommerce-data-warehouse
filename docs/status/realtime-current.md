@@ -1,6 +1,6 @@
 # Realtime Current Status
 
-更新时间：2026-10-15
+更新时间：2026-10-17
 状态口径：`VERIFIED / DOING / DESIGNED / HISTORY / UNKNOWN`
 
 本文件记录已发生的实时链路事实，不是实时健康报告。Application、Job、Checkpoint 或 Doris 的当前在线状态必须重新查询后才能确认。
@@ -19,8 +19,8 @@
 - 当前工作区的 Order DWD 工程、Doris `dwd_order` DDL 和两份只读订单对账脚本已集中归档到 `archive/pilot-v1/realtime/`；服务器已执行的 `flink/jobs/r3/r3-order-item-dwd-job/` 与 `tests/realtime/inspect-source-contract.sh` 尚未同步到当前 worktree。
 - `archive/pilot-v1/realtime/acceptance/check_order_dwd_consistency.sh` 与 `archive/pilot-v1/realtime/acceptance/check_dwd_order_consistency.sh` 状态均为 `implemented / not_run`。
 - M8/M9 保持 `in progress`。R1～R3 已结束并转为 Pilot History；`R4 Payment DWD` 已暂停，不再基于 acceptance 源库和 Pilot Topic 逐表扩展。
-- Shared Source Gate 已通过；Realtime V2 与离线链路共同的 MySQL Bootstrap Source Load Dry-run 已完成，下一入口是申请 Database Operation 授权并在隔离 Source 装载 Day 60 状态。Business/Behavior 60/30 本地输入均已冻结；Topic/Checkpoint Inventory 与 Formal CDC 设计仍是后续并行准备项，CDC Gate 通过前不进入 Domain DWD/DIM 开发。
-- Seed `20260105`、Dataset `v2.3-replay-formal-20260105-r2` 的正式 Business 60/30 Replay 已在本地生成并审计：438,869 行 Bootstrap、30 个 Daily Package、1,189,936 个操作，Business Hash 为 `c690b3257268e342d12772984d0dc93af806072acf4ead91c5c281b5a92293e0`。Bootstrap 与 30 日 MySQL Dry-run 均通过且未连接数据库；正式重生成的 146 个文件与原 Bundle 逐文件 SHA-256 一致。
+- Realtime V2 与离线链路共同的 MySQL Bootstrap Source 已完成隔离 Day 60 Runtime 验收：`ecommerce_oltp_replay_20260105_r2` 的 21 表共提交 438,869 行，事务内与提交后独立 Shared Source Gate 均为 45/45 规则、0 违规，`local_infile=OFF`。该事实只证明共同 Business Source 基线已就绪；不证明 CDC、Kafka、Flink、Doris 或实时 Serving 已运行。Business/Behavior 60/30 本地输入均已冻结；Topic/Checkpoint Inventory 与 Formal CDC 设计仍是后续并行准备项，CDC Gate 通过前不进入 Domain DWD/DIM 开发。完整证据见 [`source-load-gate-acceptance.md`](../acceptance/source-load-gate-acceptance.md)。
+- Seed `20260105`、Dataset `v2.3-replay-formal-20260105-r2` 的当前正式 Business 60/30 Baseline 由 Business Hash `ecea32d620bfbf44671ff2c1e1ff765fe4638f330f621229b9dd8f543578deb5` 和 Replay Manifest SHA-256 `5e09633896125c487a9a2d55632507621eb058679f4e30bc83c313c42e46533c` 精确标识：438,869 行 Bootstrap、30 个 Daily Package、1,210,882 个操作。当前 worktree 已使用同一固定参数重生成 146 个文件并复现相同 Hash；r6 隔离 Source 已完成 Day 60～90 MySQL Runtime、30/30 Acceptance 和最终独立 45-rule Gate。该事实不证明 CDC、Kafka、Flink 或实时 Serving 已运行。
 - Dataset `v2.3-behavior-replay-formal-20260105-r1` 已绑定 Business r2 Entity Manifest 并完成本地 60/30 Bundle：Bootstrap 895,324 条事件，30 个 Daily Package 共 2,104,676 条，Content SHA-256 为 `a074cab5cc0b7bf82582242b097cc24534a8f2917485c493743574d98f8baf5e`。独立审计通过且 `external_system_contacted=false`；这不证明 Kafka、Flink、CDC 或实时 Serving 已运行。
 
 ## DESIGNED
@@ -55,6 +55,5 @@
 
 ## NEXT
 
-1. 申请单独 Database Operation 授权，在隔离 Source 装载 Dataset `v2.3-replay-formal-20260105-r2` 的 Day 60 切换点状态；现有 Seed `20260928` 正式 Source Gate 数据继续保留。
-2. Behavior 前 60 天 Bootstrap 与后 30 天 Daily Package Contract 已完成本地验证；进入 Formal CDC Runtime 前，完成 Kafka Topic / Checkpoint Inventory 及 Topic Namespace、Partition/Key、Schema、`event_version` 和 Checkpoint Root 冻结。
-3. 获得对应外部操作授权后，在隔离 Source 执行 21 表 Initial Snapshot 与 CDC Gate；先单独验收 `day_61` 的 MySQL Transaction → Binlog → Kafka，再顺序执行 `day_62`～`day_90`，同时完成 Incremental Simulation、Recovery Gate 和 Offline ↔ Realtime Reconciliation。
+1. Behavior 前 60 天 Bootstrap 与后 30 天 Daily Package Contract 已完成本地验证；进入 Formal CDC Runtime 前，完成 Kafka Topic / Checkpoint Inventory 及 Topic Namespace、Partition/Key、Schema、`event_version` 和 Checkpoint Root 冻结。
+2. 获得对应外部操作授权后，在已完成 Day 60 的隔离 Source 执行 21 表 Initial Snapshot 与 CDC Gate；先单独验收 `day_61` 的 MySQL Transaction → Binlog → Kafka，再顺序执行 `day_62`～`day_90`，同时完成 Incremental Simulation、Recovery Gate 和 Offline ↔ Realtime Reconciliation。现有 Seed `20260928` 正式 Source Gate 数据继续保留。

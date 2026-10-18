@@ -83,7 +83,7 @@ class GenerateJobTests(unittest.TestCase):
         self.assertIsNone(identity["watermark_column"])
         payment_columns = self.contract["tables"]["biz_payment_attempt"]["columns"]
         self.assertNotIn("successful_order_id", {item["name"] for item in payment_columns})
-        self.assertEqual(payment_columns[0], {"name": "payment_attempt_id", "type": "long"})
+        self.assertEqual(payment_columns[0], {"name": "payment_attempt_id", "type": "BIGINT"})
 
     def test_load_env_expands_nested_variables_and_rejects_duplicate_keys(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -116,6 +116,7 @@ class GenerateJobTests(unittest.TestCase):
         )
         query, writer = query_and_writer(rendered)
         names = [item["name"] for item in writer["column"]]
+        self.assertEqual(writer["fieldDelimiter"], "\u0001")
         self.assertIn("DATE_FORMAT(`created_at`, '%Y-%m-%d') AS `business_date`", query)
         self.assertNotIn("'2026-02-28' AS `business_date`", query)
         self.assertIn("WHERE 1 = 1", query)

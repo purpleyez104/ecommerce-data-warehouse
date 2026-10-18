@@ -63,10 +63,10 @@ PARTITION_CONTRACT = {"column": "dt", "source": "business_date"}
 WATERMARK_EXTRACT = {"bootstrap": "full", "incremental": "half_open_watermark"}
 SNAPSHOT_EXTRACT = {"bootstrap": "full", "incremental": "full_snapshot"}
 AUDIT_COLUMNS = (
-    ("business_date", "string"),
-    ("extract_time", "string"),
-    ("batch_id", "string"),
-    ("source_table", "string"),
+    ("business_date", "STRING"),
+    ("extract_time", "STRING"),
+    ("batch_id", "STRING"),
+    ("source_table", "STRING"),
 )
 
 
@@ -143,11 +143,24 @@ def parse_ddl_mysql_types(ddl_path=SOURCE_DDL):
 def parse_ddl_types(ddl_path=SOURCE_DDL):
     return {
         table: {
-            column: "long" if mysql_type in {"BIGINT", "INT"} else "string"
+            column: mysql_to_hive_type(mysql_type)
             for column, mysql_type in columns.items()
         }
         for table, columns in parse_ddl_mysql_types(ddl_path).items()
     }
+
+
+def mysql_to_hive_type(mysql_type):
+    """Return the source-faithful Hive ODS type for one frozen MySQL type."""
+    if mysql_type == "BIGINT":
+        return "BIGINT"
+    if mysql_type == "INT":
+        return "INT"
+    if mysql_type.startswith("DATETIME"):
+        return "TIMESTAMP"
+    if mysql_type.startswith("VARCHAR") or mysql_type == "JSON":
+        return "STRING"
+    raise ValueError(f"unsupported MySQL type: {mysql_type}")
 
 
 def _require_exact_keys(value, expected, label):

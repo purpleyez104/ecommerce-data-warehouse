@@ -382,6 +382,8 @@ class SourceLoadTests(unittest.TestCase):
             "coupon.event_order_reference",
             "event.chain_continuity",
             "LAG(to_status)",
+            "ROW_NUMBER() OVER (PARTITION BY e.payment_attempt_id ORDER BY e.occurred_at DESC,e.payment_event_id DESC)",
+            "p.payment_status<>'INIT'",
             "TIMESTAMPADD(MINUTE,15,o.created_at)",
         ):
             self.assertIn(fragment, sql)

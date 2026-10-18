@@ -19,6 +19,7 @@
             "fileName": "${FILE_NAME}",
             "fileType": "orc",
             "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
             "writeMode": "nonConflict",
             "column": ${WRITER_COLUMNS}
           }

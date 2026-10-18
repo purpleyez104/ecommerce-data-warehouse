@@ -1,0 +1,108 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "${MYSQL_USER}",
+            "password": "${MYSQL_PASSWORD}",
+            "connection": [
+              {
+                "jdbcUrl": [
+                  "${MYSQL_JDBC_URL}"
+                ],
+                "querySql": [
+                  "SELECT\n  `coupon_id`,\n  `coupon_code`,\n  `template_id`,\n  `user_id`,\n  `coupon_status`,\n  `locked_order_id`,\n  `used_order_id`,\n  `issued_at`,\n  `expires_at`,\n  `locked_at`,\n  `used_at`,\n  `updated_at`,\n  DATE_FORMAT(`issued_at`, '%Y-%m-%d') AS `business_date`,\n  '2026-10-17 20:35:00' AS `extract_time`,\n  'formal-bootstrap-20260228-r1' AS `batch_id`,\n  'biz_coupon' AS `source_table`\nFROM `biz_coupon`\nWHERE 1 = 1"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "hdfswriter",
+          "parameter": {
+            "defaultFS": "${HDFS_DEFAULT_FS}",
+            "path": "/warehouse/ecommerce/ods/.staging/ods_coupon/batch_id=formal-bootstrap-20260228-r1",
+            "fileName": "biz_coupon_formal-bootstrap-20260228-r1",
+            "fileType": "orc",
+            "compress": "SNAPPY",
+            "fieldDelimiter": "\u0001",
+            "writeMode": "nonConflict",
+            "column": [
+              {
+                "name": "coupon_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "coupon_code",
+                "type": "STRING"
+              },
+              {
+                "name": "template_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "user_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "coupon_status",
+                "type": "STRING"
+              },
+              {
+                "name": "locked_order_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "used_order_id",
+                "type": "BIGINT"
+              },
+              {
+                "name": "issued_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "expires_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "locked_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "used_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "updated_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "business_date",
+                "type": "STRING"
+              },
+              {
+                "name": "extract_time",
+                "type": "STRING"
+              },
+              {
+                "name": "batch_id",
+                "type": "STRING"
+              },
+              {
+                "name": "source_table",
+                "type": "STRING"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

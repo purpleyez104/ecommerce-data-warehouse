@@ -10,23 +10,18 @@
 
 Spec 管 Scope、Contract 与 Acceptance；Plan 管 Stage 路线；Status/Handoff 管进度摘要；当前代码、配置和实际测试管实现与运行事实。进度描述滞后时应提出同步文档，不得为适配旧计划倒推代码。只有影响整体方向或造成高返工成本的冲突才标记 `DECISION_REQUIRED` 并暂停；旧仓库、参考规格、学习笔记和候选实现都不是运行事实来源。
 
-## 当前阶段门禁
+## 当前状态与门禁路由
 
-Milestone 0“项目定义与文档基线”已于 2026-09-04 通过用户评审，状态为 `completed`。当前交付 V1“小规模离实时链路与展示仓库”为 `in progress`，交付 V2“规模与工程能力扩展”为 `planned`。Milestone 1、2、3、8、9 为 `in progress`，其中 M3 仅限 V1 固定小数据切片；M8/M9 的 `in progress` 依据是用户确认实时链路正在建设，精确完成范围待实时 Chat 与当前运行证据核对。R1 冻结记录只是限定范围的事实快照，不是项目阶段或 M8/M9 状态依据。当前 ECS 集群记录中的 `CONFIRMED` 已由用户确认为本项目事实；Ubuntu、网络、磁盘、`yee` 用户和 Hadoop 3.4.1 运行拓扑不重新初始化。根据 `DR-026`，M1 Step 2～12 已完成 Runtime 验收，Milestone 1 当前唯一剩余门禁为 DolphinScheduler 3.4.2。推进 Milestone 1 时：
+`AGENTS.md` 只保留稳定规则，不复制容易变化的 Milestone、行数、日期、Runtime 或下一步状态：
 
-- 严格按 `docs/plan.md` 的主机、网络、JDK 和组件前置顺序实施，不跳过兼容性与资源门禁。
-- 不得以 Milestone 1 的名义创建业务表、数据模型、指标 SQL、离线任务或实时作业；Milestone 2 的本地产物只按 `DR-008` 和 M2 小计划门禁创建。
-- 不把预留目录、占位文件、候选组件或静态检查描述为已经实现或运行通过。
-- Milestone 1 的变更只创建其确实需要维护的环境、基础设施、兼容性、安装排障和验证内容，不夹带 M2 实现。
-- 禁止格式化已存在的 NameNode；验证脚本只能删除自己创建且经过前缀和运行编号约束的临时对象。
+- 当前 Milestone、依赖顺序、进入/退出条件：`docs/plan.md`。
+- 离线与 Replay 当前事实：`docs/status/offline-current.md`。
+- 实时当前事实：`docs/status/realtime-current.md`。
+- 文件与外部 Runtime 资产边界：`docs/status/file-baseline.md`。
+- 已执行验收及证据边界：`docs/acceptance/`。
+- 项目入口与最新能力摘要：`README.md`。
 
-`DR-008` 允许 Milestone 1 与 Milestone 2 分轨推进。当前 M2 以 `docs/business/business-baseline.md`、`docs/business/metrics.md`、`docs/source/logical-model.md` 和 `docs/source/physical-model.md` 为设计输入。21 表候选 DDL 的 `M2-03` 静态快照属于部署前事实；`docs/acceptance/r1_snapshot_acceptance_frozen.md` 只证明指定隔离库到开发 Topic 的 21 表初始快照 1,178 / 1,178 及 100 单订单主键/最终状态对账，不证明当前在线状态或正式增量 CDC。2026-10-12，正式 `ecommerce_oltp` 已部署 21 表，装载固定输入生成的 1,328,502 行并通过事务内及提交后独立 45-rule Shared Source Gate；该事实见 `docs/acceptance/source-load-gate-acceptance.md`，不证明 DataX/Hive ODS 或正式 CDC 已完成。M2 仍为 `in progress`。M3 扩大到正式批量 ODS 前必须明确表范围、抽取契约、预期结果、重跑和回滚边界。`docs/acceptance/env-05-cdc-acceptance.md` 只证明单个隔离测试表和指定故障场景，不得单独外推到正式 21 表。
-
-旧 19 表代码保留在 `archive/legacy-m2-19-table/`，对应旧设计归档保留在 `docs/archive/milestone-2-business-design.md`；二者均不作为当前 V2 实现依据。M1 与 M2 的并行不解除直接运行依赖；M2 剩余门禁仍阻止 M3 全范围完成，但不阻止已冻结边界的 V1 小数据切片。
-
-`completed` 只表示对应 Milestone 的进入条件、交付物和验收项已满足，不替代 `draft`、`candidate`、`planned`、`implemented`、`verified` 等内容证据状态。M0 完成不证明任何组件已经安装或数据链路已经运行。
-
-完整 Milestone 仍必须满足 `docs/plan.md` 的全部进入条件和验收。用户已确认的 V1 纵向切片可在局部输入、契约、预期结果和回滚边界均明确后开始；上一阶段的未解决项仍阻止扩大范围或把当前切片标记为 `verified` / `completed`。
+推进任务前只读取与当前 Change 相关的状态章节和 Gate。不得把旧 Pilot、候选设计、文件存在或历史验收外推为当前正式链路事实。禁止格式化已存在的 NameNode；验证脚本只能删除自己创建且经过前缀和运行编号约束的临时对象。
 
 ## 项目范围与实施顺序
 
@@ -98,7 +93,7 @@ DataX 使用 HDFS Writer 将 ORC + Snappy 写入 Hive ODS 发布范围内的批�
 
 新增实现必须同时提供：可执行命令、固定输入、预期结果、预期退出状态、日志或结果位置、已知限制和回滚方式。所有批任务必须显式接收业务日期或起止时间，不得使用执行机器当前日期推断数据范围；业务日期格式统一为 `yyyy-MM-dd`。
 
-从首个可执行链路开始，至少验证：
+以下内容是相关 Stage 或完整功能链的 Acceptance Matrix，不要求每个普通 Task / Step 全量重复。Step 只执行当前风险所需的局部验证；Stage Gate 选择能够证明当前 Acceptance 的最小充分集合，关键数据正确性、完整性和失败阻断仍不得跳过：
 
 - 首次运行、同日重跑、连续业务日期回补和上游重复输入。
 - 空分区、迟到输入、非法状态、空值和主外键缺失。
@@ -110,11 +105,13 @@ DataX 使用 HDFS Writer 将 ORC + Snappy 写入 Hive ODS 发布范围内的批�
 
 版本、配置和性能结论必须绑定真实环境与固定输入。性能优化只有保存执行计划、扫描量、Shuffle、Stage 和作业耗时等实测证据后才能描述为有效。
 
+验证满足当前 Acceptance 后停止，不因非阻塞建议或可选优化自动开启新一轮 Review / Fix / Test。同一问题连续两轮修复仍未解决时重新分析根因、假设、测试边界和方案；没有新证据或新假设时不得重复相同失败路径。隔离测试只在能够缩小根因范围时按需使用，不作为普通功能开发的无限循环阶段。
+
 ## 文档与变更同步
 
 正式文档只记录已采用设计、最终配置、可复现命令、验证结果、已知限制和排障结论。学习笔记、临时实验、个人决策过程、未采用方案和安装草稿放入不提交 Git 的 `.local-notes/`；项目运行不得依赖该目录。
 
-每次变更应小而聚焦，只完成用户指定且属于当前阶段的内容。Agent 自行判断文档是否具有后续参考价值，但正式文档必须先提出“文件、内容、理由、影响”，得到用户确认后再修改。Scope、Contract、Architecture、Schema、Acceptance、Migration、安全与正式决策应即时提出；普通进度和验证结果在 Step / Stage Gate 集中提出。不得一次性生成整个项目或擅自引入新框架。
+每次变更应小而聚焦，只完成用户指定且属于当前阶段的内容。Agent 自行判断文档是否具有后续参考价值；用户已对 Feature、Stage 或明确任务范围授权文档同步时，可直接更新相关正式文档且不逐文件重复确认。没有该授权时，先提出“文件、内容、理由、影响”，确认后修改。Scope、Contract、Architecture、Schema、Acceptance、Migration、安全与正式决策应即时提出；普通进度和验证结果在 Step / Stage Gate 集中处理。不得一次性生成整个项目或擅自引入新框架。
 
 `CHANGELOG.md` 记录面向使用者和维护者的可交付变更，包括新增、变更、修复和移除；不得把仅讨论、未采纳方案或未完成的运行验证写成已交付事实。`docs/decision-register.md` 记录已经提出或确认、且会影响项目范围、业务口径、架构、组件版本、数据模型、接口、安全约束或验收方式的正式决策；不得用它代替一般变更日志。
 
@@ -173,9 +170,19 @@ docs/status/
 
 ### Stage-Step Workflow
 
-项目开发使用滚动设计：Stage 开始时确认 Goal、Scope、Contract、Acceptance、风险和粗粒度 Step Map，只详细设计当前 Step。Step 完成后做 Targeted Verification：局部问题直接修复；只影响后续实现时调整剩余 Step；改变 Scope、核心 Contract、Schema 或 Architecture 时执行 Correct Course 并等待确认。
+项目开发使用滚动设计：Stage 开始时确认 Goal、Scope、Contract、Acceptance、风险和粗粒度 Step Map，只详细设计当前 Step。在已批准范围内连续完成 Step 中的内部 Task，不因普通步骤完成暂停等待授权。Step Gate 只做局部判断：局部问题直接修复；只影响后续实现时调整剩余 Step；改变 Scope、核心 Contract、Schema 或 Architecture 时执行 Correct Course 并等待确认。普通 Step 不自动启动 Reviewer、Tester、Handoff、Commit 或完整验收。
 
-Stage 结束时只做一次阶段 Review、完整验证、文档同步提议和一次 Git Commit 申请。普通 Step 不自动使用 BMad、Handoff、多 Agent Review 或 Commit。
+对于多表、多分区或连续业务日期的批量链路，默认采用“批量推进 + 分层验证”，避免把每一天、每张表变成人工 Gate：
+
+1. 运行前一次性完成相关 Code Review、配置检查和完整范围 Preflight。
+2. 先用最小代表性输入执行 Smoke Test；只有真实边界风险需要时才增加隔离 Integration Test。
+3. 预检与代表性验证通过后，一次运行已批准的完整表/日期范围；每个表或业务日只作为自动 Checkpoint 和失败定位点，不要求用户逐项验收。
+4. 批处理必须记录可恢复状态，支持基于已提交 Ledger/Checkpoint 的幂等重跑或断点恢复；恢复前先核对运行证据与目标状态，不得从固定首日盲目重放。
+5. 只在批次失败、证据冲突、Contract 变化或需要新授权时中断；批次完成后统一执行 Stage Gate、对账和验收。
+
+该机制是工作方式，不代表跨阶段复用同一实现。MySQL Replay、DataX/ODS、Spark 分层和实时链路分别使用自己的 Ledger/Checkpoint、质量规则与验收证据。
+
+Stage 结束时根据 Stage Acceptance 执行最小充分验证；只有公共 Contract、关键数据、安全、重大重构或交付风险需要时才增加独立 Review、Integration 或 Full Validation。文档按已授权范围同步，其他更新集中提议；最后单独申请一次 Git Commit。显式 BMad 调用也不自动授予 Commit 权限。
 
 ### Handoff
 

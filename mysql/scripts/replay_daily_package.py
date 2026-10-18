@@ -260,7 +260,15 @@ def sql_value(value: str) -> str:
     return f"CONVERT(X'{value.encode('utf-8').hex()}' USING utf8mb4)"
 
 
-def render_sql(manifest: dict, package: dict, package_hash: str, operations: list[dict]) -> str:
+def render_sql(
+    manifest: dict,
+    package: dict,
+    package_hash: str,
+    operations: list[dict],
+    expected_counts: dict[str, int],
+    expected_order_status_counts: dict[str, int],
+    source_gate_sql: str,
+) -> str:
     lines = [
         "-- Generated dry-run artifact. Review before any separately authorized database operation.",
         f"-- dataset_version: {manifest.get('dataset_version', '')}",
@@ -270,7 +278,20 @@ def render_sql(manifest: dict, package: dict, package_hash: str, operations: lis
         f"-- package_manifest_sha256: {package_hash}",
         "SET autocommit = 0;",
         "START TRANSACTION;",
+        # Ledger 与业务操作同事务提交。重复 batch_id/day_number 会在任何业务写入前
+        # 失败，Executor 随后只读核对既有 Ledger，安全识别同日重跑。
+        "INSERT INTO `replay_batch_ledger` "
+        "(`batch_id`, `day_number`, `business_hash`, `package_manifest_sha256`, `operation_count`) VALUES ("
+        f"{sql_value(package['batch_id'])}, {package['day_number']}, "
+        f"{sql_value(manifest['business_hash'])}, {sql_value(package_hash)}, {len(operations)});",
     ]
+    for table in TABLE_ORDER:
+        lines.append(f"SET @expected_{table} = {expected_counts[table]};")
+    lines.extend([
+        f"SET @expected_paid_orders = {expected_order_status_counts['PAID']};",
+        f"SET @expected_canceled_orders = {expected_order_status_counts['CANCELED']};",
+        f"SET @expected_created_orders = {expected_order_status_counts['CREATED']};",
+    ])
     for operation in operations:
         table = operation["table"]
         row = operation["row"]
@@ -284,8 +305,36 @@ def render_sql(manifest: dict, package: dict, package_hash: str, operations: lis
                 f"`{column}` = {sql_value(row[column])}" for column in TABLE_COLUMNS[table] if column != pk
             )
             lines.append(f"UPDATE `{table}` SET {assignments} WHERE `{pk}` = {sql_value(row[pk])};")
-    lines.extend(["COMMIT;", ""])
+    # Source Gate 与回放必须处于同一事务；任一规则失败时 mysql client 非零退出，
+    # 未提交事务由服务端回滚，不能留下“数据已写入但 Gate 未通过”的中间状态。
+    lines.extend([source_gate_sql.rstrip(), "COMMIT;", ""])
     return "\n".join(lines)
+
+
+def validate_expected_result(path: Path, package: dict) -> tuple[dict[str, int], dict[str, int]]:
+    expected = load_json(path, "expected_result.json")
+    if set(expected) != {"window_end", "table_row_counts", "order_status_counts"}:
+        raise ReplayPlanError("expected_result.json: field set is invalid")
+    if expected.get("window_end") != package["window_end"]:
+        raise ReplayPlanError("expected_result.json: window_end mismatch")
+    counts = expected.get("table_row_counts")
+    if not isinstance(counts, dict) or set(counts) != set(TABLE_ORDER):
+        raise ReplayPlanError("expected_result.json: table_row_counts must cover TABLE_ORDER")
+    table_counts = {
+        table: require_int(counts[table], f"expected_result.table_row_counts.{table}")
+        for table in TABLE_ORDER
+    }
+    status_counts = expected.get("order_status_counts")
+    required_statuses = {"CREATED", "PAID", "CANCELED"}
+    if not isinstance(status_counts, dict) or set(status_counts) != required_statuses:
+        raise ReplayPlanError("expected_result.json: order_status_counts must cover CREATED/PAID/CANCELED")
+    validated_status_counts = {
+        status: require_int(status_counts[status], f"expected_result.order_status_counts.{status}")
+        for status in required_statuses
+    }
+    if sum(validated_status_counts.values()) != table_counts["biz_order"]:
+        raise ReplayPlanError("expected_result.json: order_status_counts must sum to biz_order row count")
+    return table_counts, validated_status_counts
 
 
 def publish_output(output: Path, plan: dict, sql: str) -> None:
@@ -355,7 +404,21 @@ def build_plan(replay_bundle: Path, day: int, output: Path) -> dict:
     )
     validate_table_summaries(package, operations)
     package_hash = sha256(package_manifest_path)
-    sql = render_sql(manifest, package, package_hash, operations)
+    expected_counts, expected_order_status_counts = validate_expected_result(expected_path, package)
+    source_gate_path = REPO_ROOT / "mysql" / "sql" / "source_gate.sql"
+    try:
+        source_gate_sql = source_gate_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise ReplayPlanError(f"source_gate.sql: cannot read: {exc}") from exc
+    sql = render_sql(
+        manifest,
+        package,
+        package_hash,
+        operations,
+        expected_counts,
+        expected_order_status_counts,
+        source_gate_sql,
+    )
     counts = {table: {"INSERT": 0, "UPDATE": 0} for table in TABLE_ORDER}
     for operation in operations:
         counts[operation["table"]][operation["operation_type"]] += 1
@@ -373,6 +436,9 @@ def build_plan(replay_bundle: Path, day: int, output: Path) -> dict:
         "package_manifest_sha256": package_hash,
         "operation_count": len(operations),
         "operation_counts": counts,
+        "expected_table_row_counts": expected_counts,
+        "expected_order_status_counts": expected_order_status_counts,
+        "source_gate": {"file": "mysql/sql/source_gate.sql", "sha256": sha256(source_gate_path)},
         "requires_previous_day": day - 1,
         "database_contacted": False,
     }

@@ -117,9 +117,9 @@ Project 1 是当前唯一实施与面试项目。Project 2 已暂缓，且不得
 
 `DR-008` 允许 M1 与 M2 分轨推进，但不取消直接依赖。上一版 M2 的代码材料保留在 `archive/legacy-m2-19-table/`，对应设计文档保留在 `docs/archive/milestone-2-business-design.md`；二者均为历史材料，不作为当前 V2 实现依据。
 
-2026-09-18 的业务重设计不沿用归档实现作为当前模型依据。当前采用已部署并通过 Source Gate 的 21 张 `biz_*` 表、独立行为事件流和新版指标口径。2026-10-15 已使用 Seed `20260105` 完成本地正式 Business 与 Behavior 60/30 Replay 输入生成及审计；Business Bootstrap Source Load 与 30 日 MySQL Replay Dry-run 通过，Behavior Bundle 独立审计通过。隔离数据库装载、Kafka 写入及时间推进式 ODS/CDC Runtime 仍未完成，因此 Milestone 2 保持 `in progress`。旧 19 表归档验证不能证明当前实现。2026-09-21 入库的 R1 冻结记录只证明指定 21 表隔离验收库到开发 Topic 的初始快照表级行数一致，以及订单主键与最终状态对账；它不证明正式源库增量 CDC、DataX 接续或 M2 完成。
+2026-09-18 的业务重设计不沿用归档实现作为当前模型依据。当前采用已部署并通过 Source Gate 的 21 张 `biz_*` 表、独立行为事件流和新版指标口径。Seed `20260105` 的 Business Replay Baseline 已完成 r6 Day 60～90 隔离 MySQL Runtime，另一个隔离环境已完成 Day 60 + Day 61 ODS Smoke；Seed `20260928` 的正式终态 Snapshot 已完成正式 21 表 ODS Bootstrap 与独立 Gate。Behavior Bundle、Day 62～90 ODS、Kafka 与时间推进式 CDC Runtime 仍未完成完整验收，因此 Milestone 2、3 保持 `in progress`。
 
-Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。用户提供的 2026-09-22 Chat 终端记录进一步证明 `hist-v1-001` 的 100 单 `biz_order` 在限定范围完成 MySQL → DataX → HDFS ORC → Hive ODS 发布和 Spark 固定基线汇总，共 88 个业务日期分区；该历史事实记录在 `docs/acceptance/biz_order_ods_acceptance.md`。当前正式 DDL、固定 Business 数据与 Source Gate 已闭合，21 表 Replay Bootstrap Source Load Dry-run、DataX Job Generator、Stage Runner、Spark Validation/Publish Renderer、抽取 Contract 与失败路径已通过本地测试；隔离 Source 装载、正式 DataX/HDFS/Hive/Spark Runtime、分区发布与 ODS Gate 尚未完成，因此 M3 保持 `in progress`。
+Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。2026-10-17 正式 `ecommerce_oltp` 1,328,502 行终态 Snapshot 已完成 DataX/HDFS/Hive/Spark Runtime、21 表分区发布和 1,476 项独立 ODS Gate；旧 100 单 Pilot 三表保留为 HISTORY。2026-10-18 又完成 Day 60～90 时间推进式链路、跨日恢复、29/29 Daily Checkpoint、连续回补和 1,498 项最终 ODS Gate，因此 M3 已完成；该证据不外推到 M4 及后续分层。
 
 用户于 2026-09-22 确认实时链路已经建设到一半，因此 Milestone 8、9 记录为 `in progress`。后续实时链路 R1～R3 的历史输出证明 `biz_product_change_event` 的 `op=c/d`、Order / OrderItem DWD Java Job 构建与首次装载、CDC / Order DWD Checkpoint 恢复、订单与明细正常顺序 `op=u`，以及 Doris 101 单、320 明细汇总；当前在线、全字段/乱序、物理 DELETE、更新故障恢复和完整对账仍未验证。R1/R1-7 只是限定切片记录，不是项目阶段编号，也不把 M9 提升为完整 `verified`。这些事实现作为 Pilot History 保留，不解除 M2/M3 或 M8/M9 其余门禁。
 
@@ -193,7 +193,7 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 
 ## 4. 技术栈与开发方式
 
-选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本；当前版本兼容与临时链路的实际结论以 `DR-026` 为准。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，并通过 HDFS Writer 写入 Hive ODS 发布范围内的批次隔离 staging；ORC + Snappy 与失败非零的技术能力已验证，正式分区发布、审计、幂等和失败隔离仍由 Milestone 3 验收。
+选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本；当前版本兼容与临时链路的实际结论以 `DR-026` 为准。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，并通过 HDFS Writer 写入 Hive ODS 发布范围内的批次隔离 staging；正式 Snapshot 的 ORC + Snappy、分区发布、审计与失败隔离已验证，时间推进式增量与完整 Stage Gate 仍由 Milestone 3 验收。
 
 | 职责 | 技术 | 当前状态 |
 | --- | --- | --- |
@@ -415,7 +415,7 @@ Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architectu
 
 根据 `DR-037`，正式 90 天数据的链路验收采用统一切换点：前 60 天建立历史初始化基线，后 30 天逐日驱动离线 DataX 与实时 CDC/Flink。切换点为第 61 个业务日零点；初始化数据必须是该时点的正确状态，不得包含后 30 天才发生的最终变化。现有一次性 90 天最终 bundle、正式 MySQL 装载和 Shared Source Gate 继续作为规模与业务 Contract 证据，不自动证明时间推进式回放已经实现。
 
-2026-10-15，正式 Replay 固定输入采用 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00`，修正版 Dataset 为 `v2.3-replay-formal-20260105-r2`，本地生成 438,869 行 Bootstrap、30 个 Daily Package 和 1,189,936 个操作，Business Hash 为 `c690b3257268e342d12772984d0dc93af806072acf4ead91c5c281b5a92293e0`。其终态 Source Contract 为 1,328,491 行，与 Seed `20260928`、1,328,502 行的既有 Source Gate 输入不同；Bootstrap 与 30 日 Dry-run 证据不得提升或替换历史数据库验收事实。
+正式 Replay 固定输入采用 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00`，Dataset Version 保持 `v2.3-replay-formal-20260105-r2`。根据 `DR-044`，当前正式 Baseline 以 Business Hash `ecea32d620bfbf44671ff2c1e1ff765fe4638f330f621229b9dd8f543578deb5` 和 Replay Manifest SHA-256 `5e09633896125c487a9a2d55632507621eb058679f4e30bc83c313c42e46533c` 精确标识：Day 60 Bootstrap 为 438,869 行，Day 61～90 共 1,210,882 个操作（889,622 INSERT、321,260 UPDATE），终态 Source Contract 为 1,328,491 行。2026-10-17 当前 worktree 使用同一固定参数重生成 146 个文件并得到相同 Hash；r6 隔离 Source 完成 Day 60～90 Runtime、30/30 Acceptance 和最终独立 45-rule Gate。旧 `c690b325...` 与 `4abcd890...` 只保留为修复过程中的历史 Baseline，不得用于后续 ODS/CDC Contract。
 
 同日，Behavior Replay 固定输入采用 `replay_formal_20260105.json + Seed 20260105 + generated_at 2026-10-15T10:00:00+08:00`，Dataset 为 `v2.3-behavior-replay-formal-20260105-r1`，绑定上述 Business r2 Entity Manifest。本地生成 3,000,000 条事件，其中 Day 1～60 Bootstrap 895,324 条、Day 61～90 共 2,104,676 条，Content SHA-256 为 `a074cab5cc0b7bf82582242b097cc24534a8f2917485c493743574d98f8baf5e`；独立审计通过且未连接 Kafka。
 
@@ -512,7 +512,7 @@ Milestone 0～10 用于跟踪模块责任和完整验收。离线按 MySQL → D
 10. **Project 1 面试发布**：所有简历表述均有代码和运行证据。
 BI、Dashboard、SQL Assistant、LLM/Agent 和 Project 2 实现不属于当前 Project 1 范围，不在 M0～M10 中插入新的实施门禁。
 
-2026-09-27 用户确认离线 100 单 Pilot 已完成使命并转为 History，离线开发入口切换到 Shared Source Data Build。2026-10-11 用户进一步确认正式数据规模和性能实验规模，并明确跳过独立正式 Smoke 数据档位；同日完成目标 MySQL 只读结构核对、21 表 DDL 和 CSV 字段同步。2026-10-12 已完成关系/时间及数量契约修复、Targeted Test、正式规模生成、目标 MySQL 21 表部署、1,328,502 行装载与 45-rule Source Gate。2026-10-15 已完成 Seed `20260105` 的正式 Business/Behavior 60/30 本地 Bundle；Business Bootstrap Source Load 与 30 日 Dry-run、Behavior 独立审计均通过。下一步是取得 Database Operation 授权后装载隔离 Source，并在完成 Topic/Checkpoint Contract 后另行授权 Kafka/CDC Runtime。M3、M8、M9 的完整状态不因本地 Replay 或 Source Gate 通过而自动提升。
+2026-09-27 用户确认离线 100 单 Pilot 已完成使命并转为 History。2026-10-12 已完成正式源库 21 表部署、1,328,502 行装载与 45-rule Source Gate。2026-10-17 已完成正式终态 Snapshot 的 DataX/HDFS/Hive/Spark ODS Runtime 与 1,476 项独立 Gate，并完成临时权限回收；Seed `20260105` 的时间推进式 ODS 仍只验证到 Day 61。M3、M8、M9 的完整状态不因 Snapshot Bootstrap 通过而自动提升。
 
 ## 14. 验收标准
 
@@ -577,7 +577,7 @@ V1 可以在完整 V2 扩展前形成可展示版本，但必须同时满足：
 - 当前实时链路已确认实际开发 Topic、订单 DWD 代码/构建/提交、Doris 表模型、两作业 Checkpoint 恢复与正常顺序订单 Upsert；仍须确认当前 YARN/Flink/BE 状态、21 表全字段、乱序/物理 DELETE、R2 更新恢复、完整对账及正式 Topic/Schema。完成这些验收和 M8 评审前不得将 M9 提升为完整 `verified` 或扩展到其他实时表和指标。
 - 21 表 DDL、正式装载与 Source Gate 已通过 Runtime 验收；后续结构变更仍需逐项记录与重新验收。
 - 21 表的状态分布、跨表关系、依赖和生成顺序已由 45-rule Source Gate 验证；更大性能实验规模仍为 `DESIGNED / not_run`。
-- 现有正式 Business / Behavior Generator 的确定性 Seed、显式时间范围、输出 Contract 与失败行为已完成对应证据范围验收；Seed `20260105` 的 Business Bootstrap、30 个 Daily Package、Manifest、预期结果、Bootstrap Source Load Dry-run 及 MySQL Replay Dry-run 已完成本地验证，正式规模重生成的 146 个文件逐文件 SHA-256 一致。Behavior Bootstrap、30 个 Daily Package、Manifest、Hash 和实体/时间审计也已完成本地验证。隔离数据库装载、Kafka 写入、依赖锁定和跨链路 Runtime 仍待实现或验收。
+- 现有正式 Business / Behavior Generator 的确定性 Seed、显式时间范围、输出 Contract 与失败行为已完成对应证据范围验收；Seed `20260105` 的 Business Bootstrap、30 个 Daily Package、Manifest、预期结果和 r6 Day 60～90 MySQL Runtime 已验证，当前 worktree 重生成的 146 个文件与 r6 复现相同 Business Hash、Replay Manifest 和 Package Manifest。Behavior Bootstrap、30 个 Daily Package、Manifest、Hash 和实体/时间审计仍只完成本地验证；Kafka 写入、依赖锁定和跨链路 Runtime 仍待实现或验收。
 - `LOAD DATA` 的文件格式、装载顺序、事务/失败边界与 Source Gate 入口已实现并验收；非空目标的重跑按设计 fail-fast，任何重置方案仍须单独批准。
 - `ecommerce_ods`、`ecommerce_dwd` 中 Pilot 数据的精确隔离/重置对象、备份、验证和回滚方式；未经单独授权不得执行清理。
 - `BI / Agent` 是否进入当前 V2 正式交付，还是继续遵循 `DR-029` 作为 M0～M10 之后规划。

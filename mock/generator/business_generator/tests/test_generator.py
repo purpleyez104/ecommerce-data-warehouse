@@ -123,6 +123,9 @@ class GeneratorTests(unittest.TestCase):
                 for previous, current in zip(events, events[1:]):
                     self.assertEqual(current["from_status"], previous["to_status"], request_id)
                 self.assertEqual(events[-1]["to_status"], refund["refund_status"])
+                self.assertEqual(refund["updated_at"], events[-1]["occurred_at"], request_id)
+                if refund["refund_status"] in {"SUCCESS", "FAILED"}:
+                    self.assertEqual(refund["completed_at"], events[-1]["occurred_at"], request_id)
             refund_event_manifest = next(entry for entry in manifest["tables"] if entry["table_name"] == "biz_refund_event")
             self.assertEqual(refund_event_manifest["row_count"], len(refund_events))
 

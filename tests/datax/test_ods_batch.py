@@ -50,6 +50,24 @@ class FailingExecutor(run_ods_batch.DryRunExecutor):
             raise RuntimeError("injected publish preparation failure")
 
 
+class ResumeExecutor(run_ods_batch.DryRunExecutor):
+    authorizes_publish = True
+    publishes = True
+
+    def __init__(self):
+        self.validated = False
+        self.published = False
+
+    def stage(self, jobs, plan):
+        raise AssertionError("resume must not rerun DataX staging")
+
+    def validate(self, validation_sql, plan):
+        self.validated = True
+
+    def prepare_publish(self, publish_sql, plan):
+        self.published = True
+
+
 class OdsBatchTests(unittest.TestCase):
     def _replay(self, directory: Path) -> tuple[Path, dict]:
         output = directory / "replay"
@@ -91,7 +109,10 @@ class OdsBatchTests(unittest.TestCase):
             self.assertEqual(result["state"]["state_history"], ["planned", "staged", "validated", "publish_ready"])
             self.assertFalse(result["state"]["publish_allowed"])
             self.assertEqual(result["plan"]["job_count"], 21)
-            self.assertEqual(len(list((output / "jobs").glob("*.json"))), 21)
+            self.assertEqual(len(list((output / "jobs").glob("*.json"))), 22)
+            manifest = json.loads((output / "jobs/job_manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["job_manifest_version"], 1)
+            self.assertEqual(len(manifest["files"]), 21)
             self.assertTrue((output / "sql/validation.sql").is_file())
             self.assertTrue((output / "sql/publish.sql").is_file())
             artifacts = "".join(path.read_text(encoding="utf-8") for path in output.rglob("*") if path.is_file())
@@ -103,11 +124,13 @@ class OdsBatchTests(unittest.TestCase):
             self.assertIn("null primary key", validation_sql)
             self.assertIn("audit field mismatch", validation_sql)
             self.assertIn("business_date IS NULL OR business_date NOT IN", validation_sql)
+            self.assertIn("biz_category: zero-row batch; no ORC content to validate or publish", validation_sql)
+            self.assertNotIn("ods_category/batch_id=ods-day-61-a", validation_sql)
             self.assertIn("NOT EXISTS", publish_sql)
             self.assertIn("UNION ALL", publish_sql)
-            self.assertIn("CACHE TABLE", publish_sql)
-            self.assertIn("UNCACHE TABLE", publish_sql)
-            self.assertLess(publish_sql.index("CACHE TABLE"), publish_sql.index("INSERT OVERWRITE"))
+            self.assertIn("INSERT OVERWRITE DIRECTORY", publish_sql)
+            self.assertIn("/ods-stage/_merge/ods_user/batch_id=ods-day-61-a/dt=", publish_sql)
+            self.assertIn("FROM orc.`/warehouse/ecommerce/ods-stage/_merge/", publish_sql)
             for entry in json.loads((output / "sql/partition_plan.json").read_text(encoding="utf-8")):
                 self.assertIn(f"`dt`='{entry['dt']}'", publish_sql)
                 self.assertIn(entry["stage_path"], publish_sql)
@@ -200,6 +223,46 @@ class OdsBatchTests(unittest.TestCase):
                 self.assertFalse(state["publish_allowed"])
                 self.assertNotIn("publish_ready", state["state_history"])
 
+    def test_resume_reuses_only_matching_staged_batch_and_revalidates_before_publish(self):
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            manifest_path, manifest = self._replay(directory)
+            batch_path = self._batch(directory, manifest_path, manifest, "ods-day-61-resume")
+            failed_output = self._output(directory, "failed-after-stage")
+            with self.assertRaisesRegex(RuntimeError, "injected validation failure"):
+                run_ods_batch.run_batch(
+                    batch_path, failed_output, directory, "/warehouse/ecommerce/ods-stage",
+                    executor=FailingExecutor("validate"),
+                )
+
+            executor = ResumeExecutor()
+            resumed = run_ods_batch.run_batch(
+                batch_path,
+                self._output(directory, "resumed"),
+                directory,
+                "/warehouse/ecommerce/ods-stage",
+                executor=executor,
+                resume_from=failed_output,
+            )
+            self.assertTrue(executor.validated)
+            self.assertTrue(executor.published)
+            self.assertEqual(
+                resumed["state"]["state_history"],
+                ["planned", "staged_reused", "validated", "published"],
+            )
+            self.assertEqual(Path(resumed["plan"]["resume_from"]), failed_output.resolve())
+
+            with self.assertRaisesRegex(ValueError, "batch plan does not match"):
+                run_ods_batch.run_batch(
+                    batch_path,
+                    self._output(directory, "wrong-target"),
+                    directory,
+                    "/warehouse/ecommerce/ods-stage",
+                    executor=ResumeExecutor(),
+                    target_database="different_ods",
+                    resume_from=failed_output,
+                )
+
     def test_cli_reports_success_and_failure_exit_codes(self):
         with tempfile.TemporaryDirectory() as raw:
             directory = Path(raw)
@@ -258,6 +321,27 @@ class OdsBatchTests(unittest.TestCase):
                 return
             with self.assertRaisesRegex(ValueError, "inside project_home/runtime/ods|symlink"):
                 run_ods_batch.run_batch(batch_path, link / "batch", directory, "/warehouse/ecommerce/ods-stage")
+
+    def test_isolated_target_database_is_rendered_and_invalid_identifier_fails(self):
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            manifest_path, manifest = self._replay(directory)
+            batch_path = self._batch(directory, manifest_path, manifest, "ods-day-61-isolated")
+            output = self._output(directory, "isolated")
+            result = run_ods_batch.run_batch(
+                batch_path, output, directory, "/warehouse/ecommerce/ods-stage",
+                target_database="ecommerce_ods_replay_20260105_r1",
+            )
+            publish = (output / "sql/publish.sql").read_text(encoding="utf-8")
+            self.assertEqual(result["plan"]["target_database"], "ecommerce_ods_replay_20260105_r1")
+            self.assertIn("`ecommerce_ods_replay_20260105_r1`.`ods_order`", publish)
+            self.assertIn("CAST(s.`created_at` AS TIMESTAMP) AS `created_at`", publish)
+
+            with self.assertRaisesRegex(ValueError, "invalid target_database"):
+                run_ods_batch.run_batch(
+                    batch_path, self._output(directory, "invalid-db"), directory,
+                    "/warehouse/ecommerce/ods-stage", target_database="bad-name",
+                )
 
 
 if __name__ == "__main__":

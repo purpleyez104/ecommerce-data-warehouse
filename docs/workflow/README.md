@@ -10,7 +10,7 @@ Confirmed Spec 范围内执行：
 理解当前目标与相关范围
 → 检查代码、配置、相关文档章节和 Git Diff
 → 连续实现当前 Step
-→ Targeted Verification
+→ 必要的 Targeted Verification
 → Step Gate
 → 简短汇报
 ```
@@ -27,7 +27,9 @@ Stage 开始时确定 Goal、Scope / Non-goals、核心 Contract/Schema/Architec
 2. **Replan Remaining Steps**：只影响后续实现顺序或细节，调整剩余 Step Map。
 3. **Correct Course**：改变 Scope、核心 Contract、Schema、Architecture 或 Acceptance，暂停实现并等待用户确认。
 
-Stage 结束时做一次阶段 Review、必要的 Integration/Full Validation、文档同步提议，并单独申请一次 Git Commit。
+Stage 结束时根据 Stage Acceptance 执行最小充分验证；只有公共 Contract、关键数据、安全、重大重构或交付风险需要时才增加独立 Review、Integration 或 Full Validation。文档按授权范围同步，并单独申请一次 Git Commit。
+
+验证满足当前 Acceptance 后结束。非阻塞建议记录为后续项；同一问题连续两轮修复仍未解决时，返回根因和方案层重新分析。没有新证据或新假设时不重复相同失败路径，隔离测试也不作为无限循环阶段。
 
 ## 3. BMad 边界
 
@@ -54,7 +56,7 @@ BMad：设计/审查 Stage（Master）
 | `docs/acceptance/` | 实际验收证据及其边界 |
 | `CHANGELOG.md` | 已交付变更 |
 
-Agent 判断是否具有长期参考价值，然后提出“更新哪些文件、写什么、为什么、影响什么”。正式文档须经用户确认后修改：Contract/Architecture/Schema 等变化即时提出；普通状态和验证结果在 Step/Stage Gate 集中提出。没有记录价值时直接说明“不需要记录”。
+Agent 判断是否具有长期参考价值。用户已对 Feature、Stage 或明确任务范围授权文档同步时，直接更新相关正式文档；没有授权时再提出“更新哪些文件、写什么、为什么、影响什么”，确认后修改。Contract/Architecture/Schema 等变化即时处理；普通状态和验证结果在 Step/Stage Gate 集中处理。没有记录价值时直接说明“不需要记录”。
 
 ## 5. 事实与状态
 
@@ -77,4 +79,4 @@ Agent 判断是否具有长期参考价值，然后提出“更新哪些文件�
 
 ## 7. 安全与提交
 
-Secret、真实认证信息和原始敏感日志不得进入仓库。Commit、Push、Merge、Database Operation、数据迁移和外部服务写入都需要单独授权。每个完整 Stage 通常只申请一次 Commit，不为每个小步骤停下来提交。
+Secret、真实认证信息和原始敏感日志不得进入仓库。Commit、Push、Merge、Database Operation、数据迁移和外部服务写入都需要单独授权；显式调用 BMad 也不改变该边界。每个完整 Stage 通常只申请一次 Commit，不为每个小步骤停下来提交。
