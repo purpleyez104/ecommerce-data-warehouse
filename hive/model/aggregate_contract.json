@@ -1,0 +1,58 @@
+{
+  "contract_version": "m5-metrics-v1",
+  "status": "implemented",
+  "timezone": "Asia/Shanghai",
+  "as_of_date": "2026-02-28",
+  "models": {
+    "dws_trade_day": {
+      "layer": "dws",
+      "grain": "one row per business_date",
+      "business_key": ["business_date"],
+      "sources": ["dwd_order", "dwd_payment", "dwd_refund"],
+      "measures": ["created_order_count", "created_user_count", "ordered_payable_cents", "effective_order_count", "effective_gmv_cents", "paid_order_count", "paid_user_count", "paid_amount_cents", "refund_request_count", "successful_refund_request_count", "refund_amount_cents", "refund_quantity", "cash_net_inflow_cents"]
+    },
+    "dws_behavior_day": {
+      "layer": "dws",
+      "grain": "one row per business_date",
+      "business_key": ["business_date"],
+      "sources": ["dwd_behavior_event"],
+      "measures": ["pv_count", "uv_count", "exposure_count", "click_count", "add_cart_count", "remove_cart_count"]
+    },
+    "dws_product_day_sku": {
+      "layer": "dws",
+      "grain": "one row per business_date and historical product_sk",
+      "business_key": ["business_date", "product_sk"],
+      "sources": ["dwd_order_item", "dwd_payment", "dwd_refund"],
+      "measures": ["paid_quantity", "refund_quantity", "paid_amount_cents"]
+    },
+    "dws_user_day": {
+      "layer": "dws",
+      "grain": "one row per business_date",
+      "business_key": ["business_date"],
+      "sources": ["dim_user", "dwd_order", "dwd_payment", "dwd_behavior_event"],
+      "measures": ["registered_user_count", "first_purchase_user_count", "active_identity_count", "created_user_count", "paid_user_count"]
+    },
+    "dws_coupon_day": {
+      "layer": "dws",
+      "grain": "one row per business_date",
+      "business_key": ["business_date"],
+      "sources": ["dwd_coupon_event", "dwd_order", "dwd_payment"],
+      "measures": ["issued_coupon_count", "locked_coupon_count", "used_coupon_count", "unlocked_coupon_count", "coupon_discount_cents", "coupon_paid_order_count"]
+    },
+    "dws_trade_cohort_day": {
+      "layer": "dws",
+      "grain": "one row per order creation business_date at explicit as_of_date",
+      "business_key": ["business_date"],
+      "sources": ["dwd_order", "dwd_payment", "dwd_refund"],
+      "measures": ["cohort_created_order_count", "cohort_paid_order_count", "cohort_paid_amount_cents", "cohort_refund_amount_cents", "cumulative_net_paid_cents"]
+    },
+    "ads_daily_business_overview": {
+      "layer": "ads",
+      "grain": "one row per business_date",
+      "business_key": ["business_date"],
+      "sources": ["dws_trade_day", "dws_behavior_day", "dws_trade_cohort_day"],
+      "measures": ["cumulative_net_paid_cents", "cohort_created_order_count", "cohort_paid_order_count", "cohort_payment_conversion_rate"],
+      "note": "Daily cross-domain overview; formal metric publication is governed by governance/metric_registry"
+    }
+  }
+}

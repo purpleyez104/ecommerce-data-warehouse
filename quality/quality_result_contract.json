@@ -1,0 +1,20 @@
+{
+  "contract_version": "p1-quality-v1",
+  "status": "implemented",
+  "database": "ecommerce_quality",
+  "table": "data_quality_result",
+  "location": "/warehouse/ecommerce/quality/data_quality_result",
+  "columns": [
+    ["rule_id", "STRING"],
+    ["target_object", "STRING"],
+    ["business_date", "DATE"],
+    ["rule_type", "STRING"],
+    ["expected_value", "STRING"],
+    ["actual_value", "STRING"],
+    ["status", "STRING"],
+    ["batch_id", "STRING"],
+    ["executed_at", "TIMESTAMP"]
+  ],
+  "partition_columns": [["run_id", "STRING"]],
+  "allowed_statuses": ["PASS", "FAIL"]
+}

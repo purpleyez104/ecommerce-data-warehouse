@@ -1,8 +1,8 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
 版本：`0.6-draft`
-状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build 与批量 ODS `VERIFIED`；DIM/DWD 与 Formal CDC 接续 `DOING / DESIGNED`。Milestone 0、3 `completed`；Milestone 1、2、4、8、9 `in progress`；Milestone 5～7 `pending`
-更新时间：2026-10-17
+状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环与 M5 正式指标质量 `VERIFIED`。Milestone 0、3、4、5 `completed`；Milestone 1、2、8、9 `in progress`；Milestone 6～7 `pending`
+更新时间：2026-10-18
 
 ## 1. 使用方式
 
@@ -40,7 +40,7 @@
 | 业务源系统 | `mysql/`、`mock/generator/`；历史实现位于 `archive/pilot-v1/` 与 `archive/legacy-m2-19-table/` | 2 |
 | 离线抽取 | `datax/jobs/`、`datax/scripts/` | 3 |
 | ODS | `hive/ods/`、`spark/sql/` | 3 |
-| DIM/DWD | `hive/dim/`（当前仅占位）、`hive/dwd/`、`spark/sql/` | 4 |
+| DIM/DWD | `hive/model/`、`hive/dim/`、`hive/dwd/`、`spark/scripts/` | 4 |
 | DWS/ADS | `hive/dws/`、`hive/ads/`、`spark/sql/` | 4-5 |
 | 数据质量 | `quality/checks/`；Pilot 参考检查位于 `archive/pilot-v1/offline/reference/` | 3-6 |
 | 对账 | 计划中的 `reconciliation/` | 5-6、9 |
@@ -55,9 +55,9 @@
 
 离线 100 单与实时 R1～R3 已完成限定范围验收并转为 `PILOT / ACCEPTANCE / HISTORY`。Shared Source Data Build 已完成 Runtime Gate，当前主线从该共享基线分流：
 
-1. **Shared Source Data Build**：目标 MySQL 21 表 DDL、CSV 字段对齐、正式规模 Business / Behavior 生成及 Entity Manifest 绑定已完成；Business 1,328,502 行已通过 `LOAD DATA` 装载和 45-rule Shared Source Gate。下一步分别进入批量 ODS 与 Formal CDC Contract/初始化。
-2. **V2 ODS Layer Build**：以一套通用 DataX Job Generator、Stage Runner、Spark Validation、Publish 加多表配置批量建设 ODS，并执行一次 ODS Gate。
-3. **V2 Model Layer Build**：按业务语义分别维护 DWD/DIM SQL，复用统一执行框架；批量完成后执行一次 Model Gate，再进入 DWS、ADS 和 Doris。
+1. **Shared Source Data Build**：目标 MySQL 21 表 DDL、CSV 字段对齐、正式规模 Business / Behavior 生成及 Entity Manifest 绑定已完成；Business 1,328,502 行已通过 `LOAD DATA` 装载和 45-rule Shared Source Gate。
+2. **V2 ODS Layer Build**：21 张 MySQL/DataX ODS 与独立 Behavior ODS 已完成 Snapshot、Day 60～90、恢复和最终 ODS Gate。
+3. **V2 Model Layer Build**：14 张 DIM/DWD 与 2 张 DWS + 1 张 ADS MVP 已完成正式 Runtime、Model/Aggregate Gate 和聚合幂等重跑；下一步进入 M5 正式指标与数据质量。Formal CDC Contract/初始化按独立支线推进。
 4. **Realtime V2**：当前审计 Topic / Checkpoint，并冻结 Formal CDC Topic Namespace、Partition/Key Strategy 和 `event_version`；完成 60/30 输入 Contract 后进入 21 表 CDC Gate 与 Domain-based DWD/DIM。
 
 V2 的可扩展性依靠显式数据 Contract、多表配置和通用执行框架，不依靠逐表复制脚本或提前堆叠抽象。正式数据规模固定为 90 天、100,000 笔订单、约 285,000 条订单明细、约 100 万条 OLTP 记录和 3,000,000～5,000,000 条行为事件；性能实验规模固定为约 900,000 笔订单和 9,000,000 条行为事件。性能结论仍只能来自实测。
@@ -123,7 +123,7 @@ docs/decision-register.md
 
 ## 4. Milestone 1：基础设施与兼容性
 
-**状态：`in progress`**
+**状态：`completed`**
 
 ### 目标
 
@@ -259,7 +259,7 @@ M1 的 MySQL、HDFS、Hive、DataX、Kafka、Flink CDC 等环境验证可以复�
 | 工作项 | 当前状态 | 核心交付 | 退出条件 |
 | --- | --- | --- | --- |
 | V2 业务基线 | baseline | `docs/business/business-baseline.md` | 已形成当前规则入口；实现差异必须回到此处评审 |
-| V2 指标体系 | `draft`；部分待细化 | `docs/business/metrics.md` | 待细化口径和稳定发布 ID 在指标实现前确认 |
+| V2 指标体系 | 稳定 ID 已确认；部分口径待细化 | `docs/business/metrics.md` | M5 首批只实现已冻结指标，`TBD` 条目保持草案 |
 | V2 逻辑模型 | current design | `docs/source/logical-model.md` | 当前实体、关系、状态和指标字段覆盖可追溯；不是 Runtime 证据 |
 | 21 表物理设计 | `verified`（DDL、装载与 Source Gate） | `docs/source/physical-model.md`、`mysql/ddl/001_ecommerce_oltp.sql`、`docs/acceptance/source-load-gate-acceptance.md` | 后续结构变化必须重新执行 Schema Contract 与 Source Gate |
 | DDL / CSV / Generator | 21 表 DDL 与 CSV 字段已对齐；Business 1,328,502 行已在目标 MySQL 装载并通过 45-rule Source Gate；Behavior 3,000,000 事件已完成本地 Entity Manifest 绑定与引用/Session 验证 | 正式 ODS 批量配置与 Formal CDC Contract/初始化 | ODS Gate、CDC Gate、失败恢复和跨链路对账 |
@@ -314,7 +314,7 @@ tests/
 
 **状态：`completed`（正式终态 Snapshot Bootstrap、Replay Day 60～90、同日 staging 复用、跨日中断恢复和最终 1,498 项 ODS Gate 均已通过）**
 
-旧 Pilot 三表已迁入 `pilot_20260921_*` HISTORY 名称并保留原 HDFS 数据。正式 `ecommerce_oltp` 1,328,502 行终态 Snapshot 已完成 21 表 DataX staging、Spark Validation/Publish 和 1,476 项独立 ODS Gate；隔离 Replay 环境已完成 Day 60 Bootstrap、Day 61～90 Incremental、29/29 Checkpoint、Day 63 中断恢复及最终 1,498 项独立 ODS Gate。独立 Behavior Bundle 也已发布到第 22 张 ODS 表：3,000,000 行、90 个业务日分区、95/95 项 Gate 通过。下一步进入 Milestone 4 DIM/DWD 实现与 Model Gate。
+旧 Pilot 三表已迁入 `pilot_20260921_*` HISTORY 名称并保留原 HDFS 数据。正式 `ecommerce_oltp` 1,328,502 行终态 Snapshot 已完成 21 表 DataX staging、Spark Validation/Publish 和 1,476 项独立 ODS Gate；隔离 Replay 环境已完成 Day 60 Bootstrap、Day 61～90 Incremental、29/29 Checkpoint、Day 63 中断恢复及最终 1,498 项独立 ODS Gate。独立 Behavior Bundle 也已发布到第 22 张 ODS 表：3,000,000 行、90 个业务日分区、95/95 项 Gate 通过。后续 M4 模型结果见 Milestone 4 与对应验收记录。
 
 ### 目标
 
@@ -371,7 +371,7 @@ tests/
 
 ## 7. Milestone 4：离线数仓 MVP
 
-**状态：`in progress`**
+**状态：`completed`（59/59 Model Gate、18/18 Aggregate Gate 与聚合幂等重跑已通过）**
 
 ### 目标
 
@@ -386,7 +386,8 @@ tests/
 ### 涉及模块
 
 ```text
-hive/dim/ # 当前仅占位，维度设计确认后加入正式内容
+hive/model/ # 首批 DIM/DWD Contract、物理 DDL 与 Gate
+hive/dim/   # 6 张正式维度的策略说明
 hive/dwd/
 hive/dws/
 hive/ads/
@@ -423,7 +424,7 @@ docs/
 
 ## 8. Milestone 5：正式指标与数据质量
 
-**状态：`pending`**
+**状态：`completed`（6 DWS + 1 ADS、41/41 Aggregate Gate、36 项 Metric Registry、40 条质量规则与 10 项 × 90 日跨层对账已通过）**
 
 ### 目标
 
@@ -700,6 +701,8 @@ docs/
 
 各 Stage 可以持续完善 README、运行入口、验收记录和简历证据，但本 Milestone 仍保持 `pending`；只有完整 Project 1 范围内的离线、实时、调度、性能和治理结论均有对应证据时，才能标记正式面试发布完成。
 
+当前已建立 `docs/status/resume-evidence-current.md`，持续收集各 Stage 已验证数据及其 Evidence ID；这不提前解除 Milestone 10 的进入条件。
+
 ### 进入条件
 
 - Milestone 0 为 `completed`，Milestone 1-7 全部为 `verified`。
@@ -758,8 +761,8 @@ scheduler/
 
 根据 `DR-031`、`DR-032`、`DR-034`～`DR-046`，离线 100 单与实时 R1～R3 Pilot 已完成使命并转为 History。Seed `20260928` 的正式 Source 已完成正式 21 表 ODS Snapshot Bootstrap 与独立 Gate；Seed `20260105` 的隔离 ODS 已完成 Day 60～90、同日 staging 复用、跨日中断恢复和最终独立 Gate；Behavior 60/30 Bundle 已发布到 `ods_behavior_event` 并通过 3,000,000 行、90 分区的独立 Gate。Kafka 与 CDC Runtime 仍为 `not_run`。当前顺序为：
 
-1. 冻结当前 DIM/DWD Model Contract，批量开发交易域和行为域 DWD/DIM；按已确认原则实现 Type 1 与 SCD2，并执行 Model Gate。
-2. Model Gate 通过后进入 DWS、ADS 和 Doris；任务独立运行通过后再接入 DolphinScheduler。
+1. M5-02 已将现有 `dwd_refund` 修正为退款申请粒度，并调整 DWS 退款度量和 ADS 日期覆盖；受控迁移、60/60 Model Gate、18/18 Aggregate Gate 与幂等重跑均已通过。
+2. M5-01 已确认现有编号直接作为稳定 `metric_id`，首版 `definition_version=1.0.0`；`TF-05` 已收敛为加购行为量。最终六域 6 DWS + 1 ADS、41/41 Gate、36 项 Registry、40 条持久化质量结果和 10 项 × 90 日跨层对账已完成；`TR-13/TR-14` Cohort Contract 与 Runtime 已验证，M5 Stage Gate 通过，下一入口为 M6 Doris 离线 Serving。
 3. Behavior 60/30 本地输入已冻结；实时并轨先审计现有 Topic/Checkpoint，冻结 Formal CDC Topic Namespace、Partition/Key/Schema、`event_version`、切换点和正式 Checkpoint Root，不得直接复用 Pilot Topic/Offset。
 4. 在另行授权的隔离环境执行 21 表 CDC Initial Snapshot 与 CDC Gate，再用 30 个 daily package 执行 Incremental Simulation、Recovery Gate 和 Offline ↔ Realtime Reconciliation。
 5. M1 的 DolphinScheduler 3.4.2 门禁按独立证据边界并行推进，不改变上述离实时接续顺序。

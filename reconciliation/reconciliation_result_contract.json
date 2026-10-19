@@ -1,0 +1,27 @@
+{
+  "contract_version": "p1-reconciliation-v1",
+  "status": "implemented",
+  "database": "ecommerce_quality",
+  "table": "reconciliation_result",
+  "location": "/warehouse/ecommerce/quality/reconciliation_result",
+  "columns": [
+    ["reconciliation_id", "STRING"],
+    ["metric_id", "STRING"],
+    ["definition_version", "STRING"],
+    ["business_date", "DATE"],
+    ["comparison_scope", "STRING"],
+    ["left_object", "STRING"],
+    ["right_object", "STRING"],
+    ["left_value", "DECIMAL(38,6)"],
+    ["right_value", "DECIMAL(38,6)"],
+    ["difference_value", "DECIMAL(38,6)"],
+    ["difference_rate", "DECIMAL(38,12)"],
+    ["threshold_value", "DECIMAL(38,6)"],
+    ["status", "STRING"],
+    ["batch_id", "STRING"],
+    ["executed_at", "TIMESTAMP"]
+  ],
+  "partition_columns": [["run_id", "STRING"]],
+  "comparison_scopes": ["CROSS_LAYER", "OFFLINE_REALTIME"],
+  "allowed_statuses": ["PASS", "FAIL"]
+}

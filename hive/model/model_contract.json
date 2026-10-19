@@ -1,0 +1,30 @@
+{
+  "contract_version": "2026-10-18",
+  "timezone": "Asia/Shanghai",
+  "amount_unit": "cent",
+  "source_databases": ["ecommerce_ods"],
+  "target_databases": ["ecommerce_dim", "ecommerce_dwd"],
+  "models": {
+    "dim_user": {"layer": "dim", "history_strategy": "type_1", "grain": "one row per user_id", "business_key": ["user_id"], "sources": ["ods_user"], "partition_source": "snapshot_date"},
+    "dim_visitor": {"layer": "dim", "history_strategy": "type_1", "grain": "one row per visitor_id", "business_key": ["visitor_id"], "sources": ["ods_visitor"], "partition_source": "snapshot_date"},
+    "dim_identity_mapping": {"layer": "dim", "history_strategy": "source_effective_interval", "grain": "one row per mapping_id and identity_version", "business_key": ["mapping_id", "identity_version"], "sources": ["ods_identity_mapping"], "effective_from": "effective_from", "effective_to": "effective_to", "partition_source": "snapshot_date"},
+    "dim_category": {"layer": "dim", "history_strategy": "type_1", "grain": "one row per category_id", "business_key": ["category_id"], "sources": ["ods_category"], "partition_source": "snapshot_date"},
+    "dim_product_zip": {"layer": "dim", "history_strategy": "scd2", "grain": "one row per sku_id and non-overlapping effective interval", "business_key": ["sku_id"], "surrogate_key": "product_sk", "sources": ["ods_sku", "ods_spu", "ods_category", "ods_product_change_event"], "tracked_attributes": ["sale_price_cents", "category_id", "brand_code", "brand_name", "sku_status", "spu_status"], "effective_from": "effective_from", "effective_to": "effective_to", "current_flag": "is_current", "partition_source": "effective_from_date"},
+    "dim_coupon_template": {"layer": "dim", "history_strategy": "type_1", "grain": "one row per template_id", "business_key": ["template_id"], "sources": ["ods_coupon_template"], "partition_source": "snapshot_date"},
+    "dwd_cart_item": {"layer": "dwd", "fact_kind": "accumulating_snapshot", "grain": "one row per cart_item_id current state", "business_key": ["cart_item_id"], "sources": ["ods_cart_item", "ods_cart"], "event_time": "created_at", "partition_source": "to_date(created_at)"},
+    "dwd_cart_merge": {"layer": "dwd", "fact_kind": "transaction", "grain": "one row per merge_id", "business_key": ["merge_id"], "sources": ["ods_cart_merge_record"], "event_time": "merged_at", "partition_source": "to_date(merged_at)"},
+    "dwd_order": {"layer": "dwd", "fact_kind": "accumulating_snapshot", "grain": "one row per order_id", "business_key": ["order_id"], "sources": ["ods_order", "ods_order_status_event"], "event_time": "created_at", "partition_source": "to_date(created_at)"},
+    "dwd_order_item": {"layer": "dwd", "fact_kind": "transaction", "grain": "one row per order_item_id", "business_key": ["order_item_id"], "sources": ["ods_order_item", "ods_order"], "dimension_lookups": ["dim_product_zip"], "event_time": "created_at", "partition_source": "to_date(created_at)"},
+    "dwd_payment": {"layer": "dwd", "fact_kind": "transaction", "grain": "one row per successful funding_txn_id", "business_key": ["funding_txn_id"], "sources": ["ods_payment_attempt", "ods_payment_event"], "filter": "payment_status = 'SUCCESS'", "event_time": "succeeded_at", "partition_source": "to_date(succeeded_at)"},
+    "dwd_refund": {"layer": "dwd", "fact_kind": "accumulating_snapshot", "grain": "one row per refund_request_id with optional successful funding result", "business_key": ["refund_request_id"], "sources": ["ods_refund_request", "ods_refund_transaction"], "event_time": "requested_at", "partition_source": "to_date(requested_at)"},
+    "dwd_coupon_event": {"layer": "dwd", "fact_kind": "transaction", "grain": "one row per coupon_event_id", "business_key": ["coupon_event_id"], "sources": ["ods_coupon_event", "ods_coupon"], "event_time": "occurred_at", "partition_source": "to_date(occurred_at)"},
+    "dwd_behavior_event": {"layer": "dwd", "fact_kind": "transaction", "grain": "one row per event_id", "business_key": ["event_id"], "sources": ["ods_behavior_event"], "dimension_lookups": ["dim_identity_mapping", "dim_product_zip"], "event_time": "event_time", "partition_source": "to_date(event_time)"}
+  },
+  "model_gate": {
+    "common": ["business_key_not_null", "business_key_unique", "partition_matches_business_time", "audit_columns_not_null"],
+    "scd2": ["one_current_row_per_business_key", "effective_interval_valid", "effective_interval_non_overlapping"],
+    "facts": ["source_reference_complete", "status_allowed"],
+    "amounts": ["order_item_amount_conservation", "order_amount_conservation", "payment_amount_matches_order", "refund_not_over_order_item"],
+    "behavior": ["event_id_unique", "event_type_allowed", "identity_effective_time_match", "product_effective_time_match"]
+  }
+}

@@ -1,9 +1,32 @@
 # 电商最终指标体系 V2.1｜统一口径与验收规范
 
-> 文档状态：`draft / candidate`；在 V2.0 基础上与 V2 数据规格及实施方案候选稿对齐，待细化指标和稳定发布 ID 尚未冻结。
-> `TR / TF / PR / US / RF / MK` 为指标检索编号。
+> 文档状态：`candidate`；M5 六域 6 DWS + 1 ADS、41/41 Gate、幂等重跑及 36 项 Metric Registry 发布已完成。待细化指标尚未冻结。
+> 根据 `DR-048`，`TR / TF / PR / US / RF / MK` 编号直接作为稳定 `metric_id`，首个定义版本为 `definition_version=1.0.0`。
 > 已冻结业务口径继续保留；未冻结的公式、分母、窗口继续标记为 `待细化`。
 > 本文件负责定义“算什么、怎么算、什么时间口径、如何去重和修订”，不负责定义 DWD / DWS / ADS 的完整物理字段。
+
+## 当前实施入口
+
+- Runtime 基础：申请粒度退款事实、6 张 DWS 与 1 张 ADS 已完成真实集群构建，60/60 Model Gate、41/41 Aggregate Gate 与幂等重跑通过。
+- 当前状态：已发布 36 个具有正式输出与 Runtime 证据的 Registry 条目，持久化 40 条 Aggregate 质量结果，并完成 10 项 × 90 日跨层对账；M5 Stage Gate 已通过。
+- 候选首批范围：全部 P0；另从 FROZEN P1 中补足流量与转化、营销两个域的代表性指标。所有 `TBD / P2` 条目继续排除。
+- `M5-01 accepted`：`TR / TF / PR / US / RF / MK` 编号直接成为稳定 `metric_id`，首个定义版本统一为 `definition_version=1.0.0`。Metric Registry 仍只发布已经实现并通过验收的指标。
+- `M5-02 accepted`：不新增重叠事实表；现有 `dwd_refund` 改为“每个 `refund_request_id` 一行”的累积事实，成功资金字段允许为空。申请数、成功申请数、成功金额和退款件数由 DWS 计算。
+
+现有编号已成为稳定 `metric_id`，并从 `definition_version=1.0.0` 开始版本化。后续定义变化必须升级版本，不能复用同一 `metric_id + definition_version` 表达不同指标，也不再维护“检索编号 → 发布 ID”的第二套映射。
+
+### 首批范围可实现性审计
+
+| 指标域 | 首批候选 | 当前事实输入 | 审计结论 |
+| --- | --- | --- | --- |
+| 交易与资金 | 全部 P0 `TR-01/02/05/06/07/08/11/12/13/14` | `dwd_order`、`dwd_payment`、`dwd_refund` | 基础日指标与 Cohort DWS 均已实现；`TR-13/TR-14` 已按显式截止点发布 |
+| 流量与转化 | FROZEN P1 `TF-01～06` | `dwd_behavior_event` | `TF-01～06` 已发布；`TF-05` 已收敛为加购行为事件量，去重加购人数不复用同一 Metric ID；`TF-07/08` 后续处理漏斗分母和群组窗口 |
+| 商品 | 全部 P0 `PR-02/03/04` | `dwd_order_item`、`dwd_payment`、`dwd_refund`、`dim_product_zip` | 可实现；必须按支付/退款业务日并保持历史商品维度匹配 |
+| 用户 | 全部 P0 `US-04/05`，补充 FROZEN P1 `US-01/02/03` | `dim_user`、交易 DWD、`dwd_behavior_event` | 可实现；首购需要按用户取首次有效支付，活跃用户复用五类正式行为事件 |
+| 退款与售后 | 全部 P0 `RF-01～04`，候选 `RF-05` | 申请粒度 `dwd_refund` | 新 Contract 已通过真实集群迁移、Model/Aggregate Gate 与幂等重跑；`RF-05` 仍须按正式 cohort Contract 实现 |
+| 营销 | FROZEN P1 `MK-01～06` | `dwd_coupon_event`、`dwd_order`、`dwd_payment` | 可实现；事件量与支付核销/优惠金额必须分开，禁止状态事件与订单金额双算 |
+
+首批范围暂不包含 `US-06`、`RF-06/07`、`MK-07`、`TF-07/08` 的正式比率结果；这些条目仍需要窗口、分母或成熟度规则专项审核。该排除不删除其业务定义，只是不让未冻结口径进入首批发布 Contract。
 
 ---
 
@@ -220,7 +243,7 @@ CLICK
 | TF-02 | UV         | 当日发生有效访问的统一身份数                | 行为事件日；可靠身份映射版本去重                 | 无可靠映射时保持匿名              |
 | TF-03 | 商品曝光量      | 合法 `PRODUCT_EXPOSURE` 事件数     | `event_time`；`event_id` 去重       | 同一身份可以多次曝光              |
 | TF-04 | 商品点击量      | 合法 `PRODUCT_CLICK` 事件数        | `event_time`；`event_id` 去重       | 与曝光分开                   |
-| TF-05 | 加购行为量 / 人数 | `ADD_CART` 事件数 / 去重加购身份数      | 加购事件时间                           | 不把 cart_item 当前数量当作行为次数 |
+| TF-05 | 加购行为量      | 合法 `ADD_CART` 事件数              | `event_time`；`event_id` 去重       | 不把 cart_item 当前数量或去重身份数当作行为次数 |
 | TF-06 | 移除购物车量     | `REMOVE_CART` 事件数             | 行为时间；`event_id` 去重               | 不等于负销量                  |
 | TF-07 | 每日经营漏斗     | 自然日内分别统计 PV/UV、曝光、点击、加购、下单、支付 | 各阶段按各自业务事件日                      | 不是同群组转化                 |
 | TF-08 | 7 日同群组漏斗   | 入口身份群组按事件顺序观察后续阶段             | 入口起始后 7×24h；身份群组内去重              | 商城整体首期不强制所有阶段同 SKU      |
@@ -448,10 +471,11 @@ batch_id
 identity_version
 ```
 
-如果采用统一指标结果表，可额外记录：
+统一指标结果或 Metric Registry 必须记录：
 
 ```text
 metric_id
+definition_version
 ```
 
 ---

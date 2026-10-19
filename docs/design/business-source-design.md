@@ -1,8 +1,8 @@
 # V2 业务源设计与交付边界
 
-状态：业务规则已形成基线；21 表 DDL、Business Generator、正式源库 `LOAD DATA` 与 Shared Source Gate 已完成 Runtime 验收。离线 100 单与实时 R1～R3 已转为 Pilot / Acceptance / History；60 天初始化与 30 天双链路回放为 `DESIGNED / not_run`，批量 ODS、Formal CDC 和离线接续仍未验收。更新时间：2026-10-13。
+状态：业务规则已形成基线；21 表 DDL、Business Generator、正式源库 `LOAD DATA`、Shared Source Gate、离线 60/30 Replay、批量 ODS 与 M4 最小离线模型闭环已完成 Runtime 验收。离线 100 单与实时 R1～R3 已转为 Pilot / Acceptance / History；Formal CDC 仍为 `DESIGNED / not_run`。更新时间：2026-10-18。
 
-本文件是[最终工程架构](../architecture/final-architecture.md)的业务源视图。业务语义以[业务基线](../business/business-baseline.md)、指标以[指标口径](../business/metrics.md)、实体关系以[逻辑模型](../source/logical-model.md)、字段以[当前物理设计](../source/physical-model.md)为准；本文不复制字段级契约。Milestone 2 的 Source Gate 和 Milestone 3 的 ODS Runtime Gate 已通过，当前进入 Milestone 4 DIM/DWD 模型门禁。
+本文件是[最终工程架构](../architecture/final-architecture.md)的业务源视图。业务语义以[业务基线](../business/business-baseline.md)、指标以[指标口径](../business/metrics.md)、实体关系以[逻辑模型](../source/logical-model.md)、字段以[当前物理设计](../source/physical-model.md)为准；本文不复制字段级契约。Milestone 2 的 Source Gate、Milestone 3 的 ODS Runtime Gate 与 Milestone 4 的 Model/Aggregate Gate 已通过，离线下一入口为 Milestone 5 正式指标与数据质量。
 
 ## 数据源与业务边界
 
@@ -51,4 +51,4 @@ Generator 后续需要在不改变既有正式 bundle 证据的前提下，增�
 
 ## 进入后续阶段的门禁
 
-Shared Source Gate 已通过。下一步先实现 bootstrap/daily 输入 Contract 与隔离的时间推进式源状态，再让离线进入批量 ODS、实时进入 Topic/Checkpoint Inventory、Formal CDC Contract 和 21 表 Snapshot。已有正式源、Pilot 与 ENV-05 证据继续保留，但不足以解除 60/30 回放、CDC、ODS 或模型门禁；本设计不授权重置现有正式库。
+Shared Source Gate、离线 60/30 Replay、批量 ODS 与 M4 模型门禁已通过。离线下一步进入 M5 正式指标与数据质量；实时仍需完成 Topic/Checkpoint Inventory、Formal CDC Contract、21 表 Snapshot 与 CDC Gate。已有 Pilot 与 ENV-05 证据继续保留，但不足以解除正式 CDC 或实时模型门禁；本设计不授权重置现有正式库。

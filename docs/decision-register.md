@@ -1952,6 +1952,72 @@ MySQL/DataX 的 21 表 ODS Stage Gate 已完成，但 Behavior 事件是独立�
 
 本地 Contract、DDL 和 SQL Renderer 已验证。2026-10-18 在目标环境完成完整 Bundle Validation 与 Spark Load/Publish：3,000,000 行发布到 90 个 `dt` 分区；最终 Gate Application `application_1792297746029_0005` 为 `FINISHED / SUCCEEDED`，95/95 项断言通过并输出 `BEHAVIOR_ODS_GATE_PASS`。首次全量尝试因递归读取 30 个 `package_manifest.json` 在 staging 行数断言处失败，未执行 INSERT；修复为仅匹配 `events.jsonl` 后重新发布成功。回滚仓库实现可移除新 Contract/Generator；建表或写入后的 Hive/HDFS 清理需要新的外部写入授权，不得直接删除数据。
 
+## DR-047：退款申请粒度事实与下游聚合修正
+
+- 状态：`accepted`
+- 决策日期：2026-10-18
+- 决策人：用户
+- 影响范围：Milestone 5、`dwd_refund`、`dws_trade_day`、`ads_daily_business_overview`、Model/Aggregate Gate
+- 替代方案：新增 `dwd_refund_request` 并保留成功资金粒度 `dwd_refund`
+
+### 背景
+
+原 `dwd_refund` 只保留成功资金退款事务，虽然可以支持成功退款金额，却无法计算 P0 `RF-01` 全部退款申请数。单独新增申请事实表会让申请字段和成功资金字段在两张高度相关的表中重复维护；只增加字段也不能补回被成功过滤条件排除的申请行。
+
+### 决策
+
+1. 不新增 `dwd_refund_request`。
+2. 现有 `dwd_refund` 改为每个 `refund_request_id` 一行的累积事实；申请字段必填，成功资金事务、金额和成功时间允许为空。
+3. `refund_request_count`、`successful_refund_request_count`、`refund_amount_cents` 和 `refund_quantity` 在 DWS 按各自业务时间计算，不把指标结果写入 DWD。
+4. `ads_daily_business_overview` 使用交易 DWS 与行为 DWS 的日期并集，单侧无数据时对应度量补零，不使用会丢失日期的 `INNER JOIN`。
+5. `dwd_payment` 继续作为成功支付事实，不为当前未进入范围的支付失败率或尝试次数新增事实表；其成功过滤语义必须保留在 Contract 中。
+
+### 理由
+
+一个退款申请同时承载申请状态和可选成功资金结果，采用申请粒度可以直接支持申请数、成功数、金额和件数，并避免两张退款事实表的重复字段与关联成本。DWS/ADS 只保存可复用聚合和查询结果，符合原子事实与计算指标分层边界。
+
+### 验证方法
+
+本地 Contract、DDL Renderer、DWD Renderer、60 条 Model Gate、Aggregate Renderer 与 18 条 Aggregate Gate 需要通过 Targeted Test。真实集群必须受控迁移 `dwd_refund`，重建受影响 DWS/ADS，验证申请总数、成功申请数、金额、件数、日期覆盖、同批重跑和前后可解释差异。
+
+### 影响与回滚
+
+2026-10-18 的 59/59 Model Gate 与旧 18/18 Aggregate Gate 继续作为旧 Contract 的历史证据。当前修正版已完成受控 Runtime：60/60 Model Gate、首次及幂等重跑后的 18/18 Aggregate Gate 均无违规，15 项核心摘要一致。旧 EXTERNAL 表保留为 `m5_20261018_history_*`，另有独立 HDFS 备份；回滚只交换元数据名称，不直接删除旧路径。
+
+## DR-048：V2 指标编号直接作为稳定 Metric ID
+
+- 状态：`accepted`
+- 决策日期：2026-10-18
+- 决策人：用户
+- 影响范围：Milestone 5、Metrics Contract、Metric Registry、质量结果、离实时对账与验收证据
+- 替代方案：另建内部发布 ID，并维护“检索编号 → 发布 ID”映射
+
+### 背景
+
+V2 已按交易与资金、流量与转化、商品、用户、退款与售后、营销六个域形成 `TR-01`、`TF-01`、`PR-02`、`US-04`、`RF-01`、`MK-01` 等 47 个编号。若再建立一套内部发布 ID，文档、SQL、Registry、质量结果和面试讲解都需要维护映射，却不会改善当前项目的业务语义或可验证性。
+
+### 决策
+
+1. 现有 `TR / TF / PR / US / RF / MK` 编号直接作为稳定 `metric_id`，不再维护第二套发布编号。
+2. 首次正式定义统一使用 `definition_version=1.0.0`。
+3. 指标业务定义发生兼容或不兼容变化时均创建新的 `definition_version`；不得复用同一 `metric_id + definition_version` 表达不同定义。
+4. 编号冻结不等于指标已经发布。Metric Registry 只收录已经实现并通过相应验收的指标，`TBD`、未实现或 Runtime `not_run` 的条目继续保持原证据状态。
+5. 质量结果、离实时对账和验收证据引用指标时必须同时保存 `metric_id` 与 `definition_version`。
+
+### 理由
+
+直接复用现有编号可以保持指标文档、SQL、Registry、质量规则和展示材料的一致性，减少无业务价值的映射与维护成本。版本字段使后续口径演进可追溯，同时不会把尚未完成的候选指标提前提升为正式交付。
+
+### 验证方法
+
+1. 静态检查确认六个域的 47 个 `metric_id` 无重复且符合 `<DOMAIN>-<NN>` 格式。
+2. Metric Registry 发布检查必须拒绝缺失 `definition_version`、重复 `metric_id + definition_version` 或未通过验收的条目。
+3. 后续质量、对账和验收 Artifact 检查 `metric_id` 与 `definition_version` 均存在并能回溯至 `docs/business/metrics.md`。
+
+### 影响与回滚
+
+该决策只冻结标识与版本规则，不直接创建指标结果或提升 Runtime 状态。若回滚，需要重新设计并迁移所有已发布 Registry、质量和对账引用，因此在首批 Registry 发布后属于高返工变更；当前尚未发布 Registry 时可通过回退文档恢复候选状态。
+
 ## 记录模板
 
 复制以下模板新增记录；不要直接修改模板内容。

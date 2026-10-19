@@ -2,6 +2,7 @@
 
 状态：`confirmed / implementation-guidance`
 确认日期：2026-10-15
+当前执行位置：Stage 1～4 已完成；M5 六域 Aggregate Runtime、36 项 Metric Registry、40 条持久化质量规则与 10 项跨层对账已通过；下一入口为 Stage 5 Doris 离线 Serving
 适用范围：Project 1 Milestone 1～10、离线链路、实时链路、数据治理、验收证据与简历结论
 
 ## 1. 目的与事实边界
@@ -107,11 +108,13 @@ Project 1 最终必须覆盖：
 
 MySQL/DataX ODS Gate 至少覆盖 21 表行数、主键、字段、业务日期、审计字段、分区集合、跨表引用以及失败批次禁止发布。Behavior 60/30 Bundle 另以 `ods_behavior_event` 作为第 22 张离线 ODS 表，必须校验 Manifest/SHA-256、`event_id` 唯一、事件枚举、时间、身份、Session 和按业务日分区。
 
-2026-10-18，Business 21 表 ODS Stage Gate 与独立 Behavior ODS Gate 均已完成；Behavior 结果为 3,000,000 行、90 个业务日分区、95/95 项断言通过。当前入口转入 Stage 3 的 DIM/DWD Model Contract、实现与 Model Gate。
+2026-10-18，Business 21 表 ODS Stage Gate 与独立 Behavior ODS Gate 均已完成；Behavior 结果为 3,000,000 行、90 个业务日分区、95/95 项断言通过。Stage 2 已完成。
 
 同步形成 MySQL/Hive ODS Metadata Snapshot 与 MySQL → ODS Table-level Lineage；没有真实采集或真实 SQL 时不得生成 `VERIFIED` 治理结果。
 
 ### Stage 3：建设 DIM/DWD 与 Model Gate
+
+状态：`VERIFIED / HISTORY`。修改前 6 张 DIM、8 张 DWD 已完成 Spark on YARN Runtime，59/59 Model Gate 通过；2 张日粒度 DWS 与 1 张 ADS 的 M4 技术 MVP 另已通过 18/18 Aggregate Gate 和幂等重跑。M5-02 修正版现已通过 60/60 Model Gate、18/18 Aggregate Gate 与幂等重跑；M4 技术 MVP 仍作为旧 Contract HISTORY 保留。
 
 DIM/DWD 覆盖用户与身份、商品历史变化、购物车、订单与明细、支付、退款、优惠券和 Behavior Event 等核心业务过程。
 
@@ -139,9 +142,15 @@ Model Gate 验证事实粒度、业务键、事件时间、状态、金额/数�
 
 ### Stage 4：建设六域 DWS/ADS、指标与质量
 
+状态：`VERIFIED`。稳定 Metric ID、退款事实修正、6 DWS + 1 ADS 六域 Runtime、41/41 Gate、36 项 Metric Registry、40 条持久化质量结果和 10 项 × 90 日跨层对账已完成；`TF-05` 已收敛为加购行为量，`TR-13/TR-14` Cohort 输出已通过 Runtime 与 Stage Gate。
+
 交易与资金、流量与转化、商品、用户、退款与售后、营销六个域均须具有代表性指标。所有进入实现或简历的指标必须定义稳定 ID、版本、粒度、维度、公式、分子分母、时间归属、过滤、去重、零分母、精度、舍入、完整血缘、固定输入、预期结果和质量规则。
 
 `docs/business/metrics.md` 继续管理业务定义与草案；Metric Registry 只发布已经实现并通过验收的指标，通过 Definition Reference 与 Definition Hash 绑定正式定义，不重定义指标公式。
+
+首批实现范围按“全部 P0 + 补足流量与营销域的代表性 FROZEN P1”收敛；`US-06`、`RF-07`、`MK-07`、细分漏斗固定分母和 `RF-06` 精确支付分母截止规则继续保持 `TBD`，不得进入首批正式 SQL。M5-01 已确认 `TR / TF / PR / US / RF / MK` 编号直接成为稳定 `metric_id`，首版使用 `definition_version=1.0.0`。Metric Registry 仍只发布已经实现并通过验收的指标。
+
+Contract 审计发现 P0 `RF-01` 不能由原成功资金粒度的 `dwd_refund` 计算。M5-02 已确认不新增重叠表，而是将现有 `dwd_refund` 改为每个退款申请一行的累积事实，成功资金结果保持可空；DWS 再计算申请数、成功申请数、成功金额和退款件数。当前实现与真实集群 Runtime 均已验证。M5-01 稳定 Metric ID 已确认，当前无剩余高返工 Contract 决策。
 
 ### Stage 5：Doris Serving 与 DolphinScheduler
 
@@ -298,11 +307,10 @@ Targeted Test
 
 当前执行顺序为：
 
-1. 同步本次确认的 Scope、Architecture、Plan 与 Decision。
-2. 收口当前 Replay/ODS 本地实现。
-3. 申请单独 Database Operation 授权。
-4. 完成隔离 Source、正式 ODS Runtime 和 ODS Gate。
-5. 随真实资产逐层建设模型、指标、Serving、调度、实时和治理能力。
-6. 最后统一完成 Evidence Index 和简历结论映射。
+1. Stage 1～3 已完成：Scope/Architecture/Plan、Source/Replay、正式 ODS、DIM/DWD、Model Gate 与 M4 Aggregate MVP 均已有对应证据。
+2. Stage 4 已完成：六域 DWS/ADS、Metric Acceptance、Quality、Reconciliation 与 Cohort P0 指标均已通过 Runtime Gate。
+3. 当前进入 Stage 5 Doris Serving；DolphinScheduler 仅在独立任务通过后接入。
+4. 后续依次完成 Spark 性能实验、正式实时链路与轻量 Data Governance。
+5. `docs/status/resume-evidence-current.md` 持续收集已验证候选数据；最后统一完成 Release Evidence Index 和简历结论映射。
 
 本方案不授权数据库清理、外部系统写入、安装新 Dependency、Commit 或 Push。相关操作仍按项目授权规则单独确认。

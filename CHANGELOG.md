@@ -8,6 +8,13 @@
 
 ### 新增
 
+- 新增 M5 Cohort P0 指标：`dws_trade_cohort_day` 保存订单创建群组累计净支付、有效支付分子和创建订单分母，`TR-13/TR-14` 进入现有 ADS；最终 41/41 Aggregate Gate、36 项 Metric Registry、40 条质量规则和 10 项 × 90 日跨层对账均通过，M5 Stage Gate 完成。
+- 新增通用 `P1-RECONCILIATION-01` 结果 Contract 和首批离线跨层对账：8 项六域代表性指标覆盖 90 个业务日，共 720 行；首次及同一 `run_id` 重跑均为 `FAIL=0`，并保留未来 `OFFLINE_REALTIME` 扩展语义而不新增重叠结果表。
+- 新增 `P1-QUALITY-01` 持久化质量结果：复用现有 Aggregate Gate 的 33 条有效规则，按 `run_id` 幂等覆盖 `ecommerce_quality.data_quality_result`；首次及同一运行标识重跑均为 33 条唯一规则、`FAIL=0`。
+- 新增 M5 首批六域 Aggregate：正式 Hive 现有交易/行为 DWS 与 ADS 基础上增加商品、用户、营销 3 张 DWS；首次及同批重跑后的 34/34 Aggregate Gate 均无违规，16 项摘要完全一致。Metric Registry 已发布 34 个验收通过的版本化指标，`TF-05` 收敛为加购行为量。
+- 新增 M5 DIM/DWD/DWS/ADS Model Contract、物理 Contract、确定性 DDL/SQL/Gate Renderer 及 19 项 Model Tests；当前申请粒度 `dwd_refund` 已完成真实集群构建并通过 60/60 Model Gate，当前 DWS/ADS 已通过首次与幂等重跑后的 18/18 Aggregate Gate。
+- 新增 `DR-048`：现有 `TR / TF / PR / US / RF / MK` 编号直接作为稳定 `metric_id`，首版统一使用 `definition_version=1.0.0`；Metric Registry 仍只发布已实现且通过验收的指标。
+- 新增 M5-02 可回滚 Hive 迁移与验收：旧三张 EXTERNAL 表保留为 `m5_20261018_history_*`，新表使用独立显式 Location；迁移前 HDFS 备份、回滚 SQL、YARN Application、Gate、15 项幂等摘要及已知 Under-replicated Block 状态均已记录。
 - 新增并验证独立 Behavior ODS Contract、Hive DDL Generator 与 Spark Load/Gate Renderer：60/30 JSONL Bundle 已通过第 22 张 `ods_behavior_event` 接入离线链路，按 `event_time` 发布 3,000,000 行和 90 个业务日分区；最终 YARN Application `application_1792297746029_0005` 为 `FINISHED / SUCCEEDED`，95/95 项 Gate 通过。该表继续与 MySQL/DataX 21 表 Contract 隔离，Kafka/Flink Runtime 不在本次验收范围。
 - 完成 Milestone 3 的 21 表 Day 60～90 ODS 链路：新增范围 Runner、可恢复 Checkpoint、正式 Bootstrap Contract、独立目标期望与 ODS Gate Renderer；目标环境已完成 29/29 Daily Checkpoint，最终 21 表共 1,632,345 行，1,498/1,498 项 Gate 断言通过。中断后仅清理失败批次的精确 staging 路径并恢复 Day 63，未重放已验收 Day 62；临时数据库权限、Secret 文件和归档 Job 残留已回收或清理。
 - 新增 Project 1 完整交付整改方案与 `DR-042`：统一最终目标为完成离线、实时、调度、性能、治理和可复现交付，并将轻量 Data Governance 纳入 Project 1；治理范围限定为真实 Metadata Snapshot、Table-level Lineage 和 Metric Registry，明确排除 SQL Assistant、Text-to-SQL、LLM/Agent、独立 DataOps 平台与 Column-level Lineage。当前仅完成正式设计与文档同步，不代表治理实现或 Runtime 已完成。
@@ -57,6 +64,7 @@
 
 ### 变更
 
+- 将 `dwd_refund` 从“成功资金事务”调整为“每个退款申请一行”的累积事实，不新增重叠的 `dwd_refund_request`；退款申请数、成功申请数、成功金额和退款件数由 DWS 计算，ADS 使用交易与行为日期并集避免单侧空日丢失。
 - 修正 Business Generator 的退款重试事件与优惠券当前状态字段：中间资金失败不再错误推进退款申请终态，`USED` 券不再残留锁定订单或锁定时间；Dataset Manifest 增加版本、规范文件名、逐 CSV 大小与 SHA-256。
 - Behavior Generator 不再根据配置数量构造第二套 ID 空间；配置计数仅用于与 Business Entity Manifest 核对。事件按同一访客的 `event_time` 排序后依据 30 分钟无活动边界生成 Session，`event_id` 使用数据版本、Seed 和时间范围派生的批次命名空间。
 - 更新 README、Spec、Plan、业务源设计及离实时 Status：Entity Manifest 门禁完成后，阶段入口曾收敛为版本化 `LOAD DATA` 和 Shared Source Gate；该入口现已完成目标 MySQL Runtime 验收，当前转入批量 ODS 与 Formal CDC 接续。

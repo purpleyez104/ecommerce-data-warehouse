@@ -1,8 +1,8 @@
 # 电商离实时一体化数据仓库项目规格
 
 版本：`0.5-draft`
-状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build `VERIFIED`；批量 ODS 与 Formal CDC 接续 `DOING / DESIGNED`。Milestone 0 `completed`；Milestone 1、2、3、8、9 `in progress`；Milestone 4～7 `pending`
-更新时间：2026-10-13
+状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环与 M5 正式指标质量 `VERIFIED`。Milestone 0、3、4、5 `completed`；Milestone 1、2、8、9 `in progress`；Milestone 6～7 `pending`
+更新时间：2026-10-18
 Repository：`ecommerce-data-warehouse`
 
 ## 0. 文档使用范围
@@ -119,7 +119,7 @@ Project 1 是当前唯一实施与面试项目。Project 2 已暂缓，且不得
 
 2026-09-18 的业务重设计不沿用归档实现作为当前模型依据。当前采用已部署并通过 Source Gate 的 21 张 `biz_*` 表、独立行为事件流和新版指标口径。Seed `20260105` 的 Business Replay Baseline 已完成 Day 60～90 MySQL 与 21 表 ODS Runtime，Seed `20260928` 的正式终态 Snapshot 也已完成正式 21 表 ODS Bootstrap 与独立 Gate，因此 Milestone 3 已完成。Behavior 60/30 Bundle 的本地生成与审计已验证，并已通过独立的第 22 张 ODS 表 `ods_behavior_event` 完成 3,000,000 行、90 分区的离线 Runtime Gate，不改变 MySQL/DataX 21 表 Contract。Kafka 与时间推进式 CDC Runtime 仍待验收。
 
-Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。2026-10-17 正式 `ecommerce_oltp` 1,328,502 行终态 Snapshot 已完成 DataX/HDFS/Hive/Spark Runtime、21 表分区发布和 1,476 项独立 ODS Gate；旧 100 单 Pilot 三表保留为 HISTORY。2026-10-18 又完成 Day 60～90 时间推进式链路、跨日恢复、29/29 Daily Checkpoint、连续回补和 1,498 项最终 ODS Gate，因此 M3 已完成；该证据不外推到 M4 及后续分层。
+Milestone 3 所需的 HDFS/Hive/DataX 技术组合已有环境验证。2026-10-17 正式 `ecommerce_oltp` 1,328,502 行终态 Snapshot 已完成 DataX/HDFS/Hive/Spark Runtime、21 表分区发布和 1,476 项独立 ODS Gate；旧 100 单 Pilot 三表保留为 HISTORY。2026-10-18 又完成 Day 60～90 时间推进式链路、跨日恢复、29/29 Daily Checkpoint、连续回补和 1,498 项最终 ODS Gate，因此 M3 已完成。随后 6 张 DIM、8 张 DWD 通过 59/59 Model Gate，2 张 DWS + 1 张 ADS 通过 18/18 Aggregate Gate 与幂等重跑，因此 M4 最小离线闭环也已完成；这些证据不外推到 M5 正式指标、Doris 或调度。
 
 用户于 2026-09-22 确认实时链路已经建设到一半，因此 Milestone 8、9 记录为 `in progress`。后续实时链路 R1～R3 的历史输出证明 `biz_product_change_event` 的 `op=c/d`、Order / OrderItem DWD Java Job 构建与首次装载、CDC / Order DWD Checkpoint 恢复、订单与明细正常顺序 `op=u`，以及 Doris 101 单、320 明细汇总；当前在线、全字段/乱序、物理 DELETE、更新故障恢复和完整对账仍未验证。R1/R1-7 只是限定切片记录，不是项目阶段编号，也不把 M9 提升为完整 `verified`。这些事实现作为 Pilot History 保留，不解除 M2/M3 或 M8/M9 其余门禁。
 
@@ -180,7 +180,7 @@ Behavior Replay 固定采用一次生成完整 90 天事件后切包：Day 1～6
 | R1 21 表初始快照 | `verified`（冻结范围） | `docs/acceptance/r1_snapshot_acceptance_frozen.md`；1,178 / 1,178 表级计数及 100 单主键/最终状态对账，不含增量、全字段或 Exactly-Once |
 | R1～R3 Order / OrderItem DWD | `verified`（历史限定范围） | 商品事件 `op=c/d`、Java Job 构建与提交、CDC / Order DWD Checkpoint 恢复、正常顺序 Upsert，以及 Doris 101 单 / 320 明细汇总；不含全字段/乱序、物理 DELETE、更新故障恢复或 Exactly-Once |
 | `biz_order` ODS 历史切片 | `verified`（历史限定范围） | 用户提供的 2026-09-22 Chat：100 单、69 `PAID`、31 `CANCELED`、88 分区及金额汇总；发布重建稿和质量入口为 `implemented / not_run`，不含增量、重跑/回补或 M3 完整验收 |
-| V2 指标体系 | `draft` / 部分待细化 | `docs/business/metrics.md`；尚无 DWS/ADS SQL 或引擎结果 |
+| V2 指标体系 | `candidate` / M5 Runtime `verified` | 稳定 Metric ID 与首版版本规则已确认；6 DWS + 1 ADS、41/41 Gate、36 项 Registry、40 条持久化质量结果及 10 项 × 90 日跨层对账已完成；未冻结排行与 `TBD` 指标保持未发布 |
 | ENV-05 CDC | `CONFIRMED`（限定范围） | 单隔离测试表与指定故障场景，不外推正式 21 表 |
 
 ### 3.9 离线 Pilot 收口与 V2 正式开发边界
@@ -193,7 +193,7 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 
 ## 4. 技术栈与开发方式
 
-选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本；当前版本兼容与临时链路的实际结论以 `DR-026` 为准。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，并通过 HDFS Writer 写入 Hive ODS 发布范围内的批次隔离 staging；正式 Snapshot 的 ORC + Snappy、分区发布、审计与失败隔离已验证，时间推进式增量与完整 Stage Gate 仍由 Milestone 3 验收。
+选型结论：MySQL、Hadoop/Hive、Spark、Kafka、Flink、Doris 和 DolphinScheduler 构成了数据开发岗位中辨识度较高的经典开源技术组合，能够覆盖本项目计划展示的离线、实时、服务和调度能力。这里的“主流”表示技术方向和岗位能力具有代表性，不表示所有组件都采用最新版本；当前版本兼容与临时链路的实际结论以 `DR-026` 为准。DataX 属于成熟的传统离线同步工具，本项目保留它用于批量抽取，并通过 HDFS Writer 写入 Hive ODS 发布范围内的批次隔离 staging；正式 Snapshot 与 Day 60～90 增量的 ORC + Snappy、分区发布、审计、恢复、失败隔离和完整 Stage Gate 已由 Milestone 3 验收。
 
 | 职责 | 技术 | 当前状态 |
 | --- | --- | --- |
@@ -272,7 +272,7 @@ ADS
 - Hive ODS 同时表示 Hive 逻辑表和其 HDFS 物理存储；ODS 装载负责分区注册、审计字段、幂等发布和失败隔离。
 - DataX 不负责决定正式金额精度、状态枚举或最终 Hive 字段类型；这些内容必须随源模型和 ODS 设计确认。
 - Hive ODS 保留源字段语义，并包含 `business_date`、`extract_time`、`batch_id` 和 `source_table` 等审计字段；最终字段以源模型评审结果为准。
-- DataX HDFS Writer 的 ORC/Snappy 与失败行为已有环境验证；`biz_order` 固定历史切片的分区发布和 Spark 汇总已有 2026-09-22 限定 Runtime 证据。审计字段完整性、同日重跑、连续回补、失败隔离及其他表仍须在 Milestone 3 验证。
+- DataX HDFS Writer 的 ORC/Snappy、21 表分区发布、审计字段完整性、同日重跑、连续回补、跨日恢复、失败隔离和最终 ODS Gate 已在 Milestone 3 验证；`biz_order` 的旧 100 单结果只保留为历史限定证据。
 - 正式 ODS、DIM、DWD、DWS、ADS 使用 ORC + Snappy。
 - ODS 保留源语义；DWD 保存原子事实；DIM 保存一致维度；DWS 保存可复用的可加度量和比率分子/分母；ADS 负责最终指标表达。
 - 离线 ADS 默认通过 Spark Doris Connector 写入 Doris，具体 Connector 版本必须经过 Spark、Scala、Java 和 Doris 兼容性验证。
@@ -425,7 +425,7 @@ Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architectu
 
 ## 10. 指标范围与编号
 
-当前指标口径唯一入口为 `docs/business/metrics.md`。V2 按六个域提供 47 个检索条目：交易与资金 `TR-01`～`TR-14`、流量与转化 `TF-01`～`TF-08`、商品 `PR-01`～`PR-05`、用户 `US-01`～`US-06`、退款与售后 `RF-01`～`RF-07`、营销 `MK-01`～`MK-07`。
+当前指标口径唯一入口为 `docs/business/metrics.md`。V2 按六个域提供 47 个稳定 `metric_id`：交易与资金 `TR-01`～`TR-14`、流量与转化 `TF-01`～`TF-08`、商品 `PR-01`～`PR-05`、用户 `US-01`～`US-06`、退款与售后 `RF-01`～`RF-07`、营销 `MK-01`～`MK-07`；首版定义统一使用 `definition_version=1.0.0`。
 
 这些 `TR/TF/PR/US/RF/MK` 编号是 V2 文档内的检索标识，不自动继承归档方案的编号、实现或验证状态。历史指标清单不再作为当前源模型的直接实现输入。
 
@@ -444,7 +444,7 @@ Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architectu
 
 ### 10.3 实现前契约
 
-每个进入实现的指标必须定义稳定 ID、业务含义、粒度、维度、公式、分子分母、去重规则、事件时间、过滤条件、源字段、ODS/DWD/DWS/ADS 血缘、离实时来源、零分母、精度、舍入、固定样例、修订策略和证据状态。V2 检索编号是否直接成为稳定发布 ID，须在 Milestone 5 实施前明确。
+每个进入实现的指标必须定义稳定 ID、业务含义、粒度、维度、公式、分子分母、去重规则、事件时间、过滤条件、源字段、ODS/DWD/DWS/ADS 血缘、离实时来源、零分母、精度、舍入、固定样例、修订策略和证据状态。根据 `DR-048`，V2 编号直接作为稳定 `metric_id`，定义变化通过 `definition_version` 升级管理。
 
 ## 11. 数据质量、对账与性能实验
 
@@ -461,7 +461,7 @@ Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architectu
 
 质量结果使用 `data_quality_result`，至少包含规则编号、对象、分区、规则类型、期望值、实际值、状态和执行时间。
 
-对账结果使用 `reconciliation_result`，至少包含指标编号、业务日期、实时值、离线值、差异、差异率和状态。实时细节未确认前只建立契约，不生成虚假对账结果。
+对账结果使用一张通用 `reconciliation_result`，至少包含指标编号与版本、业务日期、比较范围、左右对象、左右值、差异、差异率、阈值、状态和运行标识。`comparison_scope` 区分 `CROSS_LAYER` 与 `OFFLINE_REALTIME`；实时细节未确认前不得生成虚假离实时结果。
 
 Spark 性能实验至少覆盖：
 
@@ -481,9 +481,9 @@ Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。�
 | --- | --- | --- |
 | `P1-METADATA-01` | MySQL、Hive、Doris 的库表字段、逻辑层、物理存储、分区和保留策略 | draft |
 | `P1-LINEAGE-01` | 进入 Git 的真实 SQL、任务依赖和层级映射 | draft |
-| `P1-METRIC-01` | 已发布指标的稳定 ID、名称、公式、粒度、维度、时间口径、来源、版本和状态 | draft；V2 检索编号尚未确认是否直接作为发布 ID |
-| `P1-QUALITY-01` | `data_quality_result` 的规则、对象、期望值、实际值和状态 | draft |
-| `P1-RECONCILIATION-01` | `reconciliation_result` 的实时值、离线值、差异和状态 | draft |
+| `P1-METRIC-01` | 已发布指标的稳定 ID、名称、公式、粒度、维度、时间口径、来源、版本和状态 | verified（36 项） |
+| `P1-QUALITY-01` | `data_quality_result` 的规则、对象、期望值、实际值和状态 | verified（40 条 Aggregate 规则） |
+| `P1-RECONCILIATION-01` | `reconciliation_result` 的比较范围、左右对象与值、差异和状态 | verified（首批离线跨层）；`OFFLINE_REALTIME` 未执行 |
 | `P1-TASK-01` | DolphinScheduler 工作流、任务状态、时间、耗时、失败日志和依赖 | draft |
 
 任何未来消费者不得：
@@ -586,7 +586,7 @@ V1 可以在完整 V2 扩展前形成可展示版本，但必须同时满足：
 - 订单匿名/注册身份互斥 CHECK 已部署并验收；完整 guest checkout 产品边界仍待确认。
 - 支付/退款回调去重保留范围、状态 JSON 演进契约；订单/优惠券单向 FK 与 Source Gate 反向引用校验已验收，后续契约变化必须重新验证。
 - 当前 21 表状态枚举、NOT NULL/default、外键策略与生成列已部署并通过 Source Gate；业务服务并发锁顺序、扩展状态和零元订单处理仍待确认。
-- V2 指标检索编号是否直接作为稳定发布 ID，以及复购率、部分退款比例、券核销率、细分漏斗和 30 日退款率的待细化口径。
+- 复购率、部分退款比例、券核销率、细分漏斗和 30 日退款率的待细化口径；稳定 Metric ID 与首版版本规则已由 `DR-048` 确认。
 - SCD2 的 60 天初始化、30 天增量维护及迟到修正原则已由 `DR-037` 确认；精确 `dim_*` 表、跟踪属性和实时维度物理实现仍须在 Milestone 4/8 实施前冻结。
 - 性能实验的并发模型、实时事件速率、资源上限和具体执行参数；性能实验规模本身已于 2026-10-11 确认。
 - HDFS/Hive、Kafka 和 Doris 的保留周期。

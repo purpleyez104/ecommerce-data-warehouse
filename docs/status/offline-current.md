@@ -1,9 +1,9 @@
 # Offline Current Status
 
-更新时间：2026-10-15
+更新时间：2026-10-19
 状态口径：`VERIFIED / DOING / DESIGNED / HISTORY / UNKNOWN`
 
-本文件描述截至 2026-10-12 用户确认的离线链路事实与当前开发方向。Runtime 结论来自 Development Chat 的 File Fact Ledger 与验收输出；仓库文件存在本身不等于 `VERIFIED`。100 单链路已完成 Pilot / Acceptance 使命，与实时链路共用的 Shared Source Data Build 已通过 Runtime 验收。
+本文件描述截至 2026-10-19 已核对的离线链路事实与当前开发方向。Runtime 结论来自 Development Chat 的 File Fact Ledger、YARN/Application 终态与验收输出；仓库文件存在本身不等于 `VERIFIED`。100 单链路已完成 Pilot / Acceptance 使命，Shared Source Data Build、批量 ODS、M4 最小离线数仓闭环与 M5 退款 Contract 修正均已通过对应 Runtime 验收。
 
 ## VERIFIED
 
@@ -51,7 +51,19 @@
 - 调整后 `AMResourceLimit memory=5120 MB`、`numPendingApplications=0`，随后 Spark DWD 单日及历史任务成功完成。
 - 限定环境已验证 2 个长期 Flink Application 与 1 个 Spark offline job 可以在 YARN 并存；该结论不外推为一般容量或性能保证。
 
-## DOING
+### M5 退款事实与 Aggregate Contract 修正
+
+- M5-02 已确认不新增 `dwd_refund_request`；现有 `dwd_refund` 改为每个退款申请一行，成功资金结果可空。DWS 计算退款申请数、成功申请数、成功金额和退款件数，ADS 使用交易/行为日期并集，避免单侧空日丢失。
+- 当前申请粒度 `dwd_refund`、DWS/ADS 已完成真实集群受控迁移；60/60 Model Gate、首次及幂等重跑后的 18/18 Aggregate Gate 均无违规。15 项核心摘要重跑前后完全一致，旧表与 HDFS 备份均保留。证据见 `docs/acceptance/m5-refund-contract-migration-acceptance.md`。
+
+## VERIFIED
+
+### M5 首批六域正式指标与质量
+
+- M5-01 已确认现有编号直接作为稳定 `metric_id`，首版 `definition_version=1.0.0`。
+- 2026-10-19 已完成 6 张 DWS + 1 张 ADS 的六域 Runtime；最终首次与幂等重跑后的 41/41 Aggregate Gate 均无违规。Cohort 证据见 `docs/acceptance/m5-cohort-metrics-acceptance.md`。
+- Metric Registry 已发布 36 个具有正式输出和 Runtime 验收的 `metric_id + definition_version`；`TF-05`、`TR-13`、`TR-14` 均已绑定正式输出，排行和 `TBD` 指标继续保持未发布。
+- `P1-QUALITY-01` 当前保存 40 条唯一 Aggregate 规则，`FAIL=0`；`P1-RECONCILIATION-01` 当前覆盖 10 项代表性指标，90 日共 900 行，`FAIL=0`。
 
 ### Formal ODS 本地 Pipeline
 
@@ -77,7 +89,9 @@
 - 2026-10-17 正式 `ecommerce_oltp` 终态 Snapshot 已发布到正式 `ecommerce_ods` 21 张 EXTERNAL ORC + Snappy 表，显式根路径为 `/warehouse/ecommerce/ods/`。Source 21 表实时行数仍与 Manifest 一致，合计 1,328,502；Runner 状态为 `published`，独立 ODS Gate 通过 1,476/1,476 项断言、0 失败。旧 Pilot 三表已保留为 `pilot_20260921_*`，原 EXTERNAL 数据和 88 个历史分区未删除。临时正式库 `SELECT` grant 已回收，hadoop202 Secret 配置已删除。证据见 `docs/acceptance/formal-ods-bootstrap-acceptance.md`。
 - 2026-10-18 隔离 Source/ODS 完成 Day 62～90 逐日交替回放：29/29 Checkpoint、Range State `verified`，Source Ledger Day 61～90 共 30 条、1,210,882 operations，最终 Source 21 表合计 1,328,491 行。Day 63 DataX 中断后按精确 `batch_id` 清理未发布 staging 并从 Checkpoint 恢复，未重放 Day 62。Day 90 独立 ODS Gate 使用最终 Source 分组计数与 31 日快照合约，验证目标 1,632,345 行，1,498/1,498 条断言成功。临时 grant 与全部 Secret runtime 文件已回收；Milestone 3 Stage Gate 完成。
 - 2026-10-18 Behavior 60/30 Bundle 已通过独立第 22 张 ODS 表 `ecommerce_ods.ods_behavior_event` 完成 Runtime Gate：Dataset `v2.3-behavior-replay-formal-20260105-r1` 共 3,000,000 行，发布为 2025-12-01～2026-02-28 的 90 个 `dt` 分区，HDFS 目标为 `/warehouse/ecommerce/ods/ods_behavior_event`。最终 Gate Application `application_1792297746029_0005` 为 `FINISHED / SUCCEEDED`，95/95 项断言通过并输出 `BEHAVIOR_ODS_GATE_PASS`；证据见 `docs/acceptance/behavior-ods-acceptance.md`。
-- 2026-10-18 最新统一测试共 81 项通过：Business 6、Behavior 6、DataX/ODS 32、MySQL 37；新增覆盖 Behavior ODS DDL、完整 Bundle 预检、动态分区 Publish/Gate 和只读取 `events.jsonl` 的递归输入边界。该测试证据与 Runtime 证据分别记录。
+- 2026-10-18 首批 6 张 DIM、8 张 DWD 已在 `ecommerce_dim` / `ecommerce_dwd` 完成 Spark on YARN 构建；Model Gate Application `application_1792309323393_0007` 为 `FINISHED / SUCCEEDED`，59/59 条断言通过。精确行数覆盖 60 个类目、30 个券模板、24,000 条身份映射、6,000 条商品 SCD2、40,000 用户、80,000 访客及 3,000,000 条 Behavior DWD 等 14 张表；证据见 `docs/acceptance/m4-dim-dwd-model-gate-acceptance.md`。
+- 2026-10-18 两张日粒度 DWS 与一张 ADS 已在 `ecommerce_dws` / `ecommerce_ads` 完成 Spark on YARN 构建；Aggregate Gate 首次和幂等重跑后均为 18/18 条断言无违规，重跑 Application `application_1792325482148_0003`、Gate Application `application_1792325482148_0004` 均为 `FINISHED / SUCCEEDED`，重跑前后 8 项核心结果完全一致。证据见 `docs/acceptance/m4-dws-ads-aggregate-gate-acceptance.md`。
+- 2026-10-19 最新统一测试共 114 项通过：Business 6、Behavior 6、DataX/ODS 32、Model 19、Governance 6、Quality 4、Reconciliation 4、MySQL 37。
 
 ### Source Data Build 后续接续
 
@@ -94,7 +108,7 @@
 
 - Behavior 60/30 Bundle 已以独立第 22 张 ODS 表 `ods_behavior_event` 接入离线链路并完成 Runtime Gate。未来 Kafka Raw 仍须共用事件 Schema 和 `event_id` 去重语义，但 Kafka/Flink Gate 不由本次离线验收替代。
 - `DR-037`、`DR-041`、`DR-044` 已确认正式 90 天观察窗口和当前 Replay Baseline；Business Source 与 ODS 的 Day 60～90 时间推进式 Runtime、正式终态 Snapshot ODS Bootstrap、Behavior ODS Runtime 和对应最终 Gate 已完成。Kafka、CDC Runtime 和对应 Gate 仍为 `not_run`。
-- 需要历史属性的维度按前 60 天变化历史初始化 SCD2，后 30 天关闭旧版本、插入新版本并处理迟到修正；精确 `dim_*` 映射仍待 Milestone 4 实施前冻结。
+- 当前 6 张 DIM、8 张 DWD、6 张 DWS 与 1 张 ADS 均有正式 Runtime。M5-02 修正版使用独立 M5 Location，旧 `dwd_refund`、`dws_trade_day` 和 ADS 表保留为 `m5_20261018_history_*`，迁移前 HDFS 备份另行保留。
 - 正式源模型继续采用 7 个业务域、21 张 `biz_*` 业务表；Generator 必须统一覆盖一期业务表，而不是逐表补小样本。
 - 工程实施改为按层批量推进：21 表 Source → 批量 ODS → ODS Gate → DWD/DIM → Model Gate → DWS → ADS → Doris。
 - ODS 复用边界为“一套代码 + 多表配置”：通用 DataX Job Generator、Stage Runner、Spark Validation 和 Publish；每表提供 source/target、primary key、partition、extract 与 quality rule，columns 统一引用 Business Generator 的 `TABLE_COLUMNS`，字段类型以正式 MySQL DDL 为准。
@@ -131,6 +145,7 @@
 
 ## NEXT
 
-1. 基于 21 表交易 ODS + 1 表 Behavior ODS 冻结 DIM/DWD Model Contract，批量实现 Type 1/SCD2 DIM 与 DWD，并执行 Model Gate。
-2. Model Gate 通过后进入 DWS、ADS 与 Doris 离线 Serving；不提前接入 DolphinScheduler。
-3. 任何隔离库构建、重置、回滚或重新装载需要新的 Database Operation 授权；不继续执行 `ods_order_item_create.sql`，不删除旧 acceptance 环境。
+1. M5-01、M5-02、六域 Aggregate Runtime、36 项 Metric Registry、40 条持久化质量结果和 10 项跨层 Reconciliation 已完成。
+2. M5 Stage Gate 已通过；`TR-13/TR-14` Cohort Contract、Runtime、Gate、质量和对账均为 `VERIFIED`。
+3. 下一入口为 Doris 离线 Serving；任务独立运行通过前不接入 DolphinScheduler。
+4. 任何隔离库构建、重置、回滚或重新装载需要新的 Database Operation 授权；不继续执行 `ods_order_item_create.sql`，不删除旧 acceptance 环境。

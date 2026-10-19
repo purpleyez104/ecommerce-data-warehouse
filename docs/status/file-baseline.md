@@ -1,6 +1,6 @@
 # File Baseline
 
-更新时间：2026-10-15
+更新时间：2026-10-19
 扫描范围：Offline Current Baseline、Realtime R3 Handoff、正式回放设计点名路径、Generator/DDL 及当前 worktree
 证据口径：`VERIFIED_EXECUTED / CONFIRMED_CREATED / CHAT_GENERATED / MENTIONED_ONLY / SUPERSEDED / UNKNOWN`
 
@@ -102,7 +102,7 @@
 
 | 范围 | 路径 | 文件事实 | Runtime 边界 |
 | --- | --- | --- | --- |
-| DataX 21 表 Pipeline | `datax/config/ods_tables.json`、`datax/scripts/generate_job.py`、`datax/scripts/run_ods_batch.py`、`datax/templates/mysql_to_hdfs_ods.json.tpl`、`spark/scripts/render_ods_batch_sql.py` | `CONFIRMED_CREATED` | 2026-10-15 本地 17 个 DataX Tests 通过；Job Generator、Stage Runner 与 Validation/Publish Renderer 已实现，正式 DataX/HDFS/Hive/Spark Runtime 与 ODS Gate 为 `not_run` |
+| DataX 21 表 Pipeline | `datax/config/ods_tables.json`、`datax/scripts/generate_job.py`、`datax/scripts/run_ods_batch.py`、`datax/templates/mysql_to_hdfs_ods.json.tpl`、`spark/scripts/render_ods_batch_sql.py` | `VERIFIED_EXECUTED` | Job Generator、Stage Runner 与 Validation/Publish Renderer 已完成正式 Snapshot、Day 60～90、跨日恢复和最终 1,498 项 ODS Gate；当前统一 DataX/ODS 测试为 32/32 |
 | Hive ODS DDL | `archive/pilot-v1/offline/reference/ods_order.sql` | `CONFIRMED_CREATED` | 本轮 `not_run`；仅作 Pilot History |
 | ODS 发布重建稿 | `archive/pilot-v1/offline/reference/publish_order_ods_partitions.sh` | `CONFIRMED_CREATED` | `implemented / not_run`；不含实际 ECS 路径 |
 | ODS 质量入口 | `archive/pilot-v1/offline/reference/check_ods_order_quality.sh` | `CONFIRMED_CREATED` | `implemented / not_run` |
@@ -113,16 +113,21 @@
 | 旧 Pilot Generator | `archive/pilot-v1/ecommerce_generator_v1/` | 已归档并恢复原 package layout | `PILOT / ACCEPTANCE / HISTORY`；不作为新的 V2 Python → CSV Generator 实现基础或正式入口 |
 | 21 表正式 DDL 与 Source Gate | `mysql/ddl/001_ecommerce_oltp.sql`、`mysql/scripts/`、`mysql/sql/` | `VERIFIED_EXECUTED` | MySQL 8.0.46 已部署 21 表并装载 1,328,502 行；事务内与提交后独立 45-rule Source Gate 均通过，`local_infile` 已恢复为 `OFF` |
 | Business / Behavior Generator | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | `VERIFIED_EXECUTED` | Business 21 表 1,328,502 行已在目标服务器生成并装载；Behavior 3,000,000 事件已完成本地正式规模验证；Entity Manifest 绑定及全量引用/Session/事件唯一性检查通过 |
-| 60/30 Business Replay | `mock/generator/business_generator/src/business_generator/replay.py`、`mock/generator/business_generator/config/replay_formal_20260105.json`、`mysql/ddl/002_replay_batch_ledger.sql`、`mysql/scripts/plan_replay_bootstrap.py`、`mysql/scripts/replay_daily_package.py`、`mysql/scripts/execute_replay_daily_package.py`、`mysql/scripts/execute_replay_range.py` | 当前 worktree 存在；Ledger/Range Executor 已部署到 r6 数据盘独立目录 | 当前正式 Baseline 已由本地重生成复现；r6 Day 60～90、30/30 Acceptance、最终独立 Source Gate与权限回收均已验证。批量 ODS、Formal CDC、SCD2 与离实时接管仍为 `not_run` |
+| 60/30 Business Replay | `mock/generator/business_generator/src/business_generator/replay.py`、`mock/generator/business_generator/config/replay_formal_20260105.json`、`mysql/ddl/002_replay_batch_ledger.sql`、`mysql/scripts/plan_replay_bootstrap.py`、`mysql/scripts/replay_daily_package.py`、`mysql/scripts/execute_replay_daily_package.py`、`mysql/scripts/execute_replay_range.py` | 当前 worktree 存在；Ledger/Range Executor 已部署到 r6 数据盘独立目录 | 当前正式 Baseline 已由本地重生成复现；r6 Day 60～90、30/30 Acceptance、最终独立 Source Gate、批量 ODS Stage Gate与权限回收均已验证。Formal CDC、SCD2 Runtime 与离实时接管仍为 `not_run` |
 | 60/30 Behavior Replay | `mock/generator/behavior_generator/src/behavior_generator/replay.py`、`mock/generator/behavior_generator/config/replay_formal_20260105.json` | 当前 worktree 存在 | Dataset `v2.3-behavior-replay-formal-20260105-r1` 已绑定 Business r2 Entity Manifest 并生成 3,000,000 条事件：Bootstrap 895,324 条、30 个 Daily Package 2,104,676 条；Manifest/Hash/窗口/实体有效期/全局 Event ID 审计通过。Hive `ods_behavior_event` 已完成 3,000,000 行、90 分区 Runtime Gate；Kafka/Flink Runtime 仍为 `not_run` |
+| DIM/DWD Model | `hive/model/`、`hive/model/migrate_m5_refund_contract.sql`、`hive/model/rollback_m5_refund_contract.sql`、`spark/scripts/render_*model*.py`、`spark/scripts/render_dim_snapshot_sql.py`、`spark/scripts/render_product_scd2_sql.py`、`spark/scripts/render_dwd_sql.py` | 14 表 `VERIFIED_EXECUTED` | 当前申请粒度 `dwd_refund` 已完成受控迁移并通过 60/60 Model Gate；旧成功资金粒度表与 HDFS 备份保留，回滚入口已入库 |
+| 六域 DWS/ADS Aggregate | `hive/model/aggregate_contract.json`、`hive/model/aggregate_physical_contract.json`、`hive/model/generate_aggregate_ddl.py`、`spark/scripts/render_aggregate_sql.py`、`spark/scripts/render_aggregate_gate_sql.py` | `VERIFIED_EXECUTED` | 6 张 DWS + 1 张 ADS 已完成正式 Runtime；最终 41/41 Gate 首次及重跑后均通过 |
+| Metric Registry | `governance/metric_registry/metric_registry.json`、`governance/metric_registry/validate_metric_registry.py`、`tests/governance/` | `VERIFIED_EXECUTED` | 36 个已实现指标绑定定义 SHA-256、Aggregate 输出与 M5 验收；6/6 Registry Tests 通过 |
+| Quality Result | `quality/quality_result_contract.json`、`quality/generate_quality_result_ddl.py`、`spark/scripts/render_quality_result_sql.py`、`tests/quality/` | `VERIFIED_EXECUTED` | `data_quality_result` 当前为 40 条唯一规则、`FAIL=0`；写入后 Gate 可阻断失败运行 |
+| Reconciliation Result | `reconciliation/reconciliation_result_contract.json`、`reconciliation/generate_reconciliation_result_ddl.py`、`spark/scripts/render_cross_layer_reconciliation_sql.py`、`tests/reconciliation/` | `VERIFIED_EXECUTED` | 通用左右值 Contract 已落地；当前 10 项 × 90 日共 900 行，`FAIL=0` |
 
 ## 正式 Source Data Build 文件边界
 
-- Business / Behavior Generator 已完成固定输入的正式规模生成与 Targeted Test；Business 21 表已完成历史目标 MySQL Runtime，Seed `20260105` 的 Business 60/30 已完成 r6 Day 60～90 MySQL Runtime，Behavior 60/30 仍只覆盖本地 Bundle 与审计。
+- Business / Behavior Generator 已完成固定输入的正式规模生成与 Targeted Test；Business 21 表已完成历史目标 MySQL Runtime，Seed `20260105` 的 Business 60/30 已完成 r6 Day 60～90 MySQL 与 ODS Runtime，Behavior 60/30 也已完成 Hive ODS Runtime Gate。
 - 正式数据规模、90 天时间范围、21 张 CSV 字段、装载顺序、状态分布、跨表关系及 Behavior 对 Business Entity Manifest 的复用已确认；Source Gate 验收边界见 `docs/acceptance/source-load-gate-acceptance.md`。
-- `LOAD DATA` 初始化脚本与 Shared Source Gate 已实现并通过本地失败路径与目标 MySQL Runtime 验收；正式 ODS 21 表抽取 Contract、Job Generator、Stage Runner 与 Spark Validation/Publish Renderer 已创建并通过本地测试，DataX/HDFS/Hive/Spark Runtime 与 ODS Gate 尚未验证。
+- `LOAD DATA` 初始化脚本与 Shared Source Gate 已实现并通过本地失败路径与目标 MySQL Runtime 验收；正式 ODS 21 表抽取 Contract、Job Generator、Stage Runner 与 Spark Validation/Publish Renderer 已完成本地测试及 DataX/HDFS/Hive/Spark Runtime，最终 ODS Gate 已验证。
 - Formal CDC 配置、正式 Kafka Topic、`event_version`、Domain Flink Applications、Incremental Business Generator、正式 Checkpoint Root 与 V2 Doris 初始化脚本均尚未创建或验证。
-- Seed `20260105` 的 60 天 Business Bootstrap、30 个 Daily Package、Expected Result、Bootstrap 与 Daily Dry-run Plan 已生成并审计；Behavior 60 天 Bootstrap、30 个 Daily Package、Manifest 与 Hash 审计也已完成。隔离 Source/ODS 与 Behavior ODS 历史归档均已通过 Runtime Gate；Kafka/Flink 写入、SCD2 SQL、DIM/DWD 历史分区构建和离实时逐日接管仍为 `DESIGNED / not_run`。Seed `20260928` 的既有最终 90 天 Source Gate 数据不替代这些 Runtime 资产。
+- Seed `20260105` 的 60 天 Business Bootstrap、30 个 Daily Package、Expected Result、Bootstrap 与 Daily Dry-run Plan 已生成并审计；Behavior 60 天 Bootstrap、30 个 Daily Package、Manifest 与 Hash 审计也已完成。隔离 Source/ODS、Behavior ODS 与首批 DIM/DWD 均已通过 Runtime Gate；Kafka/Flink 写入和离实时逐日接管仍为 `DESIGNED / not_run`。Seed `20260928` 的既有最终 90 天 Source Gate 数据不替代这些 Runtime 资产。
 - 旧 Pilot 文件继续保存历史证据；后续若需要复用通用算法，必须逐项确认来源与 V2 Contract，不得整体继承旧生成器或逐条 INSERT 路径。
 
 ## Evidence Assets
@@ -137,7 +142,7 @@
 - Realtime R3 Incremental：`order_item_id=2456670014000320` 的 `updated_at` 更新产生 Kafka `op=u`、offset 1185，Doris `kafka_offset` 从 1181 更新为 1185，行数与不同明细数保持 320。
 - Realtime Recovery：CDC `chk-396`、Order DWD `chk-179` 是已验证恢复点，恢复后均产生新 Completed Checkpoint；它们不是当前最新 Checkpoint。
 - Realtime Application ID 只作为本阶段历史证据；当前 Application、Flink Job、Checkpoint 与 Doris BE 是否在线均为 `UNKNOWN`。
-- Application ID、Scheduler 指标和查询结果本轮只来自 Handoff；因未指定新的 Evidence Asset 路径，未创建验收日志或新 acceptance 文档。
+- M5 首批六域 Runtime 的 Application ID、34/34 Gate 与幂等摘要记录于 `docs/acceptance/m5-six-domain-aggregate-acceptance.md`；后继 Cohort 扩展、最终 41/41 Gate、40 条质量规则和 10 项对账记录于 `docs/acceptance/m5-cohort-metrics-acceptance.md`。服务器原始日志不进入 Git。
 
 ## 已迁移的当前文档路径
 

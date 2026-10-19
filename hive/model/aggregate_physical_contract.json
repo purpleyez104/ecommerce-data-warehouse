@@ -1,0 +1,38 @@
+{
+  "hdfs_root": "/warehouse/ecommerce/model",
+  "partition": ["dt", "STRING"],
+  "storage": "ORC",
+  "compression": "SNAPPY",
+  "models": {
+    "dws_trade_day": {
+      "database": "ecommerce_dws",
+      "location": "/warehouse/ecommerce/model/m5_20261018/ecommerce_dws/dws_trade_day",
+      "columns": [["business_date", "DATE"], ["created_order_count", "BIGINT"], ["created_user_count", "BIGINT"], ["ordered_payable_cents", "BIGINT"], ["effective_order_count", "BIGINT"], ["effective_gmv_cents", "BIGINT"], ["paid_order_count", "BIGINT"], ["paid_user_count", "BIGINT"], ["paid_amount_cents", "BIGINT"], ["refund_request_count", "BIGINT"], ["successful_refund_request_count", "BIGINT"], ["refund_amount_cents", "BIGINT"], ["refund_quantity", "BIGINT"], ["cash_net_inflow_cents", "BIGINT"], ["batch_id", "STRING"], ["load_time", "TIMESTAMP"]]
+    },
+    "dws_behavior_day": {
+      "database": "ecommerce_dws",
+      "columns": [["business_date", "DATE"], ["pv_count", "BIGINT"], ["uv_count", "BIGINT"], ["exposure_count", "BIGINT"], ["click_count", "BIGINT"], ["add_cart_count", "BIGINT"], ["remove_cart_count", "BIGINT"], ["batch_id", "STRING"], ["load_time", "TIMESTAMP"]]
+    },
+    "dws_product_day_sku": {
+      "database": "ecommerce_dws",
+      "columns": [["business_date", "DATE"], ["product_sk", "STRING"], ["sku_id", "BIGINT"], ["spu_id", "BIGINT"], ["category_id", "BIGINT"], ["brand_code", "STRING"], ["paid_quantity", "BIGINT"], ["refund_quantity", "BIGINT"], ["paid_amount_cents", "BIGINT"], ["batch_id", "STRING"], ["load_time", "TIMESTAMP"]]
+    },
+    "dws_user_day": {
+      "database": "ecommerce_dws",
+      "columns": [["business_date", "DATE"], ["registered_user_count", "BIGINT"], ["first_purchase_user_count", "BIGINT"], ["active_identity_count", "BIGINT"], ["created_user_count", "BIGINT"], ["paid_user_count", "BIGINT"], ["batch_id", "STRING"], ["load_time", "TIMESTAMP"]]
+    },
+    "dws_coupon_day": {
+      "database": "ecommerce_dws",
+      "columns": [["business_date", "DATE"], ["issued_coupon_count", "BIGINT"], ["locked_coupon_count", "BIGINT"], ["used_coupon_count", "BIGINT"], ["unlocked_coupon_count", "BIGINT"], ["coupon_discount_cents", "BIGINT"], ["coupon_paid_order_count", "BIGINT"], ["batch_id", "STRING"], ["load_time", "TIMESTAMP"]]
+    },
+    "dws_trade_cohort_day": {
+      "database": "ecommerce_dws",
+      "columns": [["business_date", "DATE"], ["cohort_created_order_count", "BIGINT"], ["cohort_paid_order_count", "BIGINT"], ["cohort_paid_amount_cents", "BIGINT"], ["cohort_refund_amount_cents", "BIGINT"], ["cumulative_net_paid_cents", "BIGINT"], ["as_of_time", "TIMESTAMP"], ["batch_id", "STRING"], ["load_time", "TIMESTAMP"]]
+    },
+    "ads_daily_business_overview": {
+      "database": "ecommerce_ads",
+      "location": "/warehouse/ecommerce/model/m5_20261018/ecommerce_ads/ads_daily_business_overview",
+      "columns": [["business_date", "DATE"], ["created_order_count", "BIGINT"], ["effective_order_count", "BIGINT"], ["effective_gmv_cents", "BIGINT"], ["paid_order_count", "BIGINT"], ["paid_amount_cents", "BIGINT"], ["refund_request_count", "BIGINT"], ["successful_refund_request_count", "BIGINT"], ["refund_amount_cents", "BIGINT"], ["refund_quantity", "BIGINT"], ["cash_net_inflow_cents", "BIGINT"], ["pv_count", "BIGINT"], ["uv_count", "BIGINT"], ["exposure_count", "BIGINT"], ["click_count", "BIGINT"], ["add_cart_count", "BIGINT"], ["batch_id", "STRING"], ["load_time", "TIMESTAMP"], ["cumulative_net_paid_cents", "BIGINT"], ["cohort_created_order_count", "BIGINT"], ["cohort_paid_order_count", "BIGINT"], ["cohort_payment_conversion_rate", "DECIMAL(18,6)"]]
+    }
+  }
+}

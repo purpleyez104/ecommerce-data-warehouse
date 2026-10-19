@@ -167,7 +167,7 @@ ODS、DIM/DWD 和运行审计至少保留或可追溯：
 
 只有需要按历史属性还原事实的维度使用 SCD2。商品价格、类目归属、品牌和上下架状态是当前明确的候选；只关心当前值的稳定属性采用 Type 1。身份映射继续使用自身有效区间表达，不为追求形式重复建设第二套拉链。
 
-精确到 `dim_*` 表和跟踪字段的映射在 Milestone 4 实施前确认，但不得把所有维度默认做成 SCD2。
+Milestone 4 已在 `hive/model/model_contract.json` 冻结精确映射：`dim_product_zip` 跟踪价格、类目、品牌和上下架状态并使用 SCD2；`dim_identity_mapping` 沿用源有效区间；其他首批当前值维度使用 Type 1。修改前 6 张 DIM 与 8 张 DWD、2 张 DWS 与 1 张 ADS 已完成 Runtime Gate；M5-02 后当前申请粒度 `dwd_refund` 与下游 Aggregate 修正版也已完成受控迁移、Gate 和幂等重跑。
 
 ### 8.2 输入前提
 
