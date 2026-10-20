@@ -28,7 +28,7 @@ Milestone 1 已在目标三节点集群验证 DolphinScheduler 3.4.2 + MySQL JDB
 
 ## M6 正式 DAG Contract
 
-`workflow_contract.json` 固定完整 T+1 链路七个 Task 的顺序、运行参数和重试边界；该 DAG 已发布并产生自动重试、失败阻断和历史补数失败证据，但尚未取得完整成功终态。
+`workflow_contract.json` 固定完整 T+1 链路七个 Task 的顺序、运行参数和重试边界；正式 DAG 已发布并产生自动重试与失败阻断证据。下层数据已就绪时使用 Aggregate Backfill 完成成功终态，不为证明调度能力重复抽取或重建下层。
 
 ```bash
 python3 scheduler/dolphinscheduler/render_workflow_payload.py \
@@ -50,7 +50,7 @@ model_ready_check
 
 它不包含 DataX、ODS Ready 或 DIM/DWD Build，避免把 Type 1 当前态维度错误地按历史日重复写入。`business_date` 表示回补目标日，`model_as_of_date` 表示 Cohort 模型观察窗口终点，两者必须显式区分。
 
-当前 Workflow Code 为 `187427451612864`。Instance `17` 已通过 Model Ready、DWS/ADS 和 40-rule Quality Gate；Doris Load 在一次自动重试后仍于 `frame.count()` 发生 `java.io.EOFException`，最终 Reconciliation 未运行。没有新的 YARN Task Result、HDFS Block 或序列化边界证据前，不重复触发相同路径。
+当前 Workflow Code 为 `187427451612864`。Instance `17` 已通过 Model Ready、DWS/ADS、40-rule Quality Gate、Doris Load 和 Serving Reconciliation，最终状态为 `SUCCESS`，且未重跑 DataX/ODS/DIM/DWD。Doris 阶段任务级覆盖为 `JavaSerializer`，规避当前 Spark 3.5.9 全局 Kryo 在最终 TaskResult 解码时的 EOF；对账将审计字段 `load_time` 统一到 Doris `DATETIME` 的秒级精度，其他字段继续严格逐值比较。
 
 ```bash
 python3 scheduler/dolphinscheduler/render_workflow_payload.py \
@@ -59,6 +59,10 @@ python3 scheduler/dolphinscheduler/render_workflow_payload.py \
 ```
 
 质量 Gate、Model Ready Gate 和最终 Serving 对账固定为不自动重试；它们失败时必须阻断下游或工作流终态。DataX、模型计算和 Doris 装载允许一次基础设施类重试。同一 Workflow 使用 `SERIAL_WAIT`，避免两个补数实例并发覆盖相同 Hive 分区。
+
+## M6 质量失败验证 Contract
+
+`quality_failure_workflow_contract.json` 是独立的三 Task 验证定义，只允许通过既有 Rule ID 显式注入一条失败规则，不修改业务表或正式质量规则。Instance `18` 写入 40 条质量结果，其中仅 `ads_daily_business_overview.business_key_unique` 为 `FAIL`；Quality Task 返回非零且 Doris/Reconciliation 未运行，验证前后 Doris 90 日基线一致。验证完成后 Workflow Code `187464279901408` 已切换为 `OFFLINE`，正式 Workflow 未修改。
 
 `datax_env` 与 `doris_env` 只传递目标机上权限受控的私有环境文件路径；`doris_connector_jar` 传递已验证 Connector 的绝对路径。不得把密码写入 Workflow Global Parameter、Contract 或仓库文件。
 

@@ -2,7 +2,7 @@
 
 状态：当前 ECS 与已验收组件拓扑记录；未实施的服务仍为规划。更新时间：2026-09-20。
 
-本文件展开 [最终工程架构](architecture/final-architecture.md)的部署视图。运行事实以[集群事实基线](cluster-baseline.md)、[兼容性矩阵](compatibility-matrix.md)和 `DR-026` 为证据来源；不因出现在拓扑图中就把后续业务作业标记为已部署。
+本文件展开[工程架构基线](../architecture/baseline.md)的部署视图。运行事实以[集群事实基线](cluster-baseline.md)、[兼容性矩阵](compatibility-matrix.md)和 `DR-026` 为证据来源；不因出现在拓扑图中就把后续业务作业标记为已部署。
 
 ## 节点与角色
 
@@ -29,10 +29,10 @@ MySQL (hadoop201) ──DataX (workers)──> HDFS/Hive ODS ──Spark on YARN
 
 已通过的 MySQL→DataX→HDFS→Hive→Spark、MySQL Binlog→Flink CDC→Kafka→Flink→Kafka、Kafka→Flink→Doris 均为限定范围的技术验收。Doris 4.0.8 FE/BE、SQL 和受控重启恢复已通过。正式 21 表数据、Hive ODS、实时 Topic、Flink 业务 Jar、Doris 服务表和离实时对账仍须按 Milestone 2～9 分别验收。
 
-Flink 正式业务作业的目标部署方式为 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅保留作 Kafka SQL 技术验证。Application 提交命令退出 0 只代表提交成功，调度和验收必须核对 YARN final state。详见[实时链路规范](design/realtime-pipeline-design.md)。
+Flink 正式业务作业的目标部署方式为 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅保留作 Kafka SQL 技术验证。Application 提交命令退出 0 只代表提交成功，调度和验收必须核对 YARN final state。详见[实时链路规范](../design/realtime-pipeline-design.md)。
 
 ## 资源与变更门禁
 
 - `hadoop201` 承载多项控制服务，只有发生磁盘不足、OOM、持续 Swap、频繁 Full GC、进程被杀或核心服务无法共存等实测问题，才提出扩容。
 - 两个 worker 的 YARN 资源按现有配置保持 `10240 MiB / 6 vCore`；正式 Flink/Spark 与 Doris 共存前需重新核对内存、磁盘、进程和 GC。
-- 不格式化既有 NameNode，不重置 KRaft storage，不用停掉关键服务的方式伪装资源充足。DolphinScheduler 已按 MySQL JDBC Registry 完成 M1 验收；正式 M6 DAG 已验证至 Aggregate Backfill Quality Gate，Doris EOF 与最终对账仍须独立闭合。
+- 不格式化既有 NameNode，不重置 KRaft storage，不用停掉关键服务的方式伪装资源充足。DolphinScheduler 已按 MySQL JDBC Registry 完成 M1 验收；Aggregate Backfill Instance `17` 已完成五 Task 成功终态与调度后对账，当前 M6 只剩质量失败注入与 Stage Gate。

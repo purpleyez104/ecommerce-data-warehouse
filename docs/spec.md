@@ -1,7 +1,7 @@
 # 电商离实时一体化数据仓库项目规格
 
 版本：`0.5-draft`
-状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4/M5 离线建模质量与 M6 Doris Serving `VERIFIED`。Milestone 0、1、3、4、5 `completed`；Milestone 2、6、8、9 `in progress`；Milestone 7 `pending`
+状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4/M5 离线建模质量与 M6 Doris Serving/调度 `VERIFIED`。Milestone 0、1、3、4、5、6 `completed`；Milestone 2、8、9 `in progress`；Milestone 7 `pending`
 更新时间：2026-10-18
 Repository：`ecommerce-data-warehouse`
 
@@ -115,7 +115,7 @@ Project 1 是当前唯一实施与面试项目。Project 2 已暂缓，且不得
 
 ### 3.3 Milestone 1 与 Milestone 2 并行推进
 
-`DR-008` 允许 M1 与 M2 分轨推进，但不取消直接依赖。上一版 M2 的代码材料保留在 `archive/legacy-m2-19-table/`，对应设计文档保留在 `docs/archive/milestone-2-business-design.md`；二者均为历史材料，不作为当前 V2 实现依据。
+`DR-008` 允许 M1 与 M2 分轨推进，但不取消直接依赖。上一版 M2 的旧 19 表实现文件已删除，仅在 `docs/archive/milestone-2-business-design.md` 保留设计背景；该文档不是当前 V2 实现依据。
 
 2026-09-18 的业务重设计不沿用归档实现作为当前模型依据。当前采用已部署并通过 Source Gate 的 21 张 `biz_*` 表、独立行为事件流和新版指标口径。Seed `20260105` 的 Business Replay Baseline 已完成 Day 60～90 MySQL 与 21 表 ODS Runtime，Seed `20260928` 的正式终态 Snapshot 也已完成正式 21 表 ODS Bootstrap 与独立 Gate，因此 Milestone 3 已完成。Behavior 60/30 Bundle 的本地生成与审计已验证，并已通过独立的第 22 张 ODS 表 `ods_behavior_event` 完成 3,000,000 行、90 分区的离线 Runtime Gate，不改变 MySQL/DataX 21 表 Contract。Kafka 与时间推进式 CDC Runtime 仍待验收。
 
@@ -156,7 +156,7 @@ Behavior Replay 固定采用一次生成完整 90 天事件后切包：Day 1～6
 
 ### 3.6 历史材料边界
 
-旧 19 表的 Seed、Generator、脚本和测试位于 `archive/legacy-m2-19-table/`，对应设计文档位于 `docs/archive/milestone-2-business-design.md`；旧 21 表 Pilot Generator 位于 `archive/pilot-v1/ecommerce_generator_v1/`。这些历史内容不作为当前 21 表的正式实现依据，也不直接满足 M2/M3 门禁；不得混用旧表名、字段和指标编号。
+旧 19 表的 Seed、Generator、脚本和测试已删除，仅在 `docs/archive/milestone-2-business-design.md` 保留设计背景；旧 21 表 Pilot Generator 位于 `archive/pilot-v1/ecommerce_generator_v1/`。这些历史内容不作为当前 21 表的正式实现依据，也不直接满足 M2/M3 门禁；不得混用旧表名、字段和指标编号。
 
 ### 3.7 CDC 环境验收边界
 
@@ -205,7 +205,7 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 | 消息传输 | Kafka KRaft | verified；Kafka 3.9.1 三节点 Quorum、生产消费、ISR 与单 Broker 恢复已通过 |
 | CDC 与实时计算 | Flink CDC、Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 用于技术验证 | 组件兼容性 verified；R1～R3 Snapshot、商品事件 `c/d`、Order / OrderItem 正常顺序 Upsert 和 CDC / Order DWD Checkpoint 恢复在限定范围内 verified；这些结果现为 Pilot History，正式 V2 尚未实现，M8/M9 保持 `in progress` |
 | 分析服务 | Doris | verified；4.0.8 FE/BE、SQL 与受控重启已通过 |
-| 工作流调度 | DolphinScheduler | 3.4.2 + MySQL JDBC Registry 已完成 M1 验收；M6 正式 DAG 已实现，Aggregate Backfill 验证至 Quality Gate，Doris EOF 与最终对账尚未闭合 |
+| 工作流调度 | DolphinScheduler | 3.4.2 + MySQL JDBC Registry 已完成 M1 验收；M6 正式 DAG 已实现，Aggregate Backfill Instance `17` 五 Task 与调度后双向对账已完成 |
 | 数据生成和质量工具 | Python、SQL | 旧 Generator 已转为 Pilot History；Business / Behavior Generator 已完成正式规模生成与 Entity Manifest 绑定，Business `LOAD DATA`、Source Gate 与目标 MySQL Runtime 已通过；Incremental Business Generator 尚未完成 |
 
 开发方式：
@@ -231,7 +231,7 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 
 ## 5. 目标架构与实施链路
 
-总体技术路线见[最终工程架构 V1.0](architecture/final-architecture.md)；节点、源系统和实时作业的责任分别见[部署拓扑](deployment-topology.md)、[业务源设计](design/business-source-design.md)和[实时链路规范](design/realtime-pipeline-design.md)。这些文档只按各自证据范围解释，不改变本规格的 Milestone 门禁。
+总体技术路线见[工程架构基线](architecture/baseline.md)；节点、源系统和实时作业的责任分别见[部署拓扑](operations/topology.md)、[业务源设计](design/business-source-design.md)和[实时链路规范](design/realtime-pipeline-design.md)。这些文档只按各自证据范围解释，不改变本规格的 Milestone 门禁。
 
 ### 5.1 离线主线
 
@@ -346,8 +346,8 @@ Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 
 - 只有 `hadoop201` 需要公网 SSH 管理入口；集群组件端口只允许私网访问，本地 Web UI 优先使用 SSH 端口转发。
 - 是否扩容必须依据磁盘空间不足、OOM、持续 Swap、频繁 Full GC、进程被杀或核心组件无法稳定共存等实测证据。
 - 不得通过关闭当前链路的关键服务伪装组件兼容或链路稳定。
-- 当前事实来源、状态映射和证据缺口以 [集群事实基线](cluster-baseline.md) 为准。
-- 节点上当前角色与后续角色的区分见[部署拓扑](deployment-topology.md)。
+- 当前事实来源、状态映射和证据缺口以 [集群事实基线](operations/cluster-baseline.md) 为准。
+- 节点上当前角色与后续角色的区分见[部署拓扑](operations/topology.md)。
 
 ## 8. 版本与兼容性门禁
 
@@ -384,11 +384,11 @@ Hadoop 3.4.1 已于 2026-09-05 在当前集群完成独立验收。根据 `DR-02
 
 YARN ResourceManager Scheduler 已确认使用 `8030`。Doris FE HTTP 已决定使用 `18030`；Doris 配置前必须确认端口未占用，并同步客户端、健康检查、安全组和文档。
 
-当前已验证基线为 MySQL 8.0.46、Connector/J 8.0.33、Hive 3.1.3、Kafka 3.9.1 Scala 2.12 KRaft、Spark 3.5.9-bin-hadoop3、DataX 202309、Doris 4.0.8、Flink 1.20.5、Flink CDC 3.6.0、Flink Doris Connector 26.1.1，以及 DolphinScheduler 3.4.2 + MySQL JDBC Registry。Hive 4.1.0 因与 Spark 3.5.9 Metastore client 不兼容而退出；具体模式和边界见 [组件兼容性矩阵](compatibility-matrix.md)、`DR-026` 与 `DR-049`。
+当前已验证基线为 MySQL 8.0.46、Connector/J 8.0.33、Hive 3.1.3、Kafka 3.9.1 Scala 2.12 KRaft、Spark 3.5.9-bin-hadoop3、DataX 202309、Doris 4.0.8、Flink 1.20.5、Flink CDC 3.6.0、Flink Doris Connector 26.1.1，以及 DolphinScheduler 3.4.2 + MySQL JDBC Registry。Hive 4.1.0 因与 Spark 3.5.9 Metastore client 不兼容而退出；具体模式和边界见 [组件兼容性矩阵](operations/compatibility-matrix.md)、`DR-026` 与 `DR-049`。
 
 实时组件可以完成安装兼容性验证，但在实时规格确认前不得进入正式业务开发。
 
-Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/final-architecture.md` 中的 Step 11 已按此事实修正。Hive 3.1.3 当前在 Java 17 环境通过验收；不能把 Java 11 的设计偏好记成 Hive 已切换的事实。
+Doris 4.0.8 的受控重启恢复已通过，`docs/architecture/baseline.md` 中的 Step 11 已按此事实修正。Hive 3.1.3 当前在 Java 17 环境通过验收；不能把 Java 11 的设计偏好记成 Hive 已切换的事实。
 
 ## 9. 数据生成、任务参数与幂等
 
@@ -596,7 +596,7 @@ V1 可以在完整 V2 扩展前形成可展示版本，但必须同时满足：
 - Doris 实时表 Key 模型、分区、分桶和更新语义。
 - 实时明细是否长期归档到 HDFS/Hive。
 - 实时与离线对账阈值。
-- DolphinScheduler 3.4.2 已按 `DR-049` 使用 MySQL JDBC Registry；M6 已验证失败识别、一次自动重试和下游阻断，Aggregate Backfill 已验证 Model Ready、DWS/ADS 与 Quality。当前须解决 Doris `frame.count()` EOF、完成调度后对账及质量失败注入，才能闭合 Stage Gate。
+- DolphinScheduler 3.4.2 已按 `DR-049` 使用 MySQL JDBC Registry；M6 已验证失败识别、一次自动重试、Aggregate Backfill Instance `17` 的成功终态，以及 Instance `18` 的显式质量失败与 Doris/Reconciliation 下游阻断，Stage Gate 已闭合。
 - 未在 `DR-026` 中锁定的后续 Connector 补丁版本及兼容失败后的调整方案。
 - hadoop201 是否需要扩容。
 

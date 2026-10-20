@@ -4,7 +4,7 @@
 
 当前正式库 `ecommerce_oltp` 保留原有 3 张技术测试表，并新增已验收的 21 张 `biz_*` 表。正式 DDL 移除了订单/优惠券循环 FK：保留 `biz_order.coupon_id` 的单向外键，券表反向订单字段只建索引并交由 Source Gate 校验。DDL 不含 `DROP`、`TRUNCATE`、`DELETE`、`INSERT` 或 `IF NOT EXISTS`，对象冲突必须显式失败。
 
-DDL、CSV Contract、Targeted Test、正式规模生成和 Behavior 对 Business Entity Manifest 的复用已经完成。2026-10-12 已通过 `LOAD DATA LOCAL INFILE` 装载 21 表共 1,328,502 行，事务内及提交后独立 Shared Source Gate 均通过 45 条规则；`local_infile` 已恢复为 `OFF`。该结论不证明 DataX/Hive ODS、正式 CDC 或下游模型已完成。历史 19 表与 Pilot 资产分别保留在 `archive/legacy-m2-19-table/` 和 `archive/pilot-v1/`。
+DDL、CSV Contract、Targeted Test、正式规模生成和 Behavior 对 Business Entity Manifest 的复用已经完成。2026-10-12 已通过 `LOAD DATA LOCAL INFILE` 装载 21 表共 1,328,502 行，事务内及提交后独立 Shared Source Gate 均通过 45 条规则；`local_infile` 已恢复为 `OFF`。该结论不证明 DataX/Hive ODS、正式 CDC 或下游模型已完成。旧 19 表实现文件已删除；旧 21 表 Pilot 资产保留在 `archive/pilot-v1/`，只作历史复核。
 
 ## CSV bundle preflight
 

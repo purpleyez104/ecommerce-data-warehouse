@@ -42,13 +42,19 @@ def _literal(value: str, name: str) -> str:
     return f"'{value}'"
 
 
-def render_sql(run_id: str, batch_id: str) -> str:
-    """按 run_id 幂等覆盖结果；先落盘，再断言 FAIL 数为零。"""
+def render_sql(run_id: str, batch_id: str, inject_failure_rule_id: str | None = None) -> str:
+    """按 run_id 幂等覆盖结果；可显式注入一条失败规则验证调度阻断。"""
     run_literal = _literal(run_id, "run_id")
     batch_literal = _literal(batch_id, "batch_id")
+    rules = aggregate_rules()
+    rule_ids = {rule_id for rule_id, _ in rules}
+    if inject_failure_rule_id is not None and inject_failure_rule_id not in rule_ids:
+        raise ValueError(f"unknown failure injection rule: {inject_failure_rule_id}")
     selects = []
-    for rule_id, query in aggregate_rules():
+    for rule_id, query in rules:
         target_object, rule_type = rule_id.split(".", 1)
+        # 注入仅替换一个既有规则的布尔结果，不修改业务表或正式质量规则定义。
+        effective_query = "SELECT false" if rule_id == inject_failure_rule_id else query
         # 每条规则返回布尔实际值，便于统一保存结构且不重写现有 Gate 逻辑。
         selects.append(f"""SELECT
   '{rule_id}' AS rule_id,
@@ -60,7 +66,7 @@ def render_sql(run_id: str, batch_id: str) -> str:
   CASE WHEN rule_passed THEN 'PASS' ELSE 'FAIL' END AS status,
   {batch_literal} AS batch_id,
   current_timestamp() AS executed_at
-FROM ({query}) quality_rule(rule_passed)""")
+FROM ({effective_query}) quality_rule(rule_passed)""")
     union_sql = "\nUNION ALL\n".join(selects)
     return f"""SET spark.sql.ansi.enabled=true;
 SET spark.sql.sources.partitionOverwriteMode=dynamic;
@@ -84,9 +90,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--batch-id", required=True)
+    parser.add_argument("--inject-failure-rule-id")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    sql = render_sql(args.run_id, args.batch_id)
+    sql = render_sql(args.run_id, args.batch_id, args.inject_failure_rule_id)
     if args.output:
         args.output.write_text(sql, encoding="utf-8", newline="\n")
     else:

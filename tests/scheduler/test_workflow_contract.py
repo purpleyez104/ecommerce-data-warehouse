@@ -44,6 +44,11 @@ class WorkflowContractTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
+        self.failure_contract = json.loads(
+            (ROOT / "scheduler/dolphinscheduler/quality_failure_workflow_contract.json").read_text(
+                encoding="utf-8"
+            )
+        )
 
     def test_renders_approved_linear_gate(self):
         payload = MODULE.render_payload(self.contract)
@@ -89,6 +94,17 @@ class WorkflowContractTests(unittest.TestCase):
         drift["dependencies"][4] = ["dws_ads_build", "doris_load"]
         with self.assertRaisesRegex(ValueError, "approved linear gate"):
             MODULE.render_payload(drift)
+
+    def test_renders_isolated_quality_failure_validation(self):
+        payload = MODULE.render_payload(self.failure_contract)
+        definitions = payload["taskDefinitionJson"]
+        self.assertEqual(
+            ["quality_failure_gate", "doris_load", "serving_reconciliation"],
+            [task["name"] for task in definitions],
+        )
+        quality = definitions[0]
+        self.assertEqual(0, quality["failRetryTimes"])
+        self.assertIn("--inject-failure-rule-id ${failure_rule_id}", quality["taskParams"]["rawScript"])
 
     def test_rejects_gate_retry(self):
         drift = copy.deepcopy(self.contract)
@@ -164,12 +180,35 @@ class WorkflowContractTests(unittest.TestCase):
             "spark.executorEnv.JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64",
             submit,
         )
+        self.assertIn(
+            "spark.serializer=org.apache.spark.serializer.JavaSerializer",
+            submit,
+        )
+
+    def test_reconciliation_uses_verified_serving_serializer(self):
+        args = argparse.Namespace(
+            stage="reconciliation", business_date="2026-02-28", batch_id="m6-r1",
+            run_id="m6-r1", data_start_date="2025-12-01",
+        )
+        with mock.patch.dict(
+            "os.environ", {"DORIS_CONNECTOR_JAR": "/tmp/doris.jar"}, clear=False
+        ):
+            commands = RUNNER.build_commands(args, Path("/tmp/m6-r1"))
+        self.assertIn(
+            "spark.serializer=org.apache.spark.serializer.JavaSerializer",
+            commands[1],
+        )
 
     def test_doris_reconciliation_compares_both_directions(self):
         contract = json.loads((ROOT / "doris/serving_contract.json").read_text(encoding="utf-8"))
         script = RECON.render_script(contract, "2025-12-01", "2026-02-28")
         self.assertIn("hive.exceptAll(doris)", script)
         self.assertIn("doris.exceptAll(hive)", script)
+        self.assertIn("hive_only_count", script)
+        self.assertIn("hive_dates=", script)
+        self.assertIn("mismatch_columns", script)
+        self.assertIn("eqNullSafe", script)
+        self.assertEqual(2, script.count('F.date_trunc("second", F.col("load_time"))'))
         self.assertIn("SERVING_RECONCILIATION_PASS", script)
         self.assertIn('os.environ["DORIS_PASSWORD"]', script)
 
@@ -223,6 +262,22 @@ class WorkflowContractTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "must not precede"):
             WORKFLOW_RUNNER.build_start_params(args, "aggregate_backfill")
+
+    def test_quality_failure_validation_parameters_are_explicit(self):
+        args = argparse.Namespace(
+            business_date="2026-02-28",
+            batch_id="m6-quality-failure-r1",
+            run_id="m6-quality-failure-r1",
+            batch_contract=None,
+            data_start_date="2025-12-01",
+            model_as_of_date=None,
+            failure_rule_id="ads_daily_business_overview.business_key_unique",
+        )
+        params = WORKFLOW_RUNNER.build_start_params(args, "quality_failure_validation")
+        self.assertEqual(
+            "ads_daily_business_overview.business_key_unique",
+            params["failure_rule_id"],
+        )
 
 
 if __name__ == "__main__":

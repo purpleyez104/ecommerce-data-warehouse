@@ -1,6 +1,6 @@
 # M6 Doris 离线 Serving 验收
 
-日期：2026-10-19  
+日期：2026-10-20
 状态：`VERIFIED`
 
 ## Contract
@@ -26,8 +26,12 @@
 | 修正后独立双向对账 | `application_1792417296391_0003` 为 `FINISHED / SUCCEEDED`；脚本要求闭区间 90 行，并对 22 字段执行 Hive→Doris、Doris→Hive 双向 `exceptAll`；该证据不是调度后对账 | `VERIFIED` |
 | Instance 14 误建 DIM 分区清理 | 四个 `dt=2026-02-27` 分区先备份至 `/warehouse/ecommerce/model/.rollback/m6-ds-backfill-20260227-r2/` 并核对 HDFS 数量/字节，再精确删除；四表仅剩 `2026-02-28` 且业务键唯一 | `VERIFIED` |
 | Behavior DWD 保护 | 清理后仍为 3,000,000 行、3,000,000 个唯一 `event_id`，范围 `2025-12-01..2026-02-28` | `VERIFIED` |
-| Aggregate Backfill Contract | Workflow Code `187427451612864`；Instance `17` 的 Model Ready、DWS/ADS、40-rule Quality Gate 成功，未重跑 DataX/ODS/DIM/DWD | `VERIFIED`（截至 Quality） |
-| Aggregate Backfill Doris Load | 首次与一次自动重试均在 `frame.count()` 发生 `java.io.EOFException`；对应 YARN Application `0014`、`0015` 为 `FINISHED / SUCCEEDED`，Task 仍为 `FAILURE`；Java 8 Driver 假设复测无效并撤回 | `FAILURE` |
+| Aggregate Backfill Contract | Workflow Code `187427451612864`；Instance `17` 的 Model Ready、DWS/ADS、40-rule Quality、Doris Load、Serving Reconciliation 全部成功，未重跑 DataX/ODS/DIM/DWD | `VERIFIED` |
+| Aggregate Backfill Doris Load | 初始 Kryo `DirectTaskResult` 解码 EOF；HDFS 90/90 Blocks 健康、三节点 Spark/Kryo 包一致。相同 89 日输入用任务级 `JavaSerializer` 验证 89 行/89 日期后，仅恢复失败 Doris Task `41`，输出 `DORIS_PASS` | `VERIFIED` |
+| Aggregate Backfill 调度后对账 | 首次字段诊断确认 21 个业务字段一致，仅 `load_time` 因 Hive 微秒与 Doris `DATETIME` 秒级精度不同而漂移；规范到秒后 Task `45` 输出 `SERVING_RECONCILIATION_PASS`，Instance `17` 最终为 `SUCCESS` | `VERIFIED` |
+| 显式质量失败与下游阻断 | 专用 Workflow Code `187464279901408`、Instance `18` 将 `ads_daily_business_overview.business_key_unique` 作为唯一注入失败；质量结果为 40 条、`FAIL=1`，Quality Task 为 `FAILURE`、`retry=0`，Doris/Reconciliation 未运行 | `VERIFIED` |
+| 失败场景 Doris 不变性 | 验证前后均为 90 行/90 日期、`2025-12-01..2026-02-28`，`paid_amount_cents=10374159421`、`refund_amount_cents=311199194`、最大 `load_time=2026-10-20 11:13:15` | `VERIFIED` |
+| 失败验证安全收尾 | 专用 Workflow 定义验证后切换为 `OFFLINE`；正式 Workflow 未修改 | `VERIFIED` |
 | 凭据回收 | 临时 Loader Env 文件已删除；仓库无密码 | `VERIFIED` |
 
 2026-10-19 收尾状态：补数 Instance `14` 的 DataX/ODS 与 ODS Ready Gate 成功；`dim_dwd_build` 因 Type 1 DIM 被错误按历史日追加全量快照而触发 `dim_category.business_key_unique`，随后被受控停止，Workflow 终态为 `STOP`。2026-10-20 已完成四个误建分区的可恢复清理；Instance `14` 不再作为恢复入口，后续使用不包含 DataX/ODS/DIM/DWD 的独立 Aggregate Backfill DAG。
@@ -36,4 +40,4 @@
 
 ## 边界
 
-本验收已证明 Doris 离线 Serving 独立任务、正式 DAG 的自动重试和失败阻断、误建 DIM 分区的可恢复清理，以及 Aggregate Backfill 截至 Quality Gate 的分层恢复能力。Instance `17` 的 Doris EOF 连续复现后已停止重复尝试，Serving Reconciliation 未运行；正式 DAG 成功终态、调度后对账、完整任意日期补数和人为注入质量失败仍待验证。Connector 安装在隔离的 M6 Runtime，不修改 Spark 全局 Jar；系统默认 Java 仍为 17，Hadoop 使用 Java 11，Doris 阶段仅对 YARN AM/Executor 固定 Java 8。
+本验收已证明 Doris 离线 Serving 独立任务、正式 DAG 自动重试/失败阻断、误建 DIM 分区的可恢复清理、Aggregate Backfill 五 Task 成功终态与调度后双向对账，以及显式质量失败后的下游阻断和 Doris 不变性，M6 Stage Gate 完成。证据覆盖固定 90 日范围及一个历史目标日，不代表所有任意日期组合均已逐一执行。Connector 安装在隔离的 M6 Runtime，不修改 Spark 全局 Jar；Serving Spark Task 仅覆盖为 `JavaSerializer`，不修改集群全局 Serializer。系统默认 Java 仍为 17，Hadoop 使用 Java 11，Doris 阶段仅对 YARN AM/Executor 固定 Java 8。

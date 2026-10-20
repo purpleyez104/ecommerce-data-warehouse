@@ -224,7 +224,7 @@ Hadoop 的版本、进程和拓扑已确认，但完整 HDFS 固定文件校验�
 
 ### 验证方法
 
-静态核对 `docs/cluster-baseline.md`、兼容性矩阵、README、规格、计划和架构中的节点、私网地址、用户、目录、Java 与 Hadoop 拓扑一致。执行 `scripts/m1/collect-hadoop-evidence.sh`，固定输入为两行 UTF-8 文本，预期 HDFS SHA-256 一致、MapReduce `wordcount` 为 `alpha=2`、`beta=2`、`gamma=1`、退出状态为 0，并保存 YARN application ID 和聚合日志。评审通过后执行带精确确认参数的受控重启脚本，预期恢复 2 个 Live DataNode、2 个 RUNNING NodeManager 和 `hadoop201` 的四个控制进程。
+静态核对 `docs/operations/cluster-baseline.md`、兼容性矩阵、README、规格、计划和架构中的节点、私网地址、用户、目录、Java 与 Hadoop 拓扑一致。执行 `scripts/m1/collect-hadoop-evidence.sh`，固定输入为两行 UTF-8 文本，预期 HDFS SHA-256 一致、MapReduce `wordcount` 为 `alpha=2`、`beta=2`、`gamma=1`、退出状态为 0，并保存 YARN application ID 和聚合日志。评审通过后执行带精确确认参数的受控重启脚本，预期恢复 2 个 Live DataNode、2 个 RUNNING NodeManager 和 `hadoop201` 的四个控制进程。
 
 上述补测用于满足项目验收，不否定来源中的确认事实。没有执行 ECS 脚本前，仓库改动最多证明 M1 验证入口已 `implemented`。
 
@@ -1235,7 +1235,7 @@ Milestone 2 状态为 `in progress`。21 表方案保持 `candidate`；正式 DD
 
 ### 验证方法
 
-静态核对 `AGENTS.md`、`README.md`、`docs/spec.md`、`docs/plan.md`、`docs/compatibility-matrix.md`、`docs/deployment-topology.md` 和 `docs/realtime-pipeline-design.md` 的模式、阶段和证据边界一致。后续 Milestone 9 以固定输入、正式 Jar、YARN final state、Flink 作业状态、Checkpoint/恢复、Doris 结果及离实时对账验收；静态同步不构成该 Runtime 验收。
+静态核对 `AGENTS.md`、`README.md`、`docs/spec.md`、`docs/plan.md`、`docs/operations/compatibility-matrix.md`、`docs/operations/topology.md` 和 `docs/design/realtime-pipeline-design.md` 的模式、阶段和证据边界一致。后续 Milestone 9 以固定输入、正式 Jar、YARN final state、Flink 作业状态、Checkpoint/恢复、Doris 结果及离实时对账验收；静态同步不构成该 Runtime 验收。
 
 ### 影响与风险
 
@@ -2088,15 +2088,55 @@ Workflow Instance `14` 在 ODS 已成功且 DWD 已覆盖 90 天的情况下，�
 1. 校验 Aggregate Backfill Payload 只包含五个批准 Task，且不存在 DataX、ODS 和 DIM/DWD 命令。
 2. 发布前执行 Scheduler Targeted Tests；目标 Runtime 先通过 Model Ready Gate，再核对 DWS/ADS、质量结果、Doris 写入和双向对账终态。
 3. 清理后核对四张 DIM 仅保留正式当前态分区、业务键唯一，并确认 Behavior DWD 行数、唯一键和日期范围未变化。
-4. Instance `17` 已证明 Model Ready、DWS/ADS 和 40-rule Quality Gate 成功；Doris `frame.count()` 连续 EOF，故本决策的完整 Runtime 仍未闭合，最终 Reconciliation 为 `not_run`。
+4. Instance `17` 已证明 Model Ready、DWS/ADS、40-rule Quality、Doris Load 和 Serving Reconciliation 成功，五 Task 最终均为 `SUCCESS`；补数从最低失效层恢复的完整 Runtime 已闭合。
 
 ### 影响与风险
 
-历史回补必须先判断最低失效层，不能无条件复用完整 DAG。Model Ready Gate 是全局现有模型检查，不证明指定业务日的所有上游变更都已正确发布；若 ODS/DWD 实际缺失，必须返回完整 DAG 的相应入口，不得强行执行 Aggregate Backfill。当前 Doris Task 的 EOF 已连续复现，未获得新证据前不得继续相同重试。
+历史回补必须先判断最低失效层，不能无条件复用完整 DAG。Model Ready Gate 是全局现有模型检查，不证明指定业务日的所有上游变更都已正确发布；若 ODS/DWD 实际缺失，必须返回完整 DAG 的相应入口，不得强行执行 Aggregate Backfill。Instance `17` 已闭合，不得为重复证明成功而重跑已验收上游。
 
 ### 回滚方式
 
 停止或下线 Aggregate Backfill Workflow 即可回滚调度入口，不影响完整 T+1 DAG。四个已清理分区保存在 `/warehouse/ecommerce/model/.rollback/m6-ds-backfill-20260227-r2/`；只有确认需要恢复错误现场时才重新注册，正常业务链路不得回灌这些重复快照。
+
+## DR-051：Serving Spark 序列化与审计时间对账边界
+
+- 状态：`accepted`
+- 决策日期：`2026-10-20`
+- 决策人：按已批准 M6 修复与验收结果记录
+- 影响范围：M6 Doris Load、Serving Reconciliation、DolphinScheduler Stage Runner
+- 替代决策：替代全局修改 Spark Serializer 或要求 Doris 保存 Hive 微秒级审计时间
+
+### 背景
+
+Aggregate Backfill Instance `17` 的 Doris Load 在 89 日 Hive Scan 与 Shuffle 均成功后，Driver 使用全局 Kryo 解码最终 `DirectTaskResult` 时稳定发生 `java.io.EOFException`。HDFS 目标路径 90/90 Blocks 健康，三节点 Spark 3.5.9、Scala、Kryo JAR Hash 一致，且失败可落在不同 Executor 节点；Java 版本假设复测无效。相同输入使用 `JavaSerializer` 的只读作业得到 89 行和 89 个日期。
+
+Doris Load 成功后，双向对账确认全部 89 行只有 `load_time` 不同：Hive 保留微秒，例如 `11:13:15.377166`，Serving Contract 的 Doris `DATETIME` 保存到秒，例如 `11:13:15`；21 个业务字段与 `batch_id` 均一致。
+
+### 决策
+
+1. Doris Load 与 Serving Reconciliation 仅在任务级覆盖 `spark.serializer=org.apache.spark.serializer.JavaSerializer`，不修改集群全局 Spark 配置。
+2. Serving Reconciliation 将 Hive 与 Doris 的 `load_time` 都规范到秒级后比较，以目标物理类型 `DATETIME` 的可表达精度为准。
+3. `business_date`、`batch_id` 和全部业务指标字段继续执行双向逐行严格比较；不得因审计时间精度差异放宽业务字段对账。
+4. 对账失败输出两个方向的差异行数、有限业务日期样本和按字段 mismatch count，不输出凭据或业务明细。
+
+### 理由
+
+任务级 Serializer 覆盖能够修复已复现的 Spark TaskResult 边界，同时避免影响其他已验收 Spark 作业。秒级规范化准确反映 Doris `DATETIME` 的物理 Contract；要求 Doris 保存源端不存在的微秒精度或忽略整个审计字段，都会增加成本或降低证据质量。
+
+### 验证方法
+
+1. 相同 89 日 ADS 输入以 `JavaSerializer` 执行只读计数，预期 `DIAGNOSTIC_ROWS=89`、`DIAGNOSTIC_DAYS=89`、退出码 0。
+2. 仅恢复 Instance `17` 的 Doris Task，预期输出 `DORIS_PASS`，且 Model Ready、DWS/ADS、Quality 不重跑。
+3. 对账先证明非零差异字段仅为 `load_time=89`，再规范到秒级并只恢复 Reconciliation Task，预期输出 `SERVING_RECONCILIATION_PASS`。
+4. 最终 Workflow Instance `17` 和五个 Task 均为 `SUCCESS`。
+
+### 影响与风险
+
+该决策只覆盖当前 M6 Serving 作业。若 Doris 表未来升级为带小数秒的 `DATETIMEV2`，必须重新确认 Contract 与对账精度；不得继续无条件截断。任务级 JavaSerializer 可能比 Kryo 有更高序列化开销，但本链路为 89～90 行 Serving 输出，正确性收益高于可忽略的性能差异。
+
+### 回滚方式
+
+删除两个 Serving `spark-submit` 命令的任务级 Serializer 覆盖，并移除 `load_time` 秒级规范化即可恢复原行为；回滚后必须重新执行相同只读计数与双向对账，不能沿用本次成功证据。
 
 ## 记录模板
 

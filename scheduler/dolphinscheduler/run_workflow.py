@@ -47,6 +47,16 @@ def preflight(api: Api, project_code: str, workflow_code: int) -> str:
         if not any("run_model_stage.py model_ready" in command for command in commands):
             raise ValueError("aggregate backfill is missing the model readiness gate")
         return "aggregate_backfill"
+    if len(tasks) == 3 and task_names == {
+        "quality_failure_gate", "doris_load", "serving_reconciliation"
+    }:
+        quality_command = next(
+            command for task, command in zip(tasks, commands)
+            if task.get("name") == "quality_failure_gate"
+        )
+        if "--inject-failure-rule-id" not in quality_command:
+            raise ValueError("quality failure validation is missing explicit injection")
+        return "quality_failure_validation"
     raise ValueError("workflow task profile is not approved")
 
 
@@ -62,6 +72,8 @@ def build_start_params(args: argparse.Namespace, workflow_kind: str = "full") ->
         values["batch_contract"] = args.batch_contract
     elif workflow_kind == "aggregate_backfill":
         values["model_as_of_date"] = getattr(args, "model_as_of_date", None)
+    elif workflow_kind == "quality_failure_validation":
+        values["failure_rule_id"] = getattr(args, "failure_rule_id", None)
     else:
         raise ValueError("unsupported workflow kind")
     supplied = {name: value for name, value in values.items() if value is not None}
@@ -83,6 +95,8 @@ def build_start_params(args: argparse.Namespace, workflow_kind: str = "full") ->
             raise ValueError(f"invalid {name}")
     if "batch_contract" in supplied and not SAFE_ABSOLUTE_PATH.fullmatch(supplied["batch_contract"]):
         raise ValueError("batch_contract must be a safe absolute path")
+    if "failure_rule_id" in supplied and not SAFE_ID.fullmatch(supplied["failure_rule_id"]):
+        raise ValueError("invalid failure_rule_id")
     return supplied
 
 
@@ -122,6 +136,7 @@ def main() -> int:
     parser.add_argument("--run-id")
     parser.add_argument("--batch-contract")
     parser.add_argument("--data-start-date")
+    parser.add_argument("--failure-rule-id")
     args = parser.parse_args()
     env = load_env(args.env_file)
     api = login(env)

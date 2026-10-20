@@ -47,6 +47,14 @@ class QualityResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsafe batch_id"):
             RESULT.render_sql("safe-run", "bad batch")
 
+    def test_failure_injection_targets_one_existing_rule(self):
+        rule_id = "ads_daily_business_overview.business_key_unique"
+        sql = RESULT.render_sql("m6-failure-r1", "m6-failure-r1", rule_id)
+        self.assertEqual(1, sql.count("FROM (SELECT false) quality_rule(rule_passed)"))
+        self.assertIn(f"'{rule_id}' AS rule_id", sql)
+        with self.assertRaisesRegex(ValueError, "unknown failure injection rule"):
+            RESULT.render_sql("m6-failure-r1", "m6-failure-r1", "unknown.rule")
+
     def test_contract_rejects_unsafe_location(self):
         contract = dict(self.contract)
         contract["location"] = "/tmp/data_quality_result"

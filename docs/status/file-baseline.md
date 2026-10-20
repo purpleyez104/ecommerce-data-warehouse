@@ -16,7 +16,6 @@
 | `docs/status/offline-current.md` | 已按 2026-09-27 Offline Baseline Handoff 更新 | 当前离线状态 |
 | `docs/status/realtime-current.md` | 本轮建立基线 | 当前实时状态 |
 | `docs/status/file-baseline.md` | 已按本次 File Fact Ledger 更新 | 当前文件事实与冲突 |
-| `docs/workflow/README.md` | 当前工作区存在 | Development Chat → Work → Repository 协作规则 |
 | `docs/design/historical-incremental-replay-design.md` | 当前工作区存在；Business Replay 输入已本地实现 | 60 天初始化、30 天双链路回放、时间审计与 SCD2 设计 |
 | `doris/serving_contract.json` | 当前工作区存在；90 日 Runtime 已验收 | Doris 离线 Serving Schema/Writer Contract |
 | `scheduler/dolphinscheduler/README.md` | 当前工作区存在；M1 Runtime 已验收 | JDBC Registry 拓扑、启动和证据边界 |
@@ -123,9 +122,9 @@
 | DIM/DWD Model | `hive/model/`、`hive/model/migrate_m5_refund_contract.sql`、`hive/model/rollback_m5_refund_contract.sql`、`spark/scripts/render_*model*.py`、`spark/scripts/render_dim_snapshot_sql.py`、`spark/scripts/render_product_scd2_sql.py`、`spark/scripts/render_dwd_sql.py` | 14 表 `VERIFIED_EXECUTED` | 当前申请粒度 `dwd_refund` 已完成受控迁移并通过 60/60 Model Gate；旧成功资金粒度表与 HDFS 备份保留，回滚入口已入库 |
 | 六域 DWS/ADS Aggregate | `hive/model/aggregate_contract.json`、`hive/model/aggregate_physical_contract.json`、`hive/model/generate_aggregate_ddl.py`、`spark/scripts/render_aggregate_sql.py`、`spark/scripts/render_aggregate_gate_sql.py` | `VERIFIED_EXECUTED` | 6 张 DWS + 1 张 ADS 已完成正式 Runtime；最终 41/41 Gate 首次及重跑后均通过 |
 | Metric Registry | `governance/metric_registry/metric_registry.json`、`governance/metric_registry/validate_metric_registry.py`、`tests/governance/` | `VERIFIED_EXECUTED` | 36 个已实现指标绑定定义 SHA-256、Aggregate 输出与 M5 验收；6/6 Registry Tests 通过 |
-| Quality Result | `quality/quality_result_contract.json`、`quality/generate_quality_result_ddl.py`、`spark/scripts/render_quality_result_sql.py`、`tests/quality/` | `VERIFIED_EXECUTED` | `data_quality_result` 当前为 40 条唯一规则、`FAIL=0`；写入后 Gate 可阻断失败运行 |
+| Quality Result | `quality/quality_result_contract.json`、`quality/generate_quality_result_ddl.py`、`spark/scripts/render_quality_result_sql.py`、`tests/quality/` | `VERIFIED_EXECUTED` | 成功运行 40 条唯一规则、`FAIL=0`；失败验证独立分区为 40 条、`FAIL=1`，写入后 Gate 已真实阻断下游 |
 | Reconciliation Result | `reconciliation/reconciliation_result_contract.json`、`reconciliation/generate_reconciliation_result_ddl.py`、`spark/scripts/render_cross_layer_reconciliation_sql.py`、`tests/reconciliation/` | `VERIFIED_EXECUTED` | 通用左右值 Contract 已落地；当前 10 项 × 90 日共 900 行，`FAIL=0` |
-| DolphinScheduler M6 DAG | `scheduler/dolphinscheduler/workflow_contract.json`、`scheduler/dolphinscheduler/backfill_workflow_contract.json`、`scheduler/dolphinscheduler/render_workflow_payload.py`、`scheduler/dolphinscheduler/run_model_stage.py` | 完整 DAG 与 Aggregate Backfill 均已发布 | Aggregate Backfill Instance `17` 的 Model Ready、DWS/ADS、Quality 已通过；Doris 在 `frame.count()` 连续 EOF，Reconciliation 未运行；本地 Scheduler Targeted Tests 15/15 |
+| DolphinScheduler M6 DAG | `scheduler/dolphinscheduler/workflow_contract.json`、`scheduler/dolphinscheduler/backfill_workflow_contract.json`、`scheduler/dolphinscheduler/quality_failure_workflow_contract.json`、`scheduler/dolphinscheduler/render_workflow_payload.py`、`scheduler/dolphinscheduler/run_model_stage.py` | 正式 DAG 与 Aggregate Backfill 已发布；失败验证定义验证后 `OFFLINE` | Aggregate Backfill Instance `17` 五 Task 全部 `SUCCESS`；质量失败 Instance `18` 仅 Quality Task 失败，下游未运行且 Doris 不变；本地 Scheduler Tests 18/18 |
 
 ## 正式 Source Data Build 文件边界
 
@@ -152,8 +151,8 @@
 
 ## 已迁移的当前文档路径
 
-- `docs/architecture.md` → `docs/architecture/architecture.md`
-- `docs/final-architecture.md` → `docs/architecture/final-architecture.md`
+- `docs/architecture.md` → `docs/architecture/README.md`
+- `docs/final-architecture.md` → `docs/architecture/baseline.md`
 - `docs/business-source-design.md` → `docs/design/business-source-design.md`
 - `docs/realtime-pipeline-design.md` → `docs/design/realtime-pipeline-design.md`
 - `docs/metrics.md` → `docs/business/metrics.md`
@@ -174,7 +173,7 @@
 - 逐表 Pilot 开发方式与 `ods_order_item_create.sql` 后续执行计划：已被按层批量推进的 V2 方案替代。
 - R3 Java 17 class major version 61 的编译产物：因 YARN Flink Java 11 Runtime 出现 `UnsupportedClassVersionError`，已由 `javac --release 11`、major version 55 的产物替代。
 - 早期 `r1-order-dwd-job.zip`：已被当前正式工程版本替代。
-- `archive/legacy-m2-19-table/`：旧 19 表代码归档，不是当前 V2 实现。
+- 旧 19 表代码归档：已删除；仅保留 `docs/archive/milestone-2-business-design.md` 解释历史设计背景。
 - `docs/archive/milestone-2-business-design.md`：旧 19 表设计归档已恢复；仅作历史材料，不作为当前 V2 实现依据。
 - `mysql/ddl/`、`mysql/sql/` 的早期不完整候选骨架已移除；当前同路径内容是后来建立并已完成正式部署／Source Gate 验收的权威实现，不得与早期骨架混为一谈。
 - 根目录 `scripts/start.sh`、`scripts/stop.sh`：当前工作区已删除；未获得继续保留或替代入口的 Handoff 事实。

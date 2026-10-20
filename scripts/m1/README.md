@@ -148,5 +148,5 @@ bash scripts/m1/restart-hadoop-and-verify.sh \
 
 - 不执行 NameNode 格式化，不删除现有 Hadoop 数据或配置。
 - 保留输出目录中的日志和 `summary.env`。
-- 将失败命令、退出状态和日志路径记录到 `docs/installation-troubleshooting.md`。
+- 将失败命令、退出状态和日志路径记录到 `docs/operations/troubleshooting.md`。
 - 若 Hadoop 复测失败，停止依赖该能力的新运行并先完成修复；不得据此覆盖已经保留的历史验收记录。

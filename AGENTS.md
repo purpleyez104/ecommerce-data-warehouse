@@ -61,7 +61,7 @@ MySQL ecommerce_oltp
 
 DataX 使用 HDFS Writer 将 ORC + Snappy 写入 Hive ODS 发布范围内的批次隔离 staging；Spark Validation / Publish 根据每行 `business_date` 或显式快照日原子发布并注册最终 Hive `dt` 分区，不建设独立持久化的中间数据层。DataX 多表配置的字段顺序统一引用 Business Generator 的 `TABLE_COLUMNS`，字段类型以正式 MySQL DDL 为准，不重复维护第二套逐表 columns 清单。ODS 装载负责分区注册、审计字段、幂等发布和失败隔离；DataX 不负责决定正式金额精度、状态枚举和最终字段类型。ODS 保留源语义，DWD 保存原子事实，DIM 保存一致维度，DWS 保存可复用度量以及比率的分子和分母，ADS 负责最终指标表达。DolphinScheduler 只能在任务独立运行通过后接入，负责参数、依赖、重试、回补、质量阻断、装载和对账，不承载业务计算逻辑。
 
-仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。旧 19 表的 Seed、Generator、脚本和测试位于 `archive/legacy-m2-19-table/`；旧 21 表 Pilot Generator 位于 `archive/pilot-v1/ecommerce_generator_v1/`，均不得作为当前正式入口。`mock/generator/business_generator/` 已完成正式规模生成、目标 MySQL 装载与 Source Gate；`mock/generator/behavior_generator/` 已完成本地正式规模与 Entity Manifest 绑定。两者的证据边界不得外推为正式 ODS、Kafka 或 CDC 已完成。`hive/dim/`、`kafka/` 和部分 Flink/DataX/Spark/Doris 子目录已按用户批准建立为 `placeholder`，但可执行内容仍须满足 `README.md` 与 `docs/plan.md` 的对应 Milestone 门禁；`reconciliation/` 仍在结果结构稳定后创建，`tests/` 仅按已进入阶段的验证范围扩展。
+仓库中的 `mysql/`、`datax/`、`hive/`、`spark/`、`flink/`、`doris/`、`scheduler/`、`quality/`、`env/`、`mock/` 和 `scripts/` 按阶段承担模块责任。`infra/` 已在 Milestone 1 开始后建立，只允许保存去敏的主机、端口、配置和兼容性内容；`infra/versions.env` 必须等待全部 M1 版本通过真实验证后再创建。旧 19 表的 Seed、Generator、脚本和测试已删除，仅在 `docs/archive/milestone-2-business-design.md` 保留设计背景；旧 21 表 Pilot Generator 位于 `archive/pilot-v1/ecommerce_generator_v1/`，不得作为当前正式入口。`mock/generator/business_generator/` 已完成正式规模生成、目标 MySQL 装载与 Source Gate；`mock/generator/behavior_generator/` 已完成本地正式规模与 Entity Manifest 绑定。两者的证据边界不得外推为正式 ODS、Kafka 或 CDC 已完成。`hive/dim/`、`kafka/` 和部分 Flink/DataX/Spark/Doris 子目录已按用户批准建立为 `placeholder`，但可执行内容仍须满足 `README.md` 与 `docs/plan.md` 的对应 Milestone 门禁；`reconciliation/` 仍在结果结构稳定后创建，`tests/` 仅按已进入阶段的验证范围扩展。
 
 ## 业务语义与待决策项
 
@@ -139,7 +139,7 @@ DataX 使用 HDFS Writer 将 ORC + Snappy 写入 Hive ODS 发布范围内的批�
 
 ## Project State、Stage 与 Handoff
 
-详细流程见 `docs/workflow/README.md`。当前状态维护于：
+当前状态维护于：
 
 ```text
 docs/status/

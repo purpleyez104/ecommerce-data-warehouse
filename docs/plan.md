@@ -1,7 +1,7 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
 版本：`0.6-draft`
-状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环、M5 正式指标质量及 M6 Doris Serving `VERIFIED`。Milestone 0、1、3、4、5 `completed`；Milestone 2、6、8、9 `in progress`；Milestone 7 `pending`
+状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环、M5 正式指标质量及 M6 Doris Serving/调度 `VERIFIED`。Milestone 0、1、3、4、5、6 `completed`；Milestone 2、8、9 `in progress`；Milestone 7 `pending`
 更新时间：2026-10-19
 
 ## 1. 使用方式
@@ -37,7 +37,7 @@
 | --- | --- | --- |
 | 项目规范 | `README.md`、`docs/` | 0-10 |
 | 环境与基础设施 | `env/`、计划中的 `infra/`、`scripts/` | 1 |
-| 业务源系统 | `mysql/`、`mock/generator/`；历史实现位于 `archive/pilot-v1/` 与 `archive/legacy-m2-19-table/` | 2 |
+| 业务源系统 | `mysql/`、`mock/generator/`；旧 21 表 Pilot 实现位于 `archive/pilot-v1/` | 2 |
 | 离线抽取 | `datax/jobs/`、`datax/scripts/` | 3 |
 | ODS | `hive/ods/`、`spark/sql/` | 3 |
 | DIM/DWD | `hive/model/`、`hive/dim/`、`hive/dwd/`、`spark/scripts/` | 4 |
@@ -85,7 +85,7 @@ AGENTS.md
 CHANGELOG.md
 docs/spec.md
 docs/plan.md
-docs/architecture/architecture.md
+docs/architecture/README.md
 docs/business/metrics.md
 docs/decision-register.md
 .gitattributes
@@ -151,8 +151,8 @@ docs/decision-register.md
 env/
 scripts/
 infra/                       # 有可维护配置时创建
-docs/compatibility-matrix.md # 开始验证时创建
-docs/installation-troubleshooting.md
+docs/operations/compatibility-matrix.md # 开始验证时创建
+docs/operations/troubleshooting.md
 ```
 
 ### 实施顺序
@@ -220,7 +220,7 @@ DolphinScheduler 按 `DR-049` 复用 MySQL JDBC Registry，不再引入 ZooKeepe
 
 ### 与 Milestone 1 的并行规则
 
-`DR-008` 允许 Milestone 2 与 Milestone 1 分轨推进，但不降低业务确认和运行证据要求。当前 M2 采用正式业务基线、已部署的 21 张 `biz_*` 表、独立行为事件流和当前指标体系；旧 19 表代码与设计分别保留在 `archive/legacy-m2-19-table/`、`docs/archive/milestone-2-business-design.md`，旧 21 表 Pilot Generator 保留在 `archive/pilot-v1/ecommerce_generator_v1/`。
+`DR-008` 允许 Milestone 2 与 Milestone 1 分轨推进，但不降低业务确认和运行证据要求。当前 M2 采用正式业务基线、已部署的 21 张 `biz_*` 表、独立行为事件流和当前指标体系；旧 19 表实现已删除，仅在 `docs/archive/milestone-2-business-design.md` 保留设计背景，旧 21 表 Pilot Generator 保留在 `archive/pilot-v1/ecommerce_generator_v1/`。
 
 M1 的 MySQL、HDFS、Hive、DataX、Kafka、Flink CDC 等环境验证可以复用为组件前置，但不能替代 V2 固定 Seed、Generator 正式契约、现存 DDL 核对、正式库 CDC 和离线抽取验收。2026-09-21 的 R1 冻结记录与 `M2-03` 的部署前快照须按时间和证据范围分开解释。
 
@@ -271,7 +271,6 @@ M1 的 MySQL、HDFS、Hive、DataX、Kafka、Flink CDC 等环境验证可以复�
 mock/generator/
 mysql/
 archive/pilot-v1/ecommerce_generator_v1/ # 只作 Pilot History
-archive/legacy-m2-19-table/ # 只作旧 19 表代码归档
 docs/
 tests/
 ```
@@ -473,7 +472,7 @@ docs/business/metrics.md
 
 ## 9. Milestone 6：Doris 离线服务与 DolphinScheduler
 
-**状态：`in progress`**
+**状态：`completed`**
 
 ### 目标
 
@@ -778,7 +777,7 @@ scheduler/
 2. M5 Stage Gate 已通过；M6 Doris 单表 Serving、90 日首次/幂等装载及 Hive/Doris 22 字段逐行对账已完成。
 3. Behavior 60/30 本地输入已冻结；实时并轨先审计现有 Topic/Checkpoint，冻结 Formal CDC Topic Namespace、Partition/Key/Schema、`event_version`、切换点和正式 Checkpoint Root，不得直接复用 Pilot Topic/Offset。
 4. 在另行授权的隔离环境执行 21 表 CDC Initial Snapshot 与 CDC Gate，再用 30 个 daily package 执行 Incremental Simulation、Recovery Gate 和 Offline ↔ Realtime Reconciliation。
-5. M1 DolphinScheduler 3.4.2 + MySQL JDBC Registry 门禁已通过；M6 正式 DAG 的自动重试与失败阻断已通过，Aggregate Backfill 已验证至 Quality Gate。当前下一入口为 Doris `frame.count()` EOF 根因取证；修复后只恢复失败 Task，再完成调度后对账和人为注入质量失败验证。
+5. M1 DolphinScheduler 3.4.2 + MySQL JDBC Registry 门禁已通过；M6 Aggregate Backfill Instance `17` 已完成五 Task 成功终态与调度后双向对账，质量失败验证 Instance `18` 已确认 Quality Task 非零失败、Doris/Reconciliation 未运行且服务表基线不变。M6 Stage Gate 已完成，下一入口为 M7 Spark 性能实验。
 
 当前明确停止：继续扩展旧 100 单 Generator、为新 Generator 建设独立 Smoke 数据档位、执行 `ods_order_item_create.sql`、继续 `R4 Payment DWD` Pilot、扩展 `ods_cdc_m2_clean_v1`、一表一长期 Flink Application、把 `all-to-zero` / `kafka_offset` Sequence / Pilot Checkpoint 用于正式 V2、创建 `_v2` database、删除 acceptance 环境或混用 Pilot/V2 数据。正式 Topic/Partition/`event_version` 和初始化重置方案仍为 `DECISION_REQUIRED`；本计划不授权数据库清理。`BI / Agent` 是否进入当前 V2 正式交付仍待与 `DR-029` 的后续规划边界确认，不阻塞 Source Data Build。
 

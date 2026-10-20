@@ -2,7 +2,7 @@
 
 状态：M8/M9 `in progress`；R1～R3 已完成 Pilot / Acceptance 使命并转为 History。60 天初始化与 30 天双链路回放为 `DESIGNED / not_run`，Formal CDC 尚未实现。当前在线、最新 Checkpoint、正式 Topic/Partition/`event_version`、全字段/跨分区/乱序与端到端 Exactly-Once 仍未验证。更新时间：2026-10-13。
 
-本文件展开[最终工程架构](../architecture/final-architecture.md)的实时视图，并以[业务源设计](business-source-design.md)及[指标口径](../business/metrics.md)为上游。用户已确认实时链路正在建设，但本文不是 Milestone 8 已完成评审或 Milestone 9 已验证的证明。
+本文件展开[工程架构基线](../architecture/baseline.md)的实时视图，并以[业务源设计](business-source-design.md)及[指标口径](../business/metrics.md)为上游。用户已确认实时链路正在建设，但本文不是 Milestone 8 已完成评审或 Milestone 9 已验证的证明。
 
 ## 数据流与责任
 

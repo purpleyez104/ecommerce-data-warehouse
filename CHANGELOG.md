@@ -8,7 +8,10 @@
 
 ### 新增
 
-- 新增并发布 M6 独立 Aggregate Backfill DAG：在下层数据已就绪时执行 `Model Ready Gate → DWS/ADS → Quality → Doris → Reconciliation`，并分离回补目标日与 `model_as_of_date`；Instance `17` 已通过前三个 Gate，Doris 在 `frame.count()` 连续 EOF 后按规则暂停，Reconciliation 未运行。
+- 完成 M6 Stage Gate：新增独立显式质量失败验证 Contract；DolphinScheduler Instance `18` 产生 40 条质量结果和唯一一条预期 FAIL，Quality Task 非零失败并阻断 Doris/Reconciliation，Doris 90 日服务表基线保持不变；验证 Workflow 随后切换为 `OFFLINE`。
+- 整理仓库文档结构：统一 `docs/architecture/` 与 `docs/operations/` 入口，删除已被当前 21 表模型替代的旧 19 表实现文件及失效 `.gitkeep`；旧 19 表仅保留设计背景文档，不再保留可执行副本。
+
+- 新增并发布 M6 独立 Aggregate Backfill DAG：在下层数据已就绪时执行 `Model Ready Gate → DWS/ADS → Quality → Doris → Reconciliation`，并分离回补目标日与 `model_as_of_date`；Instance `17` 已完成五 Task 并以 `SUCCESS` 收口。Doris Task 通过任务级 `JavaSerializer` 修复 Kryo TaskResult EOF，Serving 对账按 Doris `DATETIME` 秒级精度规范化审计字段 `load_time`，业务字段仍严格逐值一致。
 - 新增 M6 Doris 离线 Serving：`ads_daily_business_overview` 使用 `UNIQUE KEY(business_date)` + Merge-on-Write；Spark Doris Connector 26.0.0 完成 90 日首次/幂等装载，Hive/Doris 90 行 × 22 字段逐行一致。
 - 新增 `DR-049` 与 DolphinScheduler 3.4.2 MySQL JDBC Registry 验收：Master/API/Alert、双 Worker、成功/预期失败任务及全角色重启后复跑均通过；项目不再安装或维护 ZooKeeper，Kafka 保持 KRaft。
 - 新增 M1 DolphinScheduler 与 M6 Doris 两份 Acceptance，以及调度运行拓扑、端口、安全和证据边界说明。
@@ -126,7 +129,8 @@
 
 ### 移除
 
-- 删除服务器工作目录中的旧 19 表 Generator 和旧 21 表 Pilot Generator 副本；仓库内 `archive/legacy-m2-19-table/` 与 `archive/pilot-v1/` 历史归档继续保留。
+- 删除与 `AGENTS.md` 重复的 `docs/workflow/` 协作流程目录；Stage-Step、状态、Handoff、安全与提交规则继续以仓库级 `AGENTS.md` 为唯一入口。
+- 删除服务器工作目录中的旧 19 表 Generator 和旧 21 表 Pilot Generator 副本；当时仓库内历史归档继续保留，旧 19 表仓库副本已在后续目录整理中删除。
 - 从公开仓库移除 `.agents/`、`.codex/`、`.trellis/` 项目工具文件，保留根 `AGENTS.md` 作为协作规则入口。
 - 移除不完整且库名冲突的 `mysql/ecommerce_oltp_v1/` 骨架，以及已被正式设计文档覆盖的 `docs/design/mock-data-design.md`、`docs/design/mysql-source-design.md` 碎片；当前权威 21 表 DDL 入口仍为 `DECISION_REQUIRED`。
 - 移除仍依赖旧 Pilot Generator、已删除 DDL 或旧验收 SQL 的重复脚本与测试入口；旧 Generator 的代码和测试只在 `archive/pilot-v1/ecommerce_generator_v1/` 中保留。

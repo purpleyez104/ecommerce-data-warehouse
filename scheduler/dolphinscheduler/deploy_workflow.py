@@ -136,6 +136,7 @@ def main() -> int:
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--batch-contract")
     parser.add_argument("--data-start-date", required=True)
+    parser.add_argument("--failure-rule-id")
     parser.add_argument("--workflow-code", type=int)
     args = parser.parse_args()
     root = "/data/projects/ecommerce-data-warehouse-m6"
@@ -150,6 +151,7 @@ def main() -> int:
         "run_id": args.run_id,
         "batch_contract": args.batch_contract,
         "data_start_date": args.data_start_date,
+        "failure_rule_id": args.failure_rule_id,
     }
     payload = json.loads(args.payload.read_text(encoding="utf-8"))
     required_parameters = {item["prop"] for item in payload.get("globalParams", [])}
@@ -157,6 +159,8 @@ def main() -> int:
         parser.error("--batch-contract is required by this workflow payload")
     if "model_as_of_date" in required_parameters and not args.model_as_of_date:
         parser.error("--model-as-of-date is required by this workflow payload")
+    if "failure_rule_id" in required_parameters and not args.failure_rule_id:
+        parser.error("--failure-rule-id is required by this workflow payload")
     code, action = deploy(load_env(args.env_file), payload, defaults, args.workflow_code)
     print(f"WORKFLOW_DEPLOY_PASS action={action} code={code}")
     return 0

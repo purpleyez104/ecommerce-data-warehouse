@@ -35,6 +35,14 @@ CONTRACT_PROFILES = {
         ),
         "description": "Project 1 M6 aggregate-layer historical backfill workflow",
     },
+    "m6-quality-failure-validation-v1": {
+        "parameters": {
+            "project_home", "doris_env", "doris_connector_jar", "business_date",
+            "batch_id", "run_id", "data_start_date", "failure_rule_id",
+        },
+        "order": ("quality_failure_gate", "doris_load", "serving_reconciliation"),
+        "description": "Project 1 M6 quality failure and downstream blocking validation",
+    },
 }
 
 
@@ -71,7 +79,8 @@ def validate_contract(contract: dict[str, Any]) -> None:
             raise ValueError(f"{task['name']}: invalid retry policy")
     # Quality 和最终对账属于确定性 Gate，失败必须直接阻断，不能由自动重试掩盖。
     by_name = {task["name"]: task for task in tasks}
-    if by_name["quality_gate"]["retry_times"] != 0 or by_name["serving_reconciliation"]["retry_times"] != 0:
+    quality_task = "quality_gate" if "quality_gate" in by_name else "quality_failure_gate"
+    if by_name[quality_task]["retry_times"] != 0 or by_name["serving_reconciliation"]["retry_times"] != 0:
         raise ValueError("gate tasks must not retry")
     expected_edges = list(zip(expected_order, expected_order[1:]))
     if contract.get("dependencies") != [list(edge) for edge in expected_edges]:

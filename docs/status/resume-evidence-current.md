@@ -17,8 +17,8 @@
 | `P1-RESUME-METRIC-01` | 发布 36 个版本化 Metric Registry 指标，持久化 40 条质量规则且零失败 | `docs/acceptance/m5-stage-gate-assessment.md` | 未冻结指标不在发布范围 |
 | `P1-RESUME-RECON-01` | 完成 10 项指标 × 90 日跨层对账，共 900 行且零差异 | `docs/acceptance/m5-cohort-metrics-acceptance.md` | 当前为离线层间对账，不是离实时对账 |
 | `P1-RESUME-DORIS-01` | 将 90 日 ADS 写入 Doris，幂等重跑后保持 90 个唯一业务日，并完成 90 行 × 22 字段逐行对账 | `docs/acceptance/m6-doris-offline-serving-acceptance.md` | 离线 Serving；不代表实时 Doris 或调度 DAG |
-| `P1-RESUME-SCHEDULER-01` | DolphinScheduler 3.4.2 使用 MySQL JDBC Registry，成功/失败任务及全角色重启后复跑均通过 | `docs/acceptance/m1-dolphinscheduler-jdbc-acceptance.md` | 组件能力；正式 DAG 已实现并验证至 Quality Gate，但 Doris EOF 与最终对账未完成 |
-| `P1-RESUME-TEST-01` | 当前统一 Unit Test 入口通过 120/120 | `tests/run_unit.sh`、`docs/status/offline-current.md` | 证明本地自动化范围，不替代集群 Runtime |
+| `P1-RESUME-SCHEDULER-01` | DolphinScheduler 3.4.2 使用 MySQL JDBC Registry；正式 Aggregate Backfill Instance `17` 五 Task 全部成功，显式质量失败 Instance `18` 阻断 Doris/Reconciliation 且服务数据不变 | `docs/acceptance/m1-dolphinscheduler-jdbc-acceptance.md`、`docs/acceptance/m6-doris-offline-serving-acceptance.md` | 离线调度链路；不代表正式实时链路完成 |
+| `P1-RESUME-TEST-01` | 当前统一 Unit Test 入口通过 140/140 | `tests/run_unit.sh`、`docs/status/offline-current.md` | 证明本地自动化范围，不替代集群 Runtime |
 
 ## 暂不进入最终简历数字
 
@@ -30,7 +30,6 @@
 
 | 范围 | 当前状态 | 需要补齐的简历证据 |
 | --- | --- | --- |
-| DolphinScheduler 正式 DAG | `in progress` | 业务日期/观察窗口参数、依赖、失败阻断、重试和分层回补已形成证据；Doris EOF、调度后对账与质量失败注入待完成 |
 | Spark Benchmark | `pending` | 固定规模下优化前后 Plan、扫描量、Shuffle、Stage 与耗时 |
 | 正式实时链路 | `in progress` | Formal CDC、Kafka/Flink、Checkpoint/恢复、Doris Upsert 与离实时对账 |
 | 轻量 Data Governance | `planned` | Metadata Snapshot、Table-level Lineage、Metric/Quality/Reconciliation/Task 关联 |

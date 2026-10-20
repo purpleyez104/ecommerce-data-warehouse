@@ -69,8 +69,18 @@ def build_commands(args: argparse.Namespace, work_dir: Path) -> list[list[str]]:
         ]
     if args.stage == "quality":
         run_id = _checked_id(args.run_id, "run_id")
+        inject_failure_rule_id = getattr(args, "inject_failure_rule_id", None)
+        injection_args = []
+        if inject_failure_rule_id is not None:
+            injection_args = [
+                "--inject-failure-rule-id",
+                _checked_id(inject_failure_rule_id, "inject_failure_rule_id"),
+            ]
         return [
-            render("render_quality_result_sql.py", "quality.sql", "--run-id", run_id, "--batch-id", batch_id),
+            render(
+                "render_quality_result_sql.py", "quality.sql", "--run-id", run_id,
+                "--batch-id", batch_id, *injection_args,
+            ),
             [spark_sql, "-f", str(work_dir / "quality.sql")],
         ]
     start_date = _checked_date(args.data_start_date, "data_start_date")
@@ -83,6 +93,10 @@ def build_commands(args: argparse.Namespace, work_dir: Path) -> list[list[str]]:
     doris_java_home = os.environ.get(
         "DORIS_JAVA_HOME", "/usr/lib/jvm/java-8-openjdk-amd64"
     )
+    # 当前 Spark 3.5.9 集群的全局 KryoSerializer 会在小型聚合的最终
+    # DirectTaskResult 解码时稳定触发 EOFException。Serving 作业在任务级
+    # 使用 Spark 默认 JavaSerializer，避免扩大到全局配置和其他离线任务。
+    serving_serializer = "spark.serializer=org.apache.spark.serializer.JavaSerializer"
     if args.stage == "doris":
         # Doris Connector 26.0.0 的 Spark 3.x 官方兼容基线为 Java 8。
         # 仅约束 Doris 写入的 YARN 容器，避免改变集群默认 Java 与其他任务。
@@ -92,6 +106,7 @@ def build_commands(args: argparse.Namespace, work_dir: Path) -> list[list[str]]:
                 spark_submit,
                 "--conf", f"spark.yarn.appMasterEnv.JAVA_HOME={doris_java_home}",
                 "--conf", f"spark.executorEnv.JAVA_HOME={doris_java_home}",
+                "--conf", serving_serializer,
                 "--jars", connector,
                 str(work_dir / "doris_load.py"),
             ],
@@ -99,7 +114,12 @@ def build_commands(args: argparse.Namespace, work_dir: Path) -> list[list[str]]:
     _checked_id(args.run_id, "run_id")
     return [
         render("render_doris_reconciliation.py", "reconciliation.py", "--contract", str(contract), "--start-date", start_date, "--end-date", business_date),
-        [spark_submit, "--jars", connector, str(work_dir / "reconciliation.py")],
+        [
+            spark_submit,
+            "--conf", serving_serializer,
+            "--jars", connector,
+            str(work_dir / "reconciliation.py"),
+        ],
     ]
 
 
@@ -111,7 +131,10 @@ def main() -> int:
     parser.add_argument("--batch-id", required=True)
     parser.add_argument("--run-id")
     parser.add_argument("--data-start-date")
+    parser.add_argument("--inject-failure-rule-id")
     args = parser.parse_args()
+    if args.inject_failure_rule_id and args.stage != "quality":
+        parser.error("--inject-failure-rule-id is only valid for quality")
     if args.stage in {"quality", "reconciliation"} and not args.run_id:
         parser.error(f"{args.stage} requires --run-id")
     if args.stage in {"doris", "reconciliation"} and not args.data_start_date:

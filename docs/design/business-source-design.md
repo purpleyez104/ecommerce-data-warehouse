@@ -2,7 +2,7 @@
 
 状态：业务规则已形成基线；21 表 DDL、Business Generator、正式源库 `LOAD DATA`、Shared Source Gate、离线 60/30 Replay、批量 ODS 与 M4 最小离线模型闭环已完成 Runtime 验收。离线 100 单与实时 R1～R3 已转为 Pilot / Acceptance / History；Formal CDC 仍为 `DESIGNED / not_run`。更新时间：2026-10-18。
 
-本文件是[最终工程架构](../architecture/final-architecture.md)的业务源视图。业务语义以[业务基线](../business/business-baseline.md)、指标以[指标口径](../business/metrics.md)、实体关系以[逻辑模型](../source/logical-model.md)、字段以[当前物理设计](../source/physical-model.md)为准；本文不复制字段级契约。Milestone 2 的 Source Gate、Milestone 3 的 ODS Runtime Gate、Milestone 4/5 的模型指标质量及 M6 Doris Serving 均已通过；当前离线入口为 DolphinScheduler 正式 DAG。
+本文件是[工程架构基线](../architecture/baseline.md)的业务源视图。业务语义以[业务基线](../business/business-baseline.md)、指标以[指标口径](../business/metrics.md)、实体关系以[逻辑模型](../source/logical-model.md)、字段以[当前物理设计](../source/physical-model.md)为准；本文不复制字段级契约。Milestone 2 的 Source Gate、Milestone 3 的 ODS Runtime Gate、Milestone 4/5 的模型指标质量及 M6 Doris Serving 均已通过；当前离线入口为 DolphinScheduler 正式 DAG。
 
 ## 数据源与业务边界
 
