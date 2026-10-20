@@ -19,7 +19,7 @@
 | `docs/design/historical-incremental-replay-design.md` | 当前工作区存在；Business Replay 输入已本地实现 | 60 天初始化、30 天双链路回放、时间审计与 SCD2 设计 |
 | `doris/serving_contract.json` | 当前工作区存在；90 日 Runtime 已验收 | Doris 离线 Serving Schema/Writer Contract |
 | `scheduler/dolphinscheduler/README.md` | 当前工作区存在；M1 Runtime 已验收 | JDBC Registry 拓扑、启动和证据边界 |
-| `docs/acceptance/m6-doris-offline-serving-acceptance.md` | 当前工作区存在 | M6 Doris 90 日装载与逐字段对账证据 |
+| `docs/acceptance/m6-doris-offline-serving-acceptance.md` | 当前工作区存在 | M6 Doris 90 日装载、逐字段对账、成功回补及显式质量失败阻断证据 |
 | `hive/README.md` | 当前工作区存在 | Hive 本地 Contract/Renderer 与远端 Metastore/HDFS 事实边界说明 |
 | `docs/acceptance/m1-dolphinscheduler-jdbc-acceptance.md` | 当前工作区存在 | M1 调度组件与受控重启证据 |
 

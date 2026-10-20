@@ -69,7 +69,7 @@ M1 组件验收采用“五个独立入口 + 一个共享 Evidence Library”的
 | Spark 3.5.9 | Client | YARN Container | YARN Container | verified |
 | DataX 202309 运行包 | - | 运行节点 | 运行节点 | verified；当前运行路径为 `/data/module/datax-current` |
 | Doris 4.0.8 | FE，HTTP `18030` | BE 1 | BE 2 | verified |
-| DolphinScheduler 3.4.2 | MySQL JDBC Registry、Master、API、Alert | Worker | Worker | verified；正式 M6 DAG 自动重试与失败阻断已通过，Aggregate Backfill Instance `17` 五 Task 和调度后对账已成功；质量失败注入仍待 Stage Gate |
+| DolphinScheduler 3.4.2 | MySQL JDBC Registry、Master、API、Alert | Worker | Worker | verified；正式 M6 DAG 自动重试与失败阻断、Aggregate Backfill Instance `17` 五 Task 成功终态，以及质量失败 Instance `18` 的下游阻断均已通过 |
 | Flink 1.20.5 | Client | YARN Container | YARN Container | verified；Application Mode 与 YARN Session 的适用边界见 `DR-026` |
 
 DolphinScheduler 按 `DR-049` 复用 MySQL JDBC Registry，项目不再维护 ZooKeeper；Kafka 坚持 KRaft。组件的精确证据状态见 [兼容性矩阵](../operations/compatibility-matrix.md)。

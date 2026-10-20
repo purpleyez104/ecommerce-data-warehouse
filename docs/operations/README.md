@@ -12,4 +12,4 @@
 
 ## 状态边界
 
-Milestone 1 已完成。DolphinScheduler 3.4.2 + MySQL JDBC Registry 已通过成功/失败任务与受控重启复跑；M6 正式 DAG 已证明一次自动重试及失败阻断，Aggregate Backfill Instance `17` 已完成 Model Ready、DWS/ADS、Quality、Doris 与 Reconciliation。当前仅剩人为质量失败注入与 M6 Stage Gate。目录存在、配置示例或静态检查不等于 Runtime 已验证，运行结论必须以记录环境中的命令、退出状态和结果核对为准。
+Milestone 1 已完成。DolphinScheduler 3.4.2 + MySQL JDBC Registry 已通过成功/失败任务与受控重启复跑；M6 Aggregate Backfill Instance `17` 已完成 Model Ready、DWS/ADS、Quality、Doris 与 Reconciliation，质量失败 Instance `18` 已验证 Quality 非零失败、Doris/Reconciliation 下游阻断及服务数据不变，M6 Stage Gate 已完成。目录存在、配置示例或静态检查不等于 Runtime 已验证，运行结论必须以记录环境中的命令、退出状态和结果核对为准。

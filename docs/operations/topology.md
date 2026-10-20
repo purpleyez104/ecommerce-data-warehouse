@@ -35,4 +35,4 @@ Flink 正式业务作业的目标部署方式为 Java DataStream Jar + YARN Appl
 
 - `hadoop201` 承载多项控制服务，只有发生磁盘不足、OOM、持续 Swap、频繁 Full GC、进程被杀或核心服务无法共存等实测问题，才提出扩容。
 - 两个 worker 的 YARN 资源按现有配置保持 `10240 MiB / 6 vCore`；正式 Flink/Spark 与 Doris 共存前需重新核对内存、磁盘、进程和 GC。
-- 不格式化既有 NameNode，不重置 KRaft storage，不用停掉关键服务的方式伪装资源充足。DolphinScheduler 已按 MySQL JDBC Registry 完成 M1 验收；Aggregate Backfill Instance `17` 已完成五 Task 成功终态与调度后对账，当前 M6 只剩质量失败注入与 Stage Gate。
+- 不格式化既有 NameNode，不重置 KRaft storage，不用停掉关键服务的方式伪装资源充足。DolphinScheduler 已按 MySQL JDBC Registry 完成 M1 验收；Aggregate Backfill Instance `17` 已完成五 Task 成功终态与调度后对账，质量失败 Instance `18` 已验证下游阻断与 Doris 不变性，M6 Stage Gate 已完成。
