@@ -1,0 +1,53 @@
+{
+  "contract_version": "m6-aggregate-backfill-v1",
+  "workflow_name": "ecommerce_aggregate_backfill",
+  "execution_type": "SERIAL_WAIT",
+  "global_parameters": [
+    "project_home",
+    "doris_env",
+    "doris_connector_jar",
+    "business_date",
+    "model_as_of_date",
+    "batch_id",
+    "run_id",
+    "data_start_date"
+  ],
+  "tasks": [
+    {
+      "name": "model_ready_check",
+      "retry_times": 0,
+      "retry_interval_minutes": 1,
+      "command": "python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py model_ready --business-date ${business_date} --batch-id ${batch_id}"
+    },
+    {
+      "name": "dws_ads_build",
+      "retry_times": 1,
+      "retry_interval_minutes": 2,
+      "command": "python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py dws_ads --business-date ${business_date} --as-of-date ${model_as_of_date} --batch-id ${batch_id}"
+    },
+    {
+      "name": "quality_gate",
+      "retry_times": 0,
+      "retry_interval_minutes": 1,
+      "command": "python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py quality --business-date ${business_date} --batch-id ${batch_id} --run-id ${run_id}"
+    },
+    {
+      "name": "doris_load",
+      "retry_times": 1,
+      "retry_interval_minutes": 2,
+      "command": "set -a; . ${doris_env}; set +a; DORIS_CONNECTOR_JAR=${doris_connector_jar} python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py doris --business-date ${business_date} --batch-id ${batch_id} --data-start-date ${data_start_date}"
+    },
+    {
+      "name": "serving_reconciliation",
+      "retry_times": 0,
+      "retry_interval_minutes": 1,
+      "command": "set -a; . ${doris_env}; set +a; DORIS_CONNECTOR_JAR=${doris_connector_jar} python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py reconciliation --business-date ${business_date} --batch-id ${batch_id} --run-id ${run_id} --data-start-date ${data_start_date}"
+    }
+  ],
+  "dependencies": [
+    ["model_ready_check", "dws_ads_build"],
+    ["dws_ads_build", "quality_gate"],
+    ["quality_gate", "doris_load"],
+    ["doris_load", "serving_reconciliation"]
+  ]
+}

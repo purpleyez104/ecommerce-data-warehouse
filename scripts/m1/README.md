@@ -4,7 +4,7 @@
 
 ## 当前 M1 Runtime 状态
 
-Step 2～12 已确认 Hadoop、MySQL、Hive、Spark、DataX、Kafka、Flink、Flink CDC、Flink Kafka source/sink、Doris 和 Flink Doris Connector 的核心能力，当前唯一剩余门禁为 DolphinScheduler 3.4.2。仓库现有自动化脚本及共享 Evidence Contract 继续用于可重复复测；未提供专用入口的已确认组件不因此被降级，也不虚构仓库尚未实现的自动化。
+M1 已确认 Hadoop、MySQL、Hive、Spark、DataX、Kafka、Flink、Flink CDC、Flink Kafka source/sink、Doris、Flink Doris Connector 和 DolphinScheduler 3.4.2 + MySQL JDBC Registry 的核心能力。仓库现有自动化脚本及共享 Evidence Contract 继续用于可重复复测；未提供专用入口的已确认组件不因此被降级，也不虚构 M6 正式 DAG 已完成。
 
 ## 共享组件验收 Evidence Contract
 

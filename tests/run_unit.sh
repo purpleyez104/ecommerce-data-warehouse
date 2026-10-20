@@ -33,6 +33,7 @@ PYTHONPATH="$repo/mock/generator/business_generator/src${PYTHONPATH:+:$PYTHONPAT
   governance/metric_registry/validate_metric_registry.py \
   quality/generate_quality_result_ddl.py \
   reconciliation/generate_reconciliation_result_ddl.py \
+  doris/ddl/generate_serving_ddl.py \
   spark/scripts/render_ods_batch_sql.py \
   spark/scripts/render_behavior_ods_sql.py \
   spark/scripts/render_dim_snapshot_sql.py \
@@ -42,7 +43,14 @@ PYTHONPATH="$repo/mock/generator/business_generator/src${PYTHONPATH:+:$PYTHONPAT
   spark/scripts/render_aggregate_sql.py \
   spark/scripts/render_aggregate_gate_sql.py \
   spark/scripts/render_quality_result_sql.py \
-  spark/scripts/render_cross_layer_reconciliation_sql.py
+  spark/scripts/render_cross_layer_reconciliation_sql.py \
+  spark/scripts/render_doris_load.py \
+  spark/scripts/render_doris_range_load.py \
+  spark/scripts/render_doris_reconciliation.py \
+  scheduler/dolphinscheduler/render_workflow_payload.py \
+  scheduler/dolphinscheduler/deploy_workflow.py \
+  scheduler/dolphinscheduler/verify_ods_ready.py \
+  scheduler/dolphinscheduler/run_model_stage.py
 
 PYTHONPATH="$repo/mock/generator/behavior_generator/src${PYTHONPATH:+:$PYTHONPATH}" \
   "$python_bin" -m unittest discover \
@@ -61,6 +69,10 @@ PYTHONPATH="$repo/mock/generator/behavior_generator/src${PYTHONPATH:+:$PYTHONPAT
 "$python_bin" -m unittest discover -s tests/quality -p 'test_*.py' -v
 
 "$python_bin" -m unittest discover -s tests/reconciliation -p 'test_*.py' -v
+
+"$python_bin" -m unittest discover -s tests/doris -p 'test_*.py' -v
+
+"$python_bin" -m unittest discover -s tests/scheduler -p 'test_*.py' -v
 
 PYTHONPATH="$repo/mock/generator/business_generator/src${PYTHONPATH:+:$PYTHONPATH}" \
   "$python_bin" -m unittest discover -s tests/mysql -p 'test_*.py' -v

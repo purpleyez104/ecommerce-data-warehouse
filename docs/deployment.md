@@ -12,4 +12,4 @@
 
 ## 状态边界
 
-Milestone 1 当前仍为 `in progress`，剩余门禁是 DolphinScheduler 3.4.2。目录存在、配置示例或静态检查不等于组件已安装或链路已通过；运行结论必须以记录环境中的命令、退出状态和结果核对为准。
+Milestone 1 已完成。DolphinScheduler 3.4.2 + MySQL JDBC Registry 已通过成功/失败任务与受控重启复跑；M6 正式 DAG 已证明一次自动重试及失败阻断，Aggregate Backfill 已通过 Model Ready、DWS/ADS 与 Quality。当前 Doris `frame.count()` EOF、调度后对账和质量失败注入仍待验证。目录存在、配置示例或静态检查不等于 Runtime 已验证，运行结论必须以记录环境中的命令、退出状态和结果核对为准。

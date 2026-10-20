@@ -1,0 +1,68 @@
+{
+  "contract_version": "m6-offline-dag-v1",
+  "workflow_name": "ecommerce_offline_t1",
+  "execution_type": "SERIAL_WAIT",
+  "global_parameters": [
+    "project_home",
+    "datax_env",
+    "doris_env",
+    "doris_connector_jar",
+    "business_date",
+    "batch_id",
+    "run_id",
+    "batch_contract",
+    "data_start_date"
+  ],
+  "tasks": [
+    {
+      "name": "datax_ods_load",
+      "retry_times": 1,
+      "retry_interval_minutes": 2,
+      "command": "python3 ${project_home}/datax/scripts/run_ods_batch.py --batch-contract ${batch_contract} --output-dir ${project_home}/runtime/ods/${batch_id} --project-home ${project_home} --stage-root /warehouse/ecommerce/ods/.staging --execute --env-file ${datax_env} && python3 ${project_home}/scheduler/dolphinscheduler/publish_ods_checkpoint.py --batch-output ${project_home}/runtime/ods/${batch_id} --checkpoint-dir /warehouse/ecommerce/checkpoints/ods/${batch_id}"
+    },
+    {
+      "name": "ods_ready_check",
+      "retry_times": 0,
+      "retry_interval_minutes": 1,
+      "command": "python3 ${project_home}/scheduler/dolphinscheduler/verify_ods_ready.py --checkpoint-dir /warehouse/ecommerce/checkpoints/ods/${batch_id} --business-date ${business_date}"
+    },
+    {
+      "name": "dim_dwd_build",
+      "retry_times": 1,
+      "retry_interval_minutes": 2,
+      "command": "python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py dim_dwd --business-date ${business_date} --batch-id ${batch_id}"
+    },
+    {
+      "name": "dws_ads_build",
+      "retry_times": 1,
+      "retry_interval_minutes": 2,
+      "command": "python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py dws_ads --business-date ${business_date} --batch-id ${batch_id}"
+    },
+    {
+      "name": "quality_gate",
+      "retry_times": 0,
+      "retry_interval_minutes": 1,
+      "command": "python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py quality --business-date ${business_date} --batch-id ${batch_id} --run-id ${run_id}"
+    },
+    {
+      "name": "doris_load",
+      "retry_times": 1,
+      "retry_interval_minutes": 2,
+      "command": "set -a; . ${doris_env}; set +a; DORIS_CONNECTOR_JAR=${doris_connector_jar} python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py doris --business-date ${business_date} --batch-id ${batch_id} --data-start-date ${data_start_date}"
+    },
+    {
+      "name": "serving_reconciliation",
+      "retry_times": 0,
+      "retry_interval_minutes": 1,
+      "command": "set -a; . ${doris_env}; set +a; DORIS_CONNECTOR_JAR=${doris_connector_jar} python3 ${project_home}/scheduler/dolphinscheduler/run_model_stage.py reconciliation --business-date ${business_date} --batch-id ${batch_id} --run-id ${run_id} --data-start-date ${data_start_date}"
+    }
+  ],
+  "dependencies": [
+    ["datax_ods_load", "ods_ready_check"],
+    ["ods_ready_check", "dim_dwd_build"],
+    ["dim_dwd_build", "dws_ads_build"],
+    ["dws_ads_build", "quality_gate"],
+    ["quality_gate", "doris_load"],
+    ["doris_load", "serving_reconciliation"]
+  ]
+}

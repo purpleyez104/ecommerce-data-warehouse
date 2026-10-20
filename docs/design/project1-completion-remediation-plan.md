@@ -2,7 +2,7 @@
 
 状态：`confirmed / implementation-guidance`
 确认日期：2026-10-15
-当前执行位置：Stage 1～4 已完成；M5 六域 Aggregate Runtime、36 项 Metric Registry、40 条持久化质量规则与 10 项跨层对账已通过；下一入口为 Stage 5 Doris 离线 Serving
+当前执行位置：Stage 1～4 已完成；Stage 5 的 Doris 离线 Serving、DolphinScheduler JDBC Registry 组件门禁及正式 DAG 自动重试/失败阻断已通过。Aggregate Backfill 已验证至 Quality Gate；Doris 调度任务因连续 `EOFException` 暂停，等待新证据后仅从失败 Task 恢复
 适用范围：Project 1 Milestone 1～10、离线链路、实时链路、数据治理、验收证据与简历结论
 
 ## 1. 目的与事实边界
@@ -155,6 +155,10 @@ Contract 审计发现 P0 `RF-01` 不能由原成功资金粒度的 `dwd_refund` 
 ### Stage 5：Doris Serving 与 DolphinScheduler
 
 Doris 验证 Spark Doris Connector 写入、服务表模型、重复写入/更新语义以及 Hive ADS 与 Doris 的行数、业务键和指标值一致。
+
+当前 Doris 90 日装载、幂等重跑及 22 字段逐行对账已通过。DolphinScheduler 3.4.2 按 `DR-049` 使用 MySQL JDBC Registry，其成功/失败任务、受控重启复跑以及正式 DAG 自动重试/失败阻断已通过。Aggregate Backfill 的 Model Ready、DWS/ADS 和 Quality 已通过；Doris Load 连续 EOF，最终对账未运行。剩余工作是基于新证据修复 Doris 调度边界、从失败 Task 恢复、完成调度后对账和人为注入质量失败验证，不再建设 ZooKeeper。
+
+历史回补遵循“从最低失效层恢复”。ODS、DIM、DWD 已通过 Gate 时，不重跑 DataX 或原子模型，也不把 Type 1 当前态维度改造成每日全量快照；独立 Aggregate Backfill 先执行 Model Ready Gate，再运行 DWS/ADS、Quality、Doris 和 Reconciliation。`business_date` 与 Cohort 的 `model_as_of_date` 必须独立传入，避免在同表混入不同观察窗口。只有下层数据本身缺失或失效时，才回到完整 DAG 的相应入口。
 
 DolphinScheduler 只编排已经独立运行成功的任务：
 
@@ -309,7 +313,7 @@ Targeted Test
 
 1. Stage 1～3 已完成：Scope/Architecture/Plan、Source/Replay、正式 ODS、DIM/DWD、Model Gate 与 M4 Aggregate MVP 均已有对应证据。
 2. Stage 4 已完成：六域 DWS/ADS、Metric Acceptance、Quality、Reconciliation 与 Cohort P0 指标均已通过 Runtime Gate。
-3. 当前进入 Stage 5 Doris Serving；DolphinScheduler 仅在独立任务通过后接入。
+3. Stage 5 的 Doris Serving 独立任务、DolphinScheduler JDBC Registry 组件门禁及正式 DAG 自动重试/失败阻断已通过；Aggregate Backfill 已验证至 Quality Gate。当前先定位 Doris `frame.count()` EOF，再从失败 Task 恢复并完成调度后对账与质量失败注入，完成 Stage 5 Gate。
 4. 后续依次完成 Spark 性能实验、正式实时链路与轻量 Data Governance。
 5. `docs/status/resume-evidence-current.md` 持续收集已验证候选数据；最后统一完成 Release Evidence Index 和简历结论映射。
 

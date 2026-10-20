@@ -1,8 +1,8 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
 版本：`0.6-draft`
-状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环与 M5 正式指标质量 `VERIFIED`。Milestone 0、3、4、5 `completed`；Milestone 1、2、8、9 `in progress`；Milestone 6～7 `pending`
-更新时间：2026-10-18
+状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环、M5 正式指标质量及 M6 Doris Serving `VERIFIED`。Milestone 0、1、3、4、5 `completed`；Milestone 2、6、8、9 `in progress`；Milestone 7 `pending`
+更新时间：2026-10-19
 
 ## 1. 使用方式
 
@@ -143,7 +143,7 @@ docs/decision-register.md
 - 用户确认 2026-09-04 的外部 ECS 集群记录是本项目实际搭建记录，其中 `CONFIRMED` 可作为当前事实。
 - Ubuntu 24.04、三节点网络与磁盘、`yee` 用户、OpenJDK 17 默认环境以及 Hadoop 3.4.1 的 HDFS/YARN 运行拓扑已经确认。
 - Hadoop 3.4.1 已于 2026-09-05 完成固定 HDFS 文件 SHA-256、MapReduce WordCount、YARN application 与聚合日志、临时对象清理和受控重启验证，整体状态为 `verified`。
-- NameNode 已存在并通过受控重启验证，禁止再次格式化。根据 `DR-026`，M1 Step 2～12 已通过，当前门禁为 DolphinScheduler 3.4.2。
+- NameNode 已存在并通过受控重启验证，禁止再次格式化。根据 `DR-026` 与 `DR-049`，M1 全部组件门禁均已通过。
 
 ### 涉及模块
 
@@ -183,10 +183,10 @@ Hadoop（已通过）
 → Kafka KRaft（已通过）
 → Flink / Flink CDC / Flink Kafka（已通过，带运行模式说明）
 → Doris / Flink Doris Connector（已通过）
-→ DolphinScheduler + 单节点 ZooKeeper（当前门禁）
+→ DolphinScheduler + MySQL JDBC Registry（已通过）
 ```
 
-单节点 ZooKeeper 只服务 DolphinScheduler；Kafka 保持 KRaft。Doris FE HTTP 使用 `18030`，保留 YARN ResourceManager Scheduler 的 `8030`。
+DolphinScheduler 按 `DR-049` 复用 MySQL JDBC Registry，不再引入 ZooKeeper；Kafka 保持 KRaft。Doris FE HTTP 使用 `18030`，保留 YARN ResourceManager Scheduler 的 `8030`。
 
 ### 交付物
 
@@ -230,7 +230,7 @@ M1 的 MySQL、HDFS、Hive、DataX、Kafka、Flink CDC 等环境验证可以复�
 
 ### 进入条件
 
-- Milestone 0 已完成，Milestone 1 已进入 `in progress`。
+- Milestone 0、1 已完成；M2 当前工作不再受基础设施组件门禁阻塞。
 - 用户已确认 M1 与 M2 并行推进。
 - 业务基线、指标口径、逻辑模型和当前字段级物理设计已进入仓库。
 - 当前部署基线之外的库存等缺口继续按 `DECISION_REQUIRED` 评审，不得由后续实现者默认补全。
@@ -473,7 +473,7 @@ docs/business/metrics.md
 
 ## 9. Milestone 6：Doris 离线服务与 DolphinScheduler
 
-**状态：`pending`**
+**状态：`in progress`**
 
 ### 目标
 
@@ -510,6 +510,19 @@ DataX ODS Load
 → Doris Load
 → Reconciliation
 ```
+
+完整 T+1 DAG 只用于需要重新抽取和发布下层数据的业务日。若 ODS、DIM、DWD 已通过现有 Gate，历史指标回补从最低失效层开始，使用独立链路：
+
+```text
+Model Ready Check
+→ DWS/ADS
+→ Quality Check
+→ Doris Load
+→ Reconciliation
+```
+
+Type 1 当前态维度保持“每个业务键一行”，不通过追加每日全量快照来实现历史指标回补。
+回补目标日使用 `business_date`，Cohort 观察窗口终点使用独立 `model_as_of_date`；后者不得随目标日回退而在结果表中形成混合快照。
 
 ### 交付物
 
@@ -762,10 +775,10 @@ scheduler/
 根据 `DR-031`、`DR-032`、`DR-034`～`DR-046`，离线 100 单与实时 R1～R3 Pilot 已完成使命并转为 History。Seed `20260928` 的正式 Source 已完成正式 21 表 ODS Snapshot Bootstrap 与独立 Gate；Seed `20260105` 的隔离 ODS 已完成 Day 60～90、同日 staging 复用、跨日中断恢复和最终独立 Gate；Behavior 60/30 Bundle 已发布到 `ods_behavior_event` 并通过 3,000,000 行、90 分区的独立 Gate。Kafka 与 CDC Runtime 仍为 `not_run`。当前顺序为：
 
 1. M5-02 已将现有 `dwd_refund` 修正为退款申请粒度，并调整 DWS 退款度量和 ADS 日期覆盖；受控迁移、60/60 Model Gate、18/18 Aggregate Gate 与幂等重跑均已通过。
-2. M5-01 已确认现有编号直接作为稳定 `metric_id`，首版 `definition_version=1.0.0`；`TF-05` 已收敛为加购行为量。最终六域 6 DWS + 1 ADS、41/41 Gate、36 项 Registry、40 条持久化质量结果和 10 项 × 90 日跨层对账已完成；`TR-13/TR-14` Cohort Contract 与 Runtime 已验证，M5 Stage Gate 通过，下一入口为 M6 Doris 离线 Serving。
+2. M5 Stage Gate 已通过；M6 Doris 单表 Serving、90 日首次/幂等装载及 Hive/Doris 22 字段逐行对账已完成。
 3. Behavior 60/30 本地输入已冻结；实时并轨先审计现有 Topic/Checkpoint，冻结 Formal CDC Topic Namespace、Partition/Key/Schema、`event_version`、切换点和正式 Checkpoint Root，不得直接复用 Pilot Topic/Offset。
 4. 在另行授权的隔离环境执行 21 表 CDC Initial Snapshot 与 CDC Gate，再用 30 个 daily package 执行 Incremental Simulation、Recovery Gate 和 Offline ↔ Realtime Reconciliation。
-5. M1 的 DolphinScheduler 3.4.2 门禁按独立证据边界并行推进，不改变上述离实时接续顺序。
+5. M1 DolphinScheduler 3.4.2 + MySQL JDBC Registry 门禁已通过；M6 正式 DAG 的自动重试与失败阻断已通过，Aggregate Backfill 已验证至 Quality Gate。当前下一入口为 Doris `frame.count()` EOF 根因取证；修复后只恢复失败 Task，再完成调度后对账和人为注入质量失败验证。
 
 当前明确停止：继续扩展旧 100 单 Generator、为新 Generator 建设独立 Smoke 数据档位、执行 `ods_order_item_create.sql`、继续 `R4 Payment DWD` Pilot、扩展 `ods_cdc_m2_clean_v1`、一表一长期 Flink Application、把 `all-to-zero` / `kafka_offset` Sequence / Pilot Checkpoint 用于正式 V2、创建 `_v2` database、删除 acceptance 环境或混用 Pilot/V2 数据。正式 Topic/Partition/`event_version` 和初始化重置方案仍为 `DECISION_REQUIRED`；本计划不授权数据库清理。`BI / Agent` 是否进入当前 V2 正式交付仍待与 `DR-029` 的后续规划边界确认，不阻塞 Source Data Build。
 

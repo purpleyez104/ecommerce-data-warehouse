@@ -1,8 +1,8 @@
 # Milestone 1 组件兼容性矩阵
 
-版本：`0.4`
-状态：`in progress`
-更新时间：2026-09-20
+版本：`0.5`
+状态：`completed`
+更新时间：2026-10-19
 
 ## 使用规则
 
@@ -28,10 +28,9 @@
 | Kafka | 3.9.1，Scala 2.12，KRaft | `CONFIRMED` | `verified` | 三节点仲裁、RF=3、minISR=2、生产消费、单 Broker 故障与恢复通过 |
 | Spark | 3.5.9-bin-hadoop3，Scala 2.12.18 | `CONFIRMED` | `verified` | YARN 提交、Hive ORC 读取与计算通过 |
 | DataX | datax_v202309；运行入口 `/data/module/datax-current` | `CONFIRMED` | `verified` | MySQL Reader、HDFS Writer、ORC + Snappy、3 行链路与失败非零通过 |
-| Doris | 4.0.8 | `CONFIRMED` | `verified` | FE/BE、SQL、端口与受控重启恢复均已通过；正式服务表仍待 M6/M9 |
-| Spark Doris Connector | 26.0.0，Spark 3.5 构件 | `PLANNED` | `candidate` | Spark、Scala、Java、Doris 类型和写入验证 |
-| ZooKeeper | 3.8.4，单节点 | 已接受设计 | `planned` | 仅为 DolphinScheduler 验证安装和重启 |
-| DolphinScheduler | 3.4.2 | `PLANNED` | `candidate` | 当前唯一剩余 M1 门禁：MySQL、ZooKeeper、Worker、成功/失败任务和重启 |
+| Doris | 4.0.8 | `CONFIRMED` | `verified` | FE/BE、SQL、端口与受控重启恢复均已通过；M6 离线服务表已验证，M9 实时表仍待正式验收 |
+| Spark Doris Connector | 26.0.0，Spark 3.5 构件 | `CONFIRMED_WITH_RUNTIME` | `verified` | 独立任务已完成 90 日首次/幂等装载及 22 字段逐行对账；DolphinScheduler YARN 容器按任务固定 Java 8 后的独立 Doris/对账任务成功，正式 DAG 成功终态仍待验证 |
+| DolphinScheduler | 3.4.2；MySQL JDBC Registry | `CONFIRMED_WITH_ARCHITECTURE_CHANGE` | `verified` | Master/API/Alert、双 Worker、API Health、成功/失败任务及重启后复跑已通过；正式 M6 DAG 已实现，Aggregate Backfill 验证至 Quality Gate，Doris EOF 阻塞完整成功终态 |
 | Flink | 1.20.5，Scala 2.12 | `CONFIRMED_WITH_NOTE` | `verified` | YARN Application Mode 已通过；正式业务部署选 Java DataStream Jar，尚无正式业务 Jar；提交退出 0 不代表最终成功，调度必须查询 YARN final state |
 | Flink CDC | 3.6.0 for Flink 1.20 | `CONFIRMED` | `verified` | MySQL Snapshot、Binlog CRUD 与 Kafka 输出通过；正式 Topic 设计仍等待 M8 |
 | Flink Doris Connector | 26.1.1 for Flink 1.20 | `CONFIRMED` | `verified` | insert/upsert、类型、schema、Checkpoint、TaskManager 故障恢复通过；不确认正式实时表模型或 Exactly-Once |
@@ -43,12 +42,12 @@
 | Hadoop 3.4.1 | <https://hadoop.apache.org/docs/r3.4.1/> | 版本文档存在；本项目运行事实来自当前集群记录和 2026-09-05 的功能及重启验证 |
 | Hive 3.1.3 / Hadoop 3.4.1 / Spark 3.5.9 | <https://hive.apache.org/general/downloads/> | 4.1.0 在当前 Spark Metastore client Smoke Test 中失败；Hive 3.1.3 使用 JDK 17 的当前组合已通过 Runtime 验收 |
 | Spark 3.5 / Java 17 / YARN | <https://spark.apache.org/docs/3.5.9/> | 支持范围不替代本项目的 Hadoop、Hive 和 YARN 实测 |
-| Kafka 3.9 KRaft | <https://kafka.apache.org/39/documentation.html#kraft> | 只采用 KRaft，不因 DolphinScheduler 引入的 ZooKeeper 改变 Kafka 模式 |
+| Kafka 3.9 KRaft | <https://kafka.apache.org/39/documentation.html#kraft> | 只采用 KRaft；DolphinScheduler 使用 MySQL JDBC Registry，与 Kafka 相互独立 |
 | DataX HDFS Writer | <https://github.com/alibaba/DataX/blob/master/hdfswriter/doc/hdfswriter.md> | ORC、压缩和依赖必须用 202309 包真实验证 |
-| Spark Doris Connector | <https://doris.apache.org/docs/3.x/ecosystem/spark-doris-connector/> | 版本矩阵是候选依据，Java 17 和 Doris 4.0.8 仍需实测 |
+| Spark Doris Connector | <https://doris.apache.org/docs/3.x/ecosystem/spark-doris-connector/> | 26.0.0 独立装载曾在默认 Java 17 客户端环境通过；正式 DolphinScheduler DAG 为 Doris YARN AM/Executor 固定 Java 8，但 Instance `17` 在 `frame.count()` 连续 EOF，不能描述为调度内已通过。将 Driver 也固定 Java 8 未解决问题，相关假设已撤回 |
 | Flink CDC 3.6 | <https://nightlies.apache.org/flink/flink-cdc-docs-release-3.6/> | 只验证兼容性，不提前设计正式实时语义 |
 | Flink Doris Connector | <https://doris.apache.org/docs/3.x/ecosystem/flink-doris-connector/> | 只验证临时数据写入，不替代 Milestone 8-9 设计与可靠性验收 |
-| DolphinScheduler | <https://dolphinscheduler.apache.org/en-us/docs/3.2.2/guide/installation/pseudo-cluster> | 版本与 JDK 17、MySQL、ZooKeeper 组合需单独实测 |
+| DolphinScheduler | <https://github.com/apache/dolphinscheduler/blob/dev/docs/docs/en/architecture/configuration.md> | 3.4.2 的 JDK 17、MySQL Metadata 与 JDBC Registry 组合已完成目标集群实测 |
 
 ## 强制顺序
 
@@ -62,7 +61,7 @@
 → Kafka KRaft（已完成）
 → Flink / Flink CDC / Kafka source-sink（已完成，保留执行模式边界）
 → Doris / Flink Doris Connector（已完成）
-→ DolphinScheduler + 单节点 ZooKeeper（当前唯一剩余门禁）
+→ DolphinScheduler + MySQL JDBC Registry（已完成）
 ```
 
 任一门禁失败时停止后续组件接入。失败记录至少包含节点、版本、命令、退出状态、关键日志、影响范围和回滚结果。
@@ -73,6 +72,7 @@
 | --- | --- | --- |
 | Hadoop/YARN 守护进程 | OpenJDK 11.0.32 | 不表示 Hive 也已切换到 Java 11 |
 | Hive 3.1.3 | 当前 Java 17 环境下的 Metastore、HiveServer2/Beeline 与 ORC 链路 | 未验证 Hive Java 11 切换 |
+| Spark Doris Connector 26.0.0 | 独立装载证据有效；调度任务当前保持 Spark Driver 默认 Java 17，YARN AM/Executor 通过任务参数使用 `/usr/lib/jvm/java-8-openjdk-amd64` | 三节点同时安装 Java 8、11、17；该配置尚未解决 Instance `17` EOF，不得外推为正式调度兼容性通过 |
 | Flink Client | Java 17；YARN Application Mode 验证 | 提交成功不等于作业最终成功 |
 | Flink YARN Container / Doris User Jar | Java 11 兼容边界、限定范围的连接器验收 | 不表示正式 21 表业务 Jar 或端到端 Exactly-Once 已通过 |
 | Flink SQL Client + YARN Session | Kafka Source/Sink 技术验证 | 不作为正式业务部署模式；不替代 Java DataStream Jar 验收 |
@@ -83,6 +83,6 @@
 
 - YARN ResourceManager Scheduler 已确认使用 `hadoop201:8030`。
 - Doris FE HTTP 使用 `hadoop201:18030`，不得改动 YARN `8030` 来掩盖冲突。
-- Kafka 不使用 ZooKeeper；单节点 ZooKeeper 只服务 DolphinScheduler。
+- Kafka 使用 KRaft；DolphinScheduler 使用 MySQL JDBC Registry，项目不再维护 ZooKeeper。
 - 两个 worker 的 YARN 资源保持 `10240 MiB / 6 vCore`，组件共存后必须重新采集内存、进程、磁盘和 GC 证据。
 - `hadoop201` 是否扩容只依据 OOM、持续 Swap、频繁 Full GC、磁盘不足、进程被杀或关键服务不能共存等实测证据。

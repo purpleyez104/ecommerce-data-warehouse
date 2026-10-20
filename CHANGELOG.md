@@ -8,6 +8,10 @@
 
 ### 新增
 
+- 新增并发布 M6 独立 Aggregate Backfill DAG：在下层数据已就绪时执行 `Model Ready Gate → DWS/ADS → Quality → Doris → Reconciliation`，并分离回补目标日与 `model_as_of_date`；Instance `17` 已通过前三个 Gate，Doris 在 `frame.count()` 连续 EOF 后按规则暂停，Reconciliation 未运行。
+- 新增 M6 Doris 离线 Serving：`ads_daily_business_overview` 使用 `UNIQUE KEY(business_date)` + Merge-on-Write；Spark Doris Connector 26.0.0 完成 90 日首次/幂等装载，Hive/Doris 90 行 × 22 字段逐行一致。
+- 新增 `DR-049` 与 DolphinScheduler 3.4.2 MySQL JDBC Registry 验收：Master/API/Alert、双 Worker、成功/预期失败任务及全角色重启后复跑均通过；项目不再安装或维护 ZooKeeper，Kafka 保持 KRaft。
+- 新增 M1 DolphinScheduler 与 M6 Doris 两份 Acceptance，以及调度运行拓扑、端口、安全和证据边界说明。
 - 新增 M5 Cohort P0 指标：`dws_trade_cohort_day` 保存订单创建群组累计净支付、有效支付分子和创建订单分母，`TR-13/TR-14` 进入现有 ADS；最终 41/41 Aggregate Gate、36 项 Metric Registry、40 条质量规则和 10 项 × 90 日跨层对账均通过，M5 Stage Gate 完成。
 - 新增通用 `P1-RECONCILIATION-01` 结果 Contract 和首批离线跨层对账：8 项六域代表性指标覆盖 90 个业务日，共 720 行；首次及同一 `run_id` 重跑均为 `FAIL=0`，并保留未来 `OFFLINE_REALTIME` 扩展语义而不新增重叠结果表。
 - 新增 `P1-QUALITY-01` 持久化质量结果：复用现有 Aggregate Gate 的 33 条有效规则，按 `run_id` 幂等覆盖 `ecommerce_quality.data_quality_result`；首次及同一运行标识重跑均为 33 条唯一规则、`FAIL=0`。
@@ -64,6 +68,7 @@
 
 ### 变更
 
+- 清理 Instance `14` 错误生成的四个 `2026-02-27` Type 1 DIM 全量分区：删除前已保存 HDFS 可恢复备份并核对文件数/字节数；清理后四表业务键唯一，3,000,000 行 Behavior DWD 未变化。
 - 将 `dwd_refund` 从“成功资金事务”调整为“每个退款申请一行”的累积事实，不新增重叠的 `dwd_refund_request`；退款申请数、成功申请数、成功金额和退款件数由 DWS 计算，ADS 使用交易与行为日期并集避免单侧空日丢失。
 - 修正 Business Generator 的退款重试事件与优惠券当前状态字段：中间资金失败不再错误推进退款申请终态，`USED` 券不再残留锁定订单或锁定时间；Dataset Manifest 增加版本、规范文件名、逐 CSV 大小与 SHA-256。
 - Behavior Generator 不再根据配置数量构造第二套 ID 空间；配置计数仅用于与 Business Entity Manifest 核对。事件按同一访客的 `event_time` 排序后依据 30 分钟无活动边界生成 Session，`event_id` 使用数据版本、Seed 和时间范围派生的批次命名空间。

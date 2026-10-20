@@ -1,7 +1,7 @@
 # 电商离实时一体化数据仓库项目规格
 
 版本：`0.5-draft`
-状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环与 M5 正式指标质量 `VERIFIED`。Milestone 0、3、4、5 `completed`；Milestone 1、2、8、9 `in progress`；Milestone 6～7 `pending`
+状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4/M5 离线建模质量与 M6 Doris Serving `VERIFIED`。Milestone 0、1、3、4、5 `completed`；Milestone 2、6、8、9 `in progress`；Milestone 7 `pending`
 更新时间：2026-10-18
 Repository：`ecommerce-data-warehouse`
 
@@ -205,7 +205,7 @@ V2 正式源库为 `ecommerce_oltp`，沿用 7 个业务域、21 张 `biz_*` 表
 | 消息传输 | Kafka KRaft | verified；Kafka 3.9.1 三节点 Quorum、生产消费、ISR 与单 Broker 恢复已通过 |
 | CDC 与实时计算 | Flink CDC、Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 用于技术验证 | 组件兼容性 verified；R1～R3 Snapshot、商品事件 `c/d`、Order / OrderItem 正常顺序 Upsert 和 CDC / Order DWD Checkpoint 恢复在限定范围内 verified；这些结果现为 Pilot History，正式 V2 尚未实现，M8/M9 保持 `in progress` |
 | 分析服务 | Doris | verified；4.0.8 FE/BE、SQL 与受控重启已通过 |
-| 工作流调度 | DolphinScheduler | candidate；3.4.2 尚未完成 M1 验收 |
+| 工作流调度 | DolphinScheduler | 3.4.2 + MySQL JDBC Registry 已完成 M1 验收；M6 正式 DAG 已实现，Aggregate Backfill 验证至 Quality Gate，Doris EOF 与最终对账尚未闭合 |
 | 数据生成和质量工具 | Python、SQL | 旧 Generator 已转为 Pilot History；Business / Behavior Generator 已完成正式规模生成与 Entity Manifest 绑定，Business `LOAD DATA`、Source Gate 与目标 MySQL Runtime 已通过；Incremental Business Generator 尚未完成 |
 
 开发方式：
@@ -332,9 +332,9 @@ Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 
 
 | ECS 节点 | 私网 IPv4 | 集群角色 | 计算资源 | 系统盘 | 数据盘 | 当前与候选职责 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `hadoop201` | `10.20.1.201` | `master` | 4 vCPU / 16 GB | 50 GiB | 80 GiB | 已确认 NameNode、SecondaryNameNode、ResourceManager、JobHistoryServer；后续 Hive、Kafka、Doris FE、MySQL、DolphinScheduler 控制服务 |
-| `hadoop202` | `10.20.1.202` | `worker01` | 8 vCPU / 16 GB | 50 GiB | 120 GiB | 已确认 DataNode、NodeManager；后续 Kafka、Doris BE、DataX、计算任务、DolphinScheduler Worker |
-| `hadoop203` | `10.20.1.203` | `worker02` | 8 vCPU / 16 GB | 50 GiB | 120 GiB | 已确认 DataNode、NodeManager；后续 Kafka、Doris BE、DataX、计算任务、DolphinScheduler Worker |
+| `hadoop201` | `10.20.1.201` | `master` | 4 vCPU / 16 GB | 50 GiB | 80 GiB | NameNode、SecondaryNameNode、ResourceManager、JobHistoryServer、Hive、Kafka、Doris FE、MySQL、DolphinScheduler Master/API/Alert 已确认或验证 |
+| `hadoop202` | `10.20.1.202` | `worker01` | 8 vCPU / 16 GB | 50 GiB | 120 GiB | DataNode、NodeManager、Kafka、Doris BE、DataX、计算任务、DolphinScheduler Worker 已确认或验证 |
+| `hadoop203` | `10.20.1.203` | `worker02` | 8 vCPU / 16 GB | 50 GiB | 120 GiB | DataNode、NodeManager、Kafka、Doris BE、DataX、计算任务、DolphinScheduler Worker 已确认或验证 |
 
 约束：
 
@@ -351,7 +351,7 @@ Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 
 
 ## 8. 版本与兼容性门禁
 
-Hadoop 3.4.1 已于 2026-09-05 在当前集群完成独立验收。根据 `DR-026`，MySQL、Hive、Spark、DataX、Kafka、Flink、Flink CDC、Doris 及 Flink Doris Connector 的精确版本与核心能力也已验证；当前仅 DolphinScheduler 3.4.2 保持候选。全部 M1 组件完成后，才能写入 `infra/versions.env`。组件验收关注以下能力：
+Hadoop 3.4.1 已于 2026-09-05 在当前集群完成独立验收。根据 `DR-026` 与 `DR-049`，MySQL、Hive、Spark、DataX、Kafka、Flink、Flink CDC、Doris、相关 Connector 及 DolphinScheduler 3.4.2 + MySQL JDBC Registry 的精确版本与核心能力均已验证。`infra/versions.env` 仍须在最终版本清单完成去敏复核后生成。组件验收关注以下能力：
 
 ```text
 官方版本和兼容依据
@@ -375,16 +375,16 @@ Hadoop 3.4.1 已于 2026-09-05 在当前集群完成独立验收。根据 `DR-02
 → Kafka KRaft（已完成）
 → Flink / Flink CDC / Kafka source-sink（已完成，保留执行模式边界）
 → Doris / Flink Doris Connector（已完成）
-→ DolphinScheduler（当前剩余门禁）
+→ DolphinScheduler + MySQL JDBC Registry（已完成）
 ```
 
-必须验证 Hadoop/JDK、Hive/Hadoop、Hive Metastore/MySQL、Spark/Hadoop/Hive、Kafka/JDK/KRaft、Flink/JDK、Flink CDC/Flink/MySQL、Spark Doris Connector/Spark/Doris、Flink Doris Connector/Flink/Doris、DolphinScheduler/JDK/MySQL 和 DataX/MySQL/HDFS 的组合。
+必须验证 Hadoop/JDK、Hive/Hadoop、Hive Metastore/MySQL、Spark/Hadoop/Hive、Kafka/JDK/KRaft、Flink/JDK、Flink CDC/Flink/MySQL、Spark Doris Connector/Spark/Doris、Flink Doris Connector/Flink/Doris、DolphinScheduler/JDK/MySQL JDBC Registry 和 DataX/MySQL/HDFS 的组合。
 
 不允许使用容器作为兼容性兜底。兼容失败时应暂停、保存证据、调整版本或架构并重新验证。
 
 YARN ResourceManager Scheduler 已确认使用 `8030`。Doris FE HTTP 已决定使用 `18030`；Doris 配置前必须确认端口未占用，并同步客户端、健康检查、安全组和文档。
 
-当前已验证基线为 MySQL 8.0.46、Connector/J 8.0.33、Hive 3.1.3、Kafka 3.9.1 Scala 2.12 KRaft、Spark 3.5.9-bin-hadoop3、DataX 202309、Doris 4.0.8、Flink 1.20.5、Flink CDC 3.6.0 和 Flink Doris Connector 26.1.1。Hive 4.1.0 因与 Spark 3.5.9 Metastore client 不兼容而退出。DolphinScheduler 3.4.2 仍是待验证候选；具体模式和边界见 [组件兼容性矩阵](compatibility-matrix.md) 与 `DR-026`。
+当前已验证基线为 MySQL 8.0.46、Connector/J 8.0.33、Hive 3.1.3、Kafka 3.9.1 Scala 2.12 KRaft、Spark 3.5.9-bin-hadoop3、DataX 202309、Doris 4.0.8、Flink 1.20.5、Flink CDC 3.6.0、Flink Doris Connector 26.1.1，以及 DolphinScheduler 3.4.2 + MySQL JDBC Registry。Hive 4.1.0 因与 Spark 3.5.9 Metastore client 不兼容而退出；具体模式和边界见 [组件兼容性矩阵](compatibility-matrix.md)、`DR-026` 与 `DR-049`。
 
 实时组件可以完成安装兼容性验证，但在实时规格确认前不得进入正式业务开发。
 
@@ -596,7 +596,7 @@ V1 可以在完整 V2 扩展前形成可展示版本，但必须同时满足：
 - Doris 实时表 Key 模型、分区、分桶和更新语义。
 - 实时明细是否长期归档到 HDFS/Hive。
 - 实时与离线对账阈值。
-- DolphinScheduler 3.4.2 的 MySQL Metadata Schema、ZooKeeper Registry、Master/Worker/API/Alert、失败识别、重试和补数行为。
+- DolphinScheduler 3.4.2 已按 `DR-049` 使用 MySQL JDBC Registry；M6 已验证失败识别、一次自动重试和下游阻断，Aggregate Backfill 已验证 Model Ready、DWS/ADS 与 Quality。当前须解决 Doris `frame.count()` EOF、完成调度后对账及质量失败注入，才能闭合 Stage Gate。
 - 未在 `DR-026` 中锁定的后续 Connector 补丁版本及兼容失败后的调整方案。
 - hadoop201 是否需要扩容。
 

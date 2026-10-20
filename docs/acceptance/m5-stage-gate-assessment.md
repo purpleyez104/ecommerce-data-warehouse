@@ -16,4 +16,4 @@
 
 ## Gate 结论
 
-M5 Stage Gate 通过。最终范围为 6 张 DWS + 1 张 ADS、36 项 Metric Registry、40 条持久化质量规则和 10 项 × 90 日跨层对账；全部已执行规则均为零失败。下一入口为 Milestone 6 Doris 离线 Serving，DolphinScheduler 仍须等待各任务独立运行通过后再接入。
+M5 Stage Gate 通过。最终范围为 6 张 DWS + 1 张 ADS、36 项 Metric Registry、40 条持久化质量规则和 10 项 × 90 日跨层对账；全部已执行规则均为零失败。该验收形成时的下一入口为 M6 Doris Serving；当前 Doris 独立任务与 DolphinScheduler 组件门禁已由后续 M6/M1 验收完成，正式 DAG 已实现且 Aggregate Backfill 验证至 Quality Gate，Doris EOF 与最终对账仍待闭合。

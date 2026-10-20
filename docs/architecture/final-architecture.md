@@ -69,6 +69,7 @@ MySQL / Hive / Doris + SQL / Config / Task Result
   Flink CDC         3.6.0-1.20     Confirmed
   Doris             4.0.8          Confirmed
   Doris Connector   26.1.1         Confirmed
+  DolphinScheduler  3.4.2          Confirmed; MySQL JDBC Registry
 
 ------------------------------------------------------------------------
 

@@ -42,7 +42,7 @@
 - 单日 pilot `dt=2026-09-17` 已通过 `PRECHECK → BUILD → VERIFY`：1 row、1 unique order、83,400 gross/payable cents、0 mismatch，结果为 `PASS`。
 - 剩余 87 个历史分区通过一次 Spark 历史批量任务构建完成。
 - 历史全量结果为 ODS 100 rows ↔ DWD 100 rows、100 unique orders、88 partitions、69 `PAID`、31 `CANCELED`、8,402,600 gross cents、30,000 discount cents、8,372,600 payable cents、0 mismatch，结果为 `PASS`。
-- 当前已形成 `MySQL hist-v1-001 → ODS order → DWD order` 的限定范围一致性闭环；当前离线业务链路的真实终点是 Hive DWD，不包含 Doris 离线 Serving。
+- 当前已形成 `MySQL hist-v1-001 → ODS order → DWD order` 的历史限定范围一致性闭环；该 Pilot 终点不代表当前正式链路终点。正式 V2 已推进到 Doris 离线 Serving。
 
 ### 离线计算与 YARN 并发
 
@@ -91,7 +91,21 @@
 - 2026-10-18 Behavior 60/30 Bundle 已通过独立第 22 张 ODS 表 `ecommerce_ods.ods_behavior_event` 完成 Runtime Gate：Dataset `v2.3-behavior-replay-formal-20260105-r1` 共 3,000,000 行，发布为 2025-12-01～2026-02-28 的 90 个 `dt` 分区，HDFS 目标为 `/warehouse/ecommerce/ods/ods_behavior_event`。最终 Gate Application `application_1792297746029_0005` 为 `FINISHED / SUCCEEDED`，95/95 项断言通过并输出 `BEHAVIOR_ODS_GATE_PASS`；证据见 `docs/acceptance/behavior-ods-acceptance.md`。
 - 2026-10-18 首批 6 张 DIM、8 张 DWD 已在 `ecommerce_dim` / `ecommerce_dwd` 完成 Spark on YARN 构建；Model Gate Application `application_1792309323393_0007` 为 `FINISHED / SUCCEEDED`，59/59 条断言通过。精确行数覆盖 60 个类目、30 个券模板、24,000 条身份映射、6,000 条商品 SCD2、40,000 用户、80,000 访客及 3,000,000 条 Behavior DWD 等 14 张表；证据见 `docs/acceptance/m4-dim-dwd-model-gate-acceptance.md`。
 - 2026-10-18 两张日粒度 DWS 与一张 ADS 已在 `ecommerce_dws` / `ecommerce_ads` 完成 Spark on YARN 构建；Aggregate Gate 首次和幂等重跑后均为 18/18 条断言无违规，重跑 Application `application_1792325482148_0003`、Gate Application `application_1792325482148_0004` 均为 `FINISHED / SUCCEEDED`，重跑前后 8 项核心结果完全一致。证据见 `docs/acceptance/m4-dws-ads-aggregate-gate-acceptance.md`。
-- 2026-10-19 最新统一测试共 114 项通过：Business 6、Behavior 6、DataX/ODS 32、Model 19、Governance 6、Quality 4、Reconciliation 4、MySQL 37。
+- 2026-10-20 最新统一测试共 136 项通过：Business 6、Behavior 6、DataX/ODS 33、Model 19、Governance 6、Quality 4、Reconciliation 4、Doris 6、Scheduler 15、MySQL 37。
+
+### M6 Doris 离线 Serving 与 DolphinScheduler 组件门禁
+
+- `ecommerce_serving.ads_daily_business_overview` 已使用 `UNIQUE KEY(business_date)` + Merge-on-Write 建表；Spark 3.5.9 + Doris Connector 26.0.0 已完成单日和 90 日装载。
+- `2025-12-01..2026-02-28` 首次及幂等重跑后均为 90 行、90 个业务日期；Hive/Doris 90 行 × 22 字段逐行一致，SHA-256 为 `b3969f7d60e054e7f656f65cb7c7261aa8cf413758f20a1144e09f335b6570ce`。
+- DolphinScheduler 3.4.2 按 `DR-049` 使用 MySQL JDBC Registry。Master/API/Alert、双 Worker、API Health、成功/失败 Shell Workflow 及受控重启后复跑均已通过。
+- 正式 Workflow Instance `12` 的 DataX/ODS、DIM/DWD、DWS/ADS 与质量 Task 成功；`doris_load` 在一次自动重试后仍失败，实例最终为 `FAILURE`，`serving_reconciliation` 未运行，证明自动重试与失败阻断生效。修正后的 Doris Application `application_1792417296391_0002` 和双向逐行对账 `application_1792417296391_0003` 是独立运行证据，不外推为调度内恢复成功。
+- 集群三节点同时安装 Java 8、11、17，默认 Java 为 17，Hadoop 守护进程使用 Java 11。Doris Connector 正式 DAG 仅通过 Spark 任务参数为 YARN AM/Executor 固定 Java 8，不修改系统默认或其他任务。
+- M6 自动重试与失败阻断为 `VERIFIED`；正式 DAG 成功终态、调度后对账、任意日期补数及人为注入质量失败验证仍为 `DOING`。
+- 2026-10-19 补数 Instance `14` 使用显式业务日期 `2026-02-27`：21 表 DataX/ODS 在一次自动重试后 `SUCCESS`，历史分区 ODS Ready Gate `SUCCESS`。`dim_dwd_build` 因 `dim_category.business_key_unique` 失败；为按用户要求收尾，自动重试被停止为 `KILL`，实例终态为 `STOP`。DWS/ADS、Quality、Doris 和 Serving Reconciliation 均未启动；关机前 YARN 活动 Application 数为 0。
+- 2026-10-20 根因确认：`dim_user`、`dim_visitor`、`dim_category`、`dim_coupon_template` 是 Type 1 当前态维度，Instance `14` 错误追加了 `dt=2026-02-27` 全量快照，导致全表业务键重复；不应把粒度改成“业务键 + 快照日”来绕过 Gate。
+- 四个误建分区已复制到 HDFS 回滚根 `/warehouse/ecommerce/model/.rollback/m6-ds-backfill-20260227-r2/`，并分别通过目录数、文件数、字节数一致性核对后从 Hive Metastore 删除。清理后四表都只剩 `dt=2026-02-28`，行数/唯一键分别为 `40,000/40,000`、`80,000/80,000`、`60/60`、`30/30`；`dwd_behavior_event` 仍为 3,000,000 行、3,000,000 个唯一 `event_id`，范围 `2025-12-01..2026-02-28`。
+- 独立 `ecommerce_aggregate_backfill` 已发布为 Workflow Code `187427451612864`，固定执行 `Model Ready Gate → DWS/ADS → Quality → Doris → Reconciliation`，显式排除 DataX、ODS 和 DIM/DWD 重建；`business_date` 与 `model_as_of_date` 分离，避免历史回补把 Cohort 表混成多个观察窗口。
+- Instance `17` 使用 `business_date=2026-02-27`、`model_as_of_date=2026-02-28`：Model Ready、DWS/ADS、40-rule Quality Gate 均为 `SUCCESS`。Doris Load 首次及一次自动重试均在 `frame.count()` 发生 `java.io.EOFException`；YARN Application `application_1792463368931_0014`、`0015` 均记录为 `FINISHED / SUCCEEDED`，但 DolphinScheduler Task 为 `FAILURE`，最终对账未运行。将 Spark Driver 也固定为 Java 8 后从失败 Task 恢复，仍复现相同 EOF，因此该假设已撤回，不再重复触发。
 
 ### Source Data Build 后续接续
 
@@ -147,5 +161,5 @@
 
 1. M5-01、M5-02、六域 Aggregate Runtime、36 项 Metric Registry、40 条持久化质量结果和 10 项跨层 Reconciliation 已完成。
 2. M5 Stage Gate 已通过；`TR-13/TR-14` Cohort Contract、Runtime、Gate、质量和对账均为 `VERIFIED`。
-3. 下一入口为 Doris 离线 Serving；任务独立运行通过前不接入 DolphinScheduler。
+3. 下一入口是针对 Instance `17` 的 Doris `frame.count()` EOF 收集新的 YARN Task Result、HDFS Block 或序列化边界证据；没有新假设前不得再次触发相同路径。根因修复后只从失败 Doris Task 恢复，再运行 Serving Reconciliation；不得重跑已成功的 DataX/ODS、DIM/DWD、DWS/ADS 或 Quality。
 4. 任何隔离库构建、重置、回滚或重新装载需要新的 Database Operation 授权；不继续执行 `ods_order_item_create.sql`，不删除旧 acceptance 环境。

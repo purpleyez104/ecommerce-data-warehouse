@@ -8,9 +8,9 @@
 
 | 节点 | 资源与磁盘 | 已确认或已验证的主要角色 | 尚待阶段验收的角色 |
 | --- | --- | --- | --- |
-| `hadoop201`（`10.20.1.201`） | 4 vCPU / 16 GiB；系统盘 50 GiB、`/data` 80 GiB | NameNode、SecondaryNameNode、ResourceManager、JobHistoryServer；MySQL 8.0.46、Hive Metastore/HiveServer2、Kafka Broker/Controller 1、Doris FE `18030`、Spark/Flink Client | DolphinScheduler 3.4.2 Master/API/Alert 与单节点 ZooKeeper 3.8.4；正式业务作业 |
-| `hadoop202`（`10.20.1.202`） | 8 vCPU / 16 GiB；系统盘 50 GiB、`/data` 120 GiB | DataNode、NodeManager、Kafka Broker/Controller 2、Doris BE 1、DataX 运行节点、YARN 容器 | DolphinScheduler Worker；正式业务作业 |
-| `hadoop203`（`10.20.1.203`） | 8 vCPU / 16 GiB；系统盘 50 GiB、`/data` 120 GiB | DataNode、NodeManager、Kafka Broker/Controller 3、Doris BE 2、DataX 运行节点、YARN 容器 | DolphinScheduler Worker；正式业务作业 |
+| `hadoop201`（`10.20.1.201`） | 4 vCPU / 16 GiB；系统盘 50 GiB、`/data` 80 GiB | NameNode、SecondaryNameNode、ResourceManager、JobHistoryServer；MySQL 8.0.46、Hive Metastore/HiveServer2、Kafka Broker/Controller 1、Doris FE `18030`、Spark/Flink Client；DolphinScheduler 3.4.2 Master/API/Alert + MySQL JDBC Registry | 正式业务作业 |
+| `hadoop202`（`10.20.1.202`） | 8 vCPU / 16 GiB；系统盘 50 GiB、`/data` 120 GiB | DataNode、NodeManager、Kafka Broker/Controller 2、Doris BE 1、DataX 运行节点、YARN 容器；DolphinScheduler Worker | 正式业务作业 |
+| `hadoop203`（`10.20.1.203`） | 8 vCPU / 16 GiB；系统盘 50 GiB、`/data` 120 GiB | DataNode、NodeManager、Kafka Broker/Controller 3、Doris BE 2、DataX 运行节点、YARN 容器；DolphinScheduler Worker | 正式业务作业 |
 
 三节点均为 Ubuntu 24.04，数据盘 `/dev/vdb` 使用 ext4 并挂载 `/data`；组件由 `yee` 运行。HDFS 为单 NameNode、双 DataNode、副本数 2；Kafka 为三节点 KRaft 混合角色。该布局是成本受限的开发环境，不是生产级 HA。
 
@@ -35,4 +35,4 @@ Flink 正式业务作业的目标部署方式为 Java DataStream Jar + YARN Appl
 
 - `hadoop201` 承载多项控制服务，只有发生磁盘不足、OOM、持续 Swap、频繁 Full GC、进程被杀或核心服务无法共存等实测问题，才提出扩容。
 - 两个 worker 的 YARN 资源按现有配置保持 `10240 MiB / 6 vCore`；正式 Flink/Spark 与 Doris 共存前需重新核对内存、磁盘、进程和 GC。
-- 不格式化既有 NameNode，不重置 KRaft storage，不用停掉关键服务的方式伪装资源充足。DolphinScheduler 验收完成前，Milestone 1 保持 `in progress`，不创建 `infra/versions.env`。
+- 不格式化既有 NameNode，不重置 KRaft storage，不用停掉关键服务的方式伪装资源充足。DolphinScheduler 已按 MySQL JDBC Registry 完成 M1 验收；正式 M6 DAG 已验证至 Aggregate Backfill Quality Gate，Doris EOF 与最终对账仍须独立闭合。

@@ -33,11 +33,12 @@
 - Doris FE HTTP 端口已决定使用 `18030`。
 - Doris 安装前必须在三节点执行端口占用检查，并同步配置、健康检查、安全组和 SSH 隧道说明。
 
-### DolphinScheduler 的 ZooKeeper 边界
+### DolphinScheduler 的 JDBC Registry 边界
 
-- 单节点 ZooKeeper 只作为 DolphinScheduler 的开发环境注册中心。
-- Kafka 必须保持 KRaft 模式，不得连接或依赖该 ZooKeeper。
-- 单节点 ZooKeeper 不构成高可用，必须在文档和面试表述中保留该限制。
+- DolphinScheduler 3.4.2 按 `DR-049` 复用现有 MySQL Metadata Schema 和 JDBC Registry，不安装 ZooKeeper。
+- Kafka 必须保持 KRaft 模式，与 DolphinScheduler Registry 相互独立。
+- Metadata 与 Registry 共用 MySQL 是开发环境接受的单点依赖，不得描述为生产级高可用。
+- 3.4.2 原生 `stop` 脚本在本次受控停止中出现“角色已进入停止流程但命令返回非零”的行为；自动化不得仅凭该退出码判定最终状态，必须继续核对 PID、`status`、监听端口、API Health 与 JDBC Registry 心跳，再决定恢复或失败。
 
 ## 排障记录
 
@@ -91,7 +92,7 @@
 
 ### 影响与限制
 
-复测证明集群恢复既定进程和节点拓扑，并完成哨兵文件读取与比较。启动日志仍提示旧的 `HADOOP_NAMENODE_OPTS`、`HADOOP_DATANODE_OPTS` 和 `HADOOP_SECONDARYNAMENODE_OPTS` 已由对应 `HDFS_*` 名称替代；该警告未影响本次验证结果，但后续配置维护不得把它描述为已消除。Hadoop 状态提升为 `verified`，当前进入 MySQL 门禁。
+复测证明集群恢复既定进程和节点拓扑，并完成哨兵文件读取与比较。启动日志仍提示旧的 `HADOOP_NAMENODE_OPTS`、`HADOOP_DATANODE_OPTS` 和 `HADOOP_SECONDARYNAMENODE_OPTS` 已由对应 `HDFS_*` 名称替代；该警告未影响本次验证结果，但后续配置维护不得把它描述为已消除。Hadoop 状态提升为 `verified`，当时进入 MySQL 门禁。
 
 ### 回滚
 

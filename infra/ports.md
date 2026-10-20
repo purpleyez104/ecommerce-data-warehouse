@@ -25,6 +25,8 @@
 | Doris FE edit log / RPC / query | `hadoop201` | 9010 / 9020 / 9030 | `confirmed` | 2026-09-13 监听，仅限私网 |
 | Doris BE HTTP | `hadoop202`、`hadoop203` | 18040 | `confirmed` | 2026-09-13 监听，避开 NodeManager 8040 |
 | Doris BE heartbeat / service / BRPC | `hadoop202`、`hadoop203` | 9050 / 9060 / 8060 | `confirmed` | 2026-09-13 监听，仅限私网 |
-| ZooKeeper | `hadoop201` | 2181 | `accepted` | 仅 DolphinScheduler，私网 |
+| DolphinScheduler API | `hadoop201` | 12345 | `confirmed` | 私网，API Health 与 UI 已验证；公网访问使用 SSH 隧道 |
+| DolphinScheduler Master RPC | `hadoop201` | 5678 / 5679 | `confirmed` | 私网；MySQL JDBC Registry 模式 |
+| DolphinScheduler Alert RPC | `hadoop201` | 50052 / 50053 | `confirmed` | 私网 |
 
-未列出的 DolphinScheduler 端口不得直接采用经验默认值；必须在 3.4.2 验收时补充监听地址、安全组和健康检查。Flink 已完成 Runtime 兼容性验收，但本基线不虚构验收记录未提供的固定服务端口。
+未列出的 DolphinScheduler 端口不得直接采用经验默认值；Worker 监听与安全组仍以现场配置为准。Flink 已完成 Runtime 兼容性验收，但本基线不虚构验收记录未提供的固定服务端口。

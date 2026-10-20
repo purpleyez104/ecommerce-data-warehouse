@@ -18,6 +18,11 @@
 | `docs/status/file-baseline.md` | 已按本次 File Fact Ledger 更新 | 当前文件事实与冲突 |
 | `docs/workflow/README.md` | 当前工作区存在 | Development Chat → Work → Repository 协作规则 |
 | `docs/design/historical-incremental-replay-design.md` | 当前工作区存在；Business Replay 输入已本地实现 | 60 天初始化、30 天双链路回放、时间审计与 SCD2 设计 |
+| `doris/serving_contract.json` | 当前工作区存在；90 日 Runtime 已验收 | Doris 离线 Serving Schema/Writer Contract |
+| `scheduler/dolphinscheduler/README.md` | 当前工作区存在；M1 Runtime 已验收 | JDBC Registry 拓扑、启动和证据边界 |
+| `docs/acceptance/m6-doris-offline-serving-acceptance.md` | 当前工作区存在 | M6 Doris 90 日装载与逐字段对账证据 |
+| `hive/README.md` | 当前工作区存在 | Hive 本地 Contract/Renderer 与远端 Metastore/HDFS 事实边界说明 |
+| `docs/acceptance/m1-dolphinscheduler-jdbc-acceptance.md` | 当前工作区存在 | M1 调度组件与受控重启证据 |
 
 ## VERIFIED_EXECUTED：ECS 正式工程文件
 
@@ -120,6 +125,7 @@
 | Metric Registry | `governance/metric_registry/metric_registry.json`、`governance/metric_registry/validate_metric_registry.py`、`tests/governance/` | `VERIFIED_EXECUTED` | 36 个已实现指标绑定定义 SHA-256、Aggregate 输出与 M5 验收；6/6 Registry Tests 通过 |
 | Quality Result | `quality/quality_result_contract.json`、`quality/generate_quality_result_ddl.py`、`spark/scripts/render_quality_result_sql.py`、`tests/quality/` | `VERIFIED_EXECUTED` | `data_quality_result` 当前为 40 条唯一规则、`FAIL=0`；写入后 Gate 可阻断失败运行 |
 | Reconciliation Result | `reconciliation/reconciliation_result_contract.json`、`reconciliation/generate_reconciliation_result_ddl.py`、`spark/scripts/render_cross_layer_reconciliation_sql.py`、`tests/reconciliation/` | `VERIFIED_EXECUTED` | 通用左右值 Contract 已落地；当前 10 项 × 90 日共 900 行，`FAIL=0` |
+| DolphinScheduler M6 DAG | `scheduler/dolphinscheduler/workflow_contract.json`、`scheduler/dolphinscheduler/backfill_workflow_contract.json`、`scheduler/dolphinscheduler/render_workflow_payload.py`、`scheduler/dolphinscheduler/run_model_stage.py` | 完整 DAG 与 Aggregate Backfill 均已发布 | Aggregate Backfill Instance `17` 的 Model Ready、DWS/ADS、Quality 已通过；Doris 在 `frame.count()` 连续 EOF，Reconciliation 未运行；本地 Scheduler Targeted Tests 15/15 |
 
 ## 正式 Source Data Build 文件边界
 

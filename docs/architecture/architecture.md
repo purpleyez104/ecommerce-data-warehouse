@@ -1,7 +1,7 @@
 # 架构说明
 
 版本：`0.3-draft`
-状态：离线 100 单与实时 R1～R3 Pilot 已完成限定验收并转为 History，当前共同进入 Shared V2 Source Data Build；Milestone 1、8、9 实施中，M1 剩余门禁为 DolphinScheduler 3.4.2
+状态：离线 100 单与实时 R1～R3 Pilot 已完成限定验收并转为 History；Milestone 1 已完成，M6 Doris Serving 已验证，Aggregate Backfill 已验证至 Quality Gate，Doris 调度 EOF 与 M8/M9 实时链路仍在实施
 
 总体技术路线见[最终工程架构 V1.0](final-architecture.md)，节点和 Java 角色见[部署拓扑](../deployment-topology.md)。本文件保留阶段与技术验收边界；业务源、实时设计和完整交付顺序分别见[业务源设计](../design/business-source-design.md)、[实时链路规范](../design/realtime-pipeline-design.md)与[Project 1 完整交付整改方案](../design/project1-completion-remediation-plan.md)。
 
@@ -69,10 +69,10 @@ M1 组件验收采用“五个独立入口 + 一个共享 Evidence Library”的
 | Spark 3.5.9 | Client | YARN Container | YARN Container | verified |
 | DataX 202309 运行包 | - | 运行节点 | 运行节点 | verified；当前运行路径为 `/data/module/datax-current` |
 | Doris 4.0.8 | FE，HTTP `18030` | BE 1 | BE 2 | verified |
-| DolphinScheduler 3.4.2 | ZooKeeper、Master、API、Alert | Worker | Worker | candidate |
+| DolphinScheduler 3.4.2 | MySQL JDBC Registry、Master、API、Alert | Worker | Worker | verified；正式 M6 DAG 自动重试与失败阻断已通过，Aggregate Backfill 已通过 Model Ready、DWS/ADS、Quality；Doris EOF、调度后对账和质量失败注入仍待 Stage Gate |
 | Flink 1.20.5 | Client | YARN Container | YARN Container | verified；Application Mode 与 YARN Session 的适用边界见 `DR-026` |
 
-单节点 ZooKeeper 只服务 DolphinScheduler；Kafka 坚持 KRaft。组件的精确证据状态见 [兼容性矩阵](../compatibility-matrix.md)。
+DolphinScheduler 按 `DR-049` 复用 MySQL JDBC Registry，项目不再维护 ZooKeeper；Kafka 坚持 KRaft。组件的精确证据状态见 [兼容性矩阵](../compatibility-matrix.md)。
 
 2026-09-13 的盘点曾发现 worker Hive 软链接漂移，后续验收已锁定 Hive 3.1.3，并确认其在当前 JDK 17 环境下实际运行。Hadoop/YARN 守护进程继续使用独立 Java 11，不因 Hive/Flink 客户端验收切换。
 

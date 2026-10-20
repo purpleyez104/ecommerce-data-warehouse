@@ -107,7 +107,7 @@ Hadoop 的版本、进程和节点拓扑来自确认事实；仓库要求的 HDF
 
 NameNode 已存在。任何 M1 脚本都不得执行 `hdfs namenode -format` 或删除 `/data/hadoop/dfs/name`。
 
-## 7. Hadoop 验证结论与当前门禁
+## 7. Hadoop 验证结论与当时门禁
 
 2026-09-05 已完成以下真实 ECS 验证：
 
@@ -160,7 +160,7 @@ NameNode 已存在。任何 M1 脚本都不得执行 `hdfs namenode -format` 或
 
 已验证的临时技术链路包括 `MySQL→DataX→HDFS→Hive→Spark`、`MySQL Binlog→Flink CDC→Kafka→Flink→Kafka` 和 `Kafka→Flink→Checkpoint/Recovery→Doris Connector→Doris`。这些结果验证组件组合兼容性，不创建正式业务 Topic、Schema 或实时表模型，也不替代 Milestone 3 的 ODS 业务验收、Milestone 8 的实时设计评审或 Milestone 9 的端到端 Exactly-Once 验收。Flink 客户端可使用 Java 17；当前 YARN Container 和 Flink Doris User Jar 以 Java 11 兼容边界运行。
 
-Milestone 1 仍为 `in progress`，当前唯一剩余组件门禁为 DolphinScheduler 3.4.2 及其单节点 ZooKeeper。全部 M1 组件通过前仍不得创建 `infra/versions.env`。
+根据 `DR-049`，DolphinScheduler 3.4.2 使用 MySQL JDBC Registry，不再引入 ZooKeeper。Master/API/Alert、双 Worker、成功/失败任务和受控重启后复跑已通过，Milestone 1 组件门禁已经闭合；`infra/versions.env` 仍须在版本清单完成去敏复核后单独生成。
 
 ## 10. 已知未知项
 

@@ -6,12 +6,12 @@
 
 | 项目 | 当前值 |
 | --- | --- |
-| 当前阶段 | 离线与实时 Pilot：`completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环与 M5 正式指标质量：`VERIFIED`。Milestone 0、3、4、5：`completed`；Milestone 1、2、8、9：`in progress`；Milestone 6～7：`pending` |
+| 当前阶段 | 离线与实时 Pilot：`completed / HISTORY`；Shared Source Data Build、批量 ODS、M4/M5 离线建模质量与 M6 Doris Serving：`VERIFIED`。Milestone 0、1、3、4、5：`completed`；Milestone 2、6、8、9：`in progress`；Milestone 7：`pending` |
 | 规格版本 | `0.5-draft` |
-| 实现状态 | M1 Step 2～12 已完成限定范围 Runtime 验收，剩余门禁为 DolphinScheduler 3.4.2。Seed `20260105` 的隔离 ODS 已完成 Day 60～90、29/29 Checkpoint、跨日中断恢复和 1,498/1,498 最终 Gate；同一时间轴的 Behavior Bundle 已发布为 3,000,000 行、90 分区的 `ods_behavior_event`，最终 95/95 项 Gate 通过；Seed `20260928` 的正式 `ecommerce_oltp` 已完成 1,328,502 行终态 Snapshot → `ecommerce_ods` 21 表 Bootstrap，独立 Gate 为 1,476/1,476。Formal CDC、Kafka Raw Layer 与 Domain Flink Applications 仍为 `not_run` 或未完成 |
-| 当前允许活动 | M5 六域 6 DWS + 1 ADS、36 项 Metric Registry、40 条持久化质量规则和 10 项逐日跨层对账已完成，Stage Gate 已通过。离线下一入口为 Doris Serving；实时可进入 Formal CDC Contract 与初始化设计 |
+| 实现状态 | M1 已完成，DolphinScheduler 3.4.2 + MySQL JDBC Registry 已通过成功/失败任务与受控重启复跑。Seed `20260105` 的隔离 ODS 已完成 Day 60～90、29/29 Checkpoint、跨日中断恢复和 1,498/1,498 最终 Gate；Behavior ODS 为 3,000,000 行、90 分区、95/95 Gate；M6 Doris Serving 已完成 90 日首次/幂等装载及 Hive/Doris 22 字段逐行对账。Formal CDC、Kafka Raw Layer 与 Domain Flink Applications 仍为 `not_run` 或未完成 |
+| 当前允许活动 | M6 Aggregate Backfill 已证明 Model Ready、DWS/ADS 与 40-rule Quality Gate 可在不重跑 DataX/ODS/DIM/DWD 的情况下成功；Doris Load 连续两次在 `frame.count()` 遇到 `java.io.EOFException`，按规则暂停重复尝试。下一入口是基于 YARN/Block/序列化新证据诊断该 EOF，再从失败 Task 恢复并完成对账。实时可进入 Formal CDC Contract 与初始化设计 |
 | 运行验证 | 除三条临时技术验收链路外，`hist-v1-001` 已在历史限定范围证明 100 单、69 `PAID`、31 `CANCELED`、88 个 ODS 业务日期分区及三项金额基线；正式 M3 已通过 Snapshot 与 Day 60～90 ODS Stage Gate。实时 R1～R3 在历史限定范围证明 21 表 1,178 条 Snapshot、Binlog 增量、CDC/Order DWD 从 Checkpoint 恢复、订单 `CREATED → CANCELED` Upsert，以及 OrderItem DWD 320 行 Initial Load 与一次同键增量更新；当前实时在线状态仍为 `UNKNOWN`，上述 Pilot 结果不等于 M9 完整业务链路、全字段/乱序、恢复一致性或端到端 Exactly-Once 已完成 |
-| 精确组件版本 | Hadoop 3.4.1、MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6.0、Doris 4.0.8 和 Flink Doris Connector 26.1.1 已在目标 ECS 验证；DolphinScheduler 3.4.2 待验证 |
+| 精确组件版本 | Hadoop 3.4.1、MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6.0、Doris 4.0.8、Flink Doris Connector 26.1.1 和 DolphinScheduler 3.4.2 + MySQL JDBC Registry 已在目标 ECS 验证 |
 | 运行平台 | 阿里云 ECS（三节点） |
 | 实时数仓 | M8/M9 为 `in progress`；R1～R3 已完成 Pilot / Acceptance 使命并转为 History，`OrderDwdJob` / `OrderItemDwdJob` 保留为 Verified Prototype 与 Framework Reference。`ecommerce_oltp_m2_acceptance`、`ods_cdc_m2_clean_v1`、`all-to-zero`、Pilot Checkpoint 和 `kafka_offset` Sequence 不进入正式链路。Shared Source Gate 已通过，下一步为 Formal CDC Contract、CDC Gate 与按业务域组织的 DWD/DIM |
 
@@ -101,7 +101,7 @@ MySQL Binlog
 | `mock/generator/business_generator/`、`mock/generator/behavior_generator/` | Business CSV 与 Behavior JSONL Generator | Milestone 2 | Business 21 表 1,328,502 行已在目标服务器正式生成并装载；Behavior 3,000,000 事件已在本机正式规模生成。Entity Manifest SHA-256 绑定、全量实体引用、Session 与事件唯一性检查通过 |
 | `mysql/` | 正式源库 DDL、装载、Replay 计划、执行和验收入口 | Milestone 2-3 | MySQL 8.0.46 已部署 21 表并通过历史 Shared Source Gate；Seed `20260105` 的 r6 隔离 Source 已完成 Day 60～90、30 条 Ledger、30/30 Acceptance、最终独立 Gate与权限回收 |
 | `archive/pilot-v1/` | 旧 Pilot Generator、离线参考资产与实时 R1 工程/验收资产 | Milestone 2-3、8-9 历史 | `PILOT / ACCEPTANCE / HISTORY`；不作为 V2 正式入口，归档移动不提升 Runtime 状态 |
-| `tests/` | Generator / DataX / Model / Governance / MySQL Targeted Test 与后续阶段测试入口 | Milestone 2-10 | 2026-10-19 本地 106 个 Unit Tests 通过，其中 Business Generator 6 个、Behavior 6 个、DataX/ODS 32 个、Model 19 个、Governance 6 个、MySQL 37 个；Pilot 对账脚本已移入 `archive/pilot-v1/` |
+| `tests/` | Generator / DataX / Model / Governance / MySQL Targeted Test 与后续阶段测试入口 | Milestone 2-10 | 2026-10-20 本地 136 个 Unit Tests 通过：Business 6、Behavior 6、DataX/ODS 33、Model 19、Governance 6、Quality 4、Reconciliation 4、Doris 6、Scheduler 15、MySQL 37；Pilot 对账脚本已移入 `archive/pilot-v1/` |
 | `archive/legacy-m2-19-table/` | 旧 19 表 Seed、Generator、脚本、测试和固定结果 | 历史归档 | 不作为当前 V2 实现或验收依据 |
 | `datax/config/`、`datax/scripts/`、`datax/templates/`、`datax/jobs/` | MySQL 到 Hive ODS 的 Contract、Job 生成、可审计导出和批次编排入口 | Milestone 3 | 正式 21 表 Snapshot Bootstrap、Day 60～90 隔离增量、跨日恢复及 1,498 项最终 Gate 已验证 |
 | `hive/ods/` | ODS 外部表、Pilot History 迁移、分区注册、审计字段和发布规则 | Milestone 3-4 | MySQL/DataX 21 表已验证；独立 Behavior Source 使用第 22 张 `ods_behavior_event`，3,000,000 行、90 个业务日分区与 95/95 项 Gate 已验证 |
@@ -146,7 +146,7 @@ V2 指标按六个域组织：交易与资金 `TR-01`～`TR-14`、流量与转�
 | 3 | DataX 直写 Hive ODS | 全量/增量抽取、ODS ORC 分区、注册与对账 | completed（正式 Snapshot 与隔离 Day 60～90、跨日恢复、1,498 项最终 Gate 已通过） |
 | 4 | 离线数仓 MVP | DIM/DWD、DWS、ADS 最小垂直链路 | completed（59/59 Model Gate、18/18 Aggregate Gate 与幂等重跑已通过） |
 | 5 | 正式指标与数据质量 | V2 正式指标、质量结果、幂等和回补 | completed（6 DWS + 1 ADS、36 项 Metric Registry、40 条质量规则、10 项跨层对账及 Stage Gate 已通过） |
-| 6 | Doris 服务与调度 | 离线服务表、T+1 DAG、失败阻断和对账 | pending |
+| 6 | Doris 服务与调度 | 离线服务表、T+1 DAG、失败阻断和对账 | in progress（自动重试和失败阻断已通过；正式成功终态与调度后对账待验证） |
 | 7 | Spark 性能实验 | 倾斜、Join、分区裁剪实验 | pending |
 | 8 | 实时数仓设计评审 | Topic、窗口、状态、维度、Doris 模型 | in progress |
 | 9 | 实时链路与可靠性 | CDC、Kafka、Flink、恢复、五项对账 | in progress（Order / OrderItem DWD 已完成限定范围 Initial Load 与正常顺序 Upsert；CDC / Order DWD 指定恢复点已验收，可靠性与完整对账未闭合） |
@@ -226,6 +226,6 @@ V2 指标按六个域组织：交易与资金 `TR-01`～`TR-14`、流量与转�
 8. Agent 每次最终答复都总结核心操作和核心决策，并询问用户是否将其写入 `CHANGELOG.md`、`docs/decision-register.md` 或两者；未获确认时不自动落盘，当前请求已明确授权的记录除外。
 9. Trellis 只管理 Task 状态、计划和执行证据；项目事实优先级为 `AGENTS.md`、项目 docs、Trellis Task。当前使用 Data Engineering spec、Codex inline，自动 Commit 与 Hook 注册均关闭。
 
-Milestone 0 已于 2026-09-04 通过用户评审。根据 `DR-026`，M1 Step 2～12 已完成兼容性与功能验收，当前只剩 DolphinScheduler 3.4.2。M2 以当前业务、指标和 21 表源模型为准；根据 `DR-031`、`DR-032`，离线 100 单与实时 R1～R3 Pilot 均已转为 History。正式 Source Replay、隔离 ODS Day 60～90 Stage Gate、59/59 Model Gate、18/18 Aggregate Gate 与聚合幂等重跑均已完成，M3、M4 状态为 `completed`。离线下一入口为 M5 正式指标与数据质量；Formal CDC Contract/初始化保持为独立工作流，M8、M9 仍未完成。
+Milestone 0、1、3、4、5 已完成。根据 `DR-049`，DolphinScheduler 3.4.2 使用 MySQL JDBC Registry，并已通过成功/失败任务和受控重启复跑。M6 的 Doris 90 日离线 Serving 独立任务已通过；正式 DAG 已验证自动重试和失败阻断，Aggregate Backfill 已验证至 Quality Gate。当前 Doris 调度任务因连续 `EOFException` 暂停，成功终态、调度后对账和质量失败注入仍待完成。Formal CDC Contract/初始化保持为独立工作流，M8、M9 仍未完成。
 
 根据 `DR-029`，正式实时作业选用 Java DataStream Jar + YARN Application Mode；该选型不解除 Milestone 8 设计评审和 Milestone 9 运行验收门禁。BI/Dashboard/Agent 仅为后续数据应用规划，尚未实施；Doris 4.0.8 受控重启恢复已通过，但正式业务服务表仍待对应阶段验收。

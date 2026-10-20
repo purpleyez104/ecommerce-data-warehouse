@@ -7,9 +7,9 @@
 - `hosts.example`：三节点私网主机名基线。
 - `ports.md`：已确认和已决策的端口边界。
 
-2026-09-14 已按 `DR-026` 接受 Step 2～12 Runtime 验收基线：Hadoop、MySQL、Hive、Spark、DataX、Kafka、Flink、Flink CDC、Flink Kafka source/sink、Doris 和 Flink Doris Connector 已证明支持后续工作；当前 M1 仅剩 DolphinScheduler 3.4.2。结论已同步到 `docs/cluster-baseline.md` 和 `docs/compatibility-matrix.md`；原始输出继续保存在 Git 忽略的 `.local-notes/m1-evidence/inbox/`。
+2026-10-19 已按 `DR-049` 完成 DolphinScheduler 3.4.2 + MySQL JDBC Registry 的成功/失败任务与受控重启验收，M1 组件门禁闭合。结论已同步到 `docs/cluster-baseline.md`、`docs/compatibility-matrix.md` 和 `docs/acceptance/m1-dolphinscheduler-jdbc-acceptance.md`；原始输出继续保存在 Git 忽略的本地或 ECS 日志目录。
 
-后续只有在确有维护需求且内容已去敏时，才加入组件配置模板。DolphinScheduler 通过、Milestone 1 全部组件真实验证完成前，不创建 `versions.env`。
+后续只有在确有维护需求且内容已去敏时，才加入组件配置模板。`versions.env` 仍须在最终版本清单完成去敏复核后单独生成。
 
 禁止提交：
 

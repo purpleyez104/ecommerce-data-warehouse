@@ -57,6 +57,7 @@
 | `DR-038` | DataX 字段权威与批次隔离发布 Contract | `accepted` | 2026-10-13 | DataX 多表配置、HDFS staging、Hive ODS 分区、字段 Contract、审计与重跑 |
 | `DR-039` | 正式 60/30 Replay 固定 Seed 与历史 Source Gate 输入隔离 | `superseded` | 2026-10-15 | Business Replay、固定输入、Manifest、Bootstrap Source、ODS/CDC 时间推进式验收 |
 | `DR-040` | Replay 时间 FK 修复与正式 Dataset r2 版本化 | `accepted` | 2026-10-15 | Business Generator、Replay Bootstrap、Manifest Hash、MySQL Dry-run、数据库授权入口 |
+| `DR-049` | DolphinScheduler 使用 MySQL JDBC Registry | `accepted` | 2026-10-19 | M1/M6 调度架构、MySQL、DolphinScheduler、端口与运维边界 |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -238,6 +239,8 @@ M1 从“准备开始”变为实际实施，并从 Hadoop 补证门禁继续。
 若事实来源认定需要调整，新增后续决策将本记录标记为 `superseded`，同步回滚仓库中的事实提取、状态和入口。不得因文档回滚而停止 ECS 服务、格式化 NameNode、删除 HDFS 数据、修改云盘或覆盖现有集群配置。
 
 ## DR-006：Milestone 1 扩展组件顺序、Doris 端口与调度注册中心
+
+> 当前适用边界：组件顺序、Doris `18030` 和 Kafka KRaft 约束继续有效；DolphinScheduler 单节点 ZooKeeper 方案已由 `DR-049` 的 MySQL JDBC Registry 替代。
 
 - 状态：`accepted`
 - 决策日期：2026-09-04
@@ -1081,6 +1084,8 @@ M1 采用“五个独立组件入口 + 一个最小共享 Evidence Library”的
 若冻结 Contract 被证明不可用，停止新的组件验收运行并保留已有 Evidence；经用户确认后新增替代决策，恢复到最后一个通过 Contract Test 的公共库版本，同步更新全部组件调用方和运行说明，再重新执行 M1-CAS-07 与受影响组件验收。不得通过复制五份安全逻辑、降低 Guard、删除失败证据或把 `PARTIAL` 改写为 `PASS` 规避回滚。
 
 ## DR-026：M1 Step 2～12 Runtime 验收基线与执行模式边界
+
+> 当前适用边界：Step 2～12 Runtime 与 Flink 执行模式边界继续有效；DolphinScheduler 剩余门禁和 ZooKeeper 依赖已由 `DR-049` 及其 Runtime 验收更新。
 
 - 状态：`accepted`
 - 决策日期：2026-09-14
@@ -2017,6 +2022,81 @@ V2 已按交易与资金、流量与转化、商品、用户、退款与售后�
 ### 影响与回滚
 
 该决策只冻结标识与版本规则，不直接创建指标结果或提升 Runtime 状态。若回滚，需要重新设计并迁移所有已发布 Registry、质量和对账引用，因此在首批 Registry 发布后属于高返工变更；当前尚未发布 Registry 时可通过回退文档恢复候选状态。
+
+## DR-049：DolphinScheduler 使用 MySQL JDBC Registry
+
+- 状态：`accepted`
+- 决策日期：2026-10-19
+- 决策人：用户
+- 影响范围：M1/M6 调度架构、MySQL、DolphinScheduler、端口与运维边界
+- 替代决策：替代 `DR-006`、`DR-026` 中 DolphinScheduler 使用单节点 ZooKeeper 3.8.4 的部分；其余组件顺序、Doris 端口和 Runtime 证据边界继续有效
+
+### 背景
+
+目标集群已经具备 DolphinScheduler 3.4.2、MySQL `dolphinscheduler` Metadata Schema 和 JDBC Registry Plugin，三节点配置也统一为 `REGISTRY_TYPE=jdbc`。集群没有 ZooKeeper 3.8.4 服务端资产。为开发型 Portfolio 集群额外引入单节点 ZooKeeper会增加安装、端口、数据目录、恢复和排障成本，却不改善 M6 的 DAG、补数、重试、质量阻断和对账能力。
+
+### 决策
+
+1. DolphinScheduler 3.4.2 使用现有 MySQL 8.0.46 作为 Metadata Store 和 JDBC Registry，不再安装或维护 ZooKeeper。
+2. Kafka 3.9.1 继续使用 KRaft，与 DolphinScheduler Registry 相互独立。
+3. `hadoop201` 运行 Master、API、Alert；`hadoop202`、`hadoop203` 各运行一个 Worker。
+4. M1 验收必须验证 API 健康、JDBC Registry 注册、成功任务、预期失败任务及全角色受控重启后的恢复；进程存在或 Schema 存在不能单独提升为 `verified`。
+5. M6 仍只编排已经独立运行通过的任务；本决策不等于正式 T+1 DAG、补数、重试或质量阻断已经完成。
+
+### 理由
+
+MySQL 是 DolphinScheduler 已有必需依赖，复用 JDBC Registry 能减少一个仅服务调度器的单点组件，符合当前开发集群的 ROI 和维护能力。代价是 Registry 与 Metadata 同时依赖 MySQL；MySQL 不可用时调度控制面也不可用。该限制在本项目中明确接受，但不得描述为生产级高可用。
+
+### 验证方法
+
+在目标三节点集群核对 3.4.2 版本、三节点环境配置 Hash、JDBC Registry Plugin、MySQL Schema 和四张 Registry 表；启动 Master/API/Alert 与两个 Worker，检查 API Health、五个客户端心跳和注册数据。固定验收项目运行一个退出 `0` 的 Shell Workflow 和一个退出 `17` 的预期失败 Workflow，核对最终状态分别为 `SUCCESS` 与 `FAILURE`；随后受控重启全部角色并复用相同 Project/Workflow Code 再次核对最终状态。
+
+### 影响与风险
+
+不再需要 ZooKeeper `2181`、安装包、数据目录或恢复流程。MySQL 成为调度 Metadata 与 Registry 的共同依赖；MySQL 故障会同时影响服务发现和任务控制。默认管理员密码不得进入仓库，正式运行应使用环境变量或受控 Secret，并在单独授权后轮换初始化密码。
+
+### 回滚方式
+
+如果 JDBC Registry 在固定任务、并发、重启或故障恢复验收中出现无法接受的问题，先保存 Registry 表、服务日志和任务终态证据，再新增决策评估 ZooKeeper 或其他 Registry；不得静默切换，也不得让 Kafka 退出 KRaft。
+
+## DR-050：历史指标回补从最低失效层恢复
+
+- 状态：`accepted`
+- 决策日期：`2026-10-20`
+- 决策人：用户确认
+- 影响范围：M6 DolphinScheduler DAG、Type 1 DIM、DWS/ADS、Quality、Doris、Reconciliation
+- 替代决策：替代“所有历史日期都从 DataX/ODS/DIM/DWD 完整重跑”的补数方式
+
+### 背景
+
+Workflow Instance `14` 在 ODS 已成功且 DWD 已覆盖 90 天的情况下，以 `2026-02-27` 再次执行 DIM/DWD，向四张 Type 1 当前态维度追加了历史日全量快照，触发全局业务键唯一性 Gate。把维度粒度改成“业务键 + snapshot_date”虽能绕过该 Gate，但会扩大存储、增加 Join 条件，并背离当前态维度语义。
+
+### 决策
+
+1. `dim_user`、`dim_visitor`、`dim_category`、`dim_coupon_template` 保持每个业务键一行的 Type 1 语义，不保存每日全量快照。
+2. 补数从最低失效层恢复：ODS、DIM、DWD 已通过 Gate 时，使用独立 Aggregate Backfill DAG，只执行 Model Ready、DWS/ADS、Quality、Doris 和 Reconciliation。
+3. 完整 T+1 DAG 继续服务需要重新抽取或重建下层数据的运行；不得以固定首层重跑替代分层恢复判断。
+4. Instance `14` 不从 `dim_dwd_build` 恢复。四个误建 `2026-02-27` 分区在可恢复备份后精确清理。
+5. Aggregate Backfill 分离 `business_date` 与 `model_as_of_date`：前者标识回补目标日，后者固定 Cohort 模型观察窗口终点，禁止把不同观察窗口的动态分区混入同一张当前结果表。
+
+### 理由
+
+该方案保留现有模型语义与唯一性 Gate，以一条五 Task Workflow 获得清晰的调度失败位置和 Portfolio 展示价值；相比每日快照或完整重跑，减少无效计算、存储、故障面和维护成本，同时仍可通过 Model Ready Gate 防止在下层数据不完整时误跑聚合。
+
+### 验证方法
+
+1. 校验 Aggregate Backfill Payload 只包含五个批准 Task，且不存在 DataX、ODS 和 DIM/DWD 命令。
+2. 发布前执行 Scheduler Targeted Tests；目标 Runtime 先通过 Model Ready Gate，再核对 DWS/ADS、质量结果、Doris 写入和双向对账终态。
+3. 清理后核对四张 DIM 仅保留正式当前态分区、业务键唯一，并确认 Behavior DWD 行数、唯一键和日期范围未变化。
+4. Instance `17` 已证明 Model Ready、DWS/ADS 和 40-rule Quality Gate 成功；Doris `frame.count()` 连续 EOF，故本决策的完整 Runtime 仍未闭合，最终 Reconciliation 为 `not_run`。
+
+### 影响与风险
+
+历史回补必须先判断最低失效层，不能无条件复用完整 DAG。Model Ready Gate 是全局现有模型检查，不证明指定业务日的所有上游变更都已正确发布；若 ODS/DWD 实际缺失，必须返回完整 DAG 的相应入口，不得强行执行 Aggregate Backfill。当前 Doris Task 的 EOF 已连续复现，未获得新证据前不得继续相同重试。
+
+### 回滚方式
+
+停止或下线 Aggregate Backfill Workflow 即可回滚调度入口，不影响完整 T+1 DAG。四个已清理分区保存在 `/warehouse/ecommerce/model/.rollback/m6-ds-backfill-20260227-r2/`；只有确认需要恢复错误现场时才重新注册，正常业务链路不得回灌这些重复快照。
 
 ## 记录模板
 
