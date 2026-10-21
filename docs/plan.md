@@ -1,8 +1,8 @@
 # 电商离实时一体化数据仓库阶段开发计划
 
 版本：`0.6-draft`
-状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环、M5 正式指标质量及 M6 Doris Serving/调度 `VERIFIED`。Milestone 0、1、3、4、5、6 `completed`；Milestone 2、8、9 `in progress`；Milestone 7 `pending`
-更新时间：2026-10-19
+状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4 离线闭环、M5 正式指标质量、M6 Doris Serving/调度及 M7 Spark 性能实验 `VERIFIED`。Milestone 0、1、3、4、5、6、7 `completed`；Milestone 2、8、9 `in progress`
+更新时间：2026-10-21
 
 ## 1. 使用方式
 
@@ -47,7 +47,7 @@
 | Doris 服务层 | `doris/ddl/`、`doris/sql/`；Pilot 实时 DDL 位于 `archive/pilot-v1/realtime/doris/` | 6、9 |
 | 调度 | `scheduler/dolphinscheduler/` | 6 |
 | Spark 性能实验 | `spark/sql/`、`spark/scripts/`、计划中的 `tests/` 和实验文档 | 7 |
-| 实时设计与配置 | `kafka/`（当前仅占位）、`flink/cdc/`、`flink/sql/`、`docs/` | 8 |
+| 实时设计与配置 | `kafka/`（Foundation Contract 已实现）、`flink/cdc/`、`flink/sql/`、`docs/` | 8 |
 | 实时作业 | `flink/jobs/`、`flink/scripts/`；Pilot 工程位于 `archive/pilot-v1/realtime/flink/` | 9 |
 | Project 2 契约 | `docs/`、质量/对账结果、调度接口 | 10 |
 
@@ -545,7 +545,7 @@ Type 1 当前态维度保持“每个业务键一行”，不通过追加每日�
 
 ## 10. Milestone 7：Spark 性能实验
 
-**状态：`pending`**
+**状态：`completed / VERIFIED`**
 
 ### 目标
 
@@ -584,11 +584,18 @@ docs/benchmark/
 - 原始日志或截图能够支持结论。
 - 只描述真实测得的差异，不把建议写成已成功优化。
 
+### 验收结果
+
+- 隔离数据集固定为 900,000 订单、2,565,000 订单明细、9,000,000 行为事件和 4,000 商品；只读复用正式 DIM/DWD。
+- 六个 Smoke 与 18 个 Measured Applications 全部成功，三组 Baseline / Optimized 结果指纹一致，Physical Plan 符合预期策略。
+- 分区裁剪验证为有效；Broadcast Join 降低 Shuffle 与 Executor 资源但未降低端到端中位耗时；两阶段倾斜聚合在当前 `COUNT/SUM` 场景中更差，作为适用边界保留。
+- 完整证据见 [`m7-spark-performance-acceptance.md`](acceptance/m7-spark-performance-acceptance.md)。
+
 ## 11. Milestone 8：实时数仓设计评审
 
 **状态：`in progress`**
 
-当前事实：本 Milestone 为 `in progress`。R1～R3 已确认 Pilot Topic、Order / OrderItem DWD、Checkpoint 恢复和 Doris Upsert 的历史事实；这些资产现为 History / Framework Reference。正式 V2 的 Topic Namespace、Partition/Key、`event_version`、Domain Job、Checkpoint Root、Doris 初始化和离实时阈值尚未完成评审收口。
+当前事实：本 Milestone 为 `in progress`。R1～R3 已确认 Pilot Topic、Order / OrderItem DWD、Checkpoint 恢复和 Doris Upsert 的历史事实；这些资产现为 History / Framework Reference。Formal Realtime Foundation 已冻结 Topic Namespace、Partition/Key、Envelope、`event_version` 与 Checkpoint/Savepoint Root，并通过静态校验；Runtime Inventory、Domain Job、Watermark/状态、Doris 初始化和离实时阈值尚未完成评审收口。
 
 ### 目标
 
@@ -603,7 +610,7 @@ docs/benchmark/
 
 ```text
 docs/
-kafka/     # 当前仅占位，评审通过后加入正式配置
+kafka/     # Foundation Contract 已实现；Topic Runtime 尚未创建
 flink/cdc/
 flink/sql/
 flink/jobs/
@@ -615,9 +622,8 @@ tests/
 
 ### 必须决策
 
-- 已确定正式业务作业形态为 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅用于技术验证。其余如下项仍须评审。
-- Topic 按表、按业务域还是统一设计。
-- Partition、副本、保留期、压缩和 Schema。
+- 已确定正式业务作业形态为 Java DataStream Jar + YARN Application Mode；SQL Client + YARN Session 仅用于技术验证。
+- Foundation 已确定 Raw CDC 按 21 表、Standard Topic 按 7 域、Behavior 独立；初始配置为 3 Partition / 3 Replica、7 天保留、producer compression 和 backward-compatible UTF-8 JSON Envelope。Runtime Inventory 与 Topic Gate 仍须执行。
 - CDC、清洗和聚合的作业拆分。
 - 事件时间、Watermark、窗口和允许迟到。
 - 去重键、状态 TTL、撤回和补偿语义。
@@ -777,7 +783,7 @@ scheduler/
 2. M5 Stage Gate 已通过；M6 Doris 单表 Serving、90 日首次/幂等装载及 Hive/Doris 22 字段逐行对账已完成。
 3. Behavior 60/30 本地输入已冻结；实时并轨先审计现有 Topic/Checkpoint，冻结 Formal CDC Topic Namespace、Partition/Key/Schema、`event_version`、切换点和正式 Checkpoint Root，不得直接复用 Pilot Topic/Offset。
 4. 在另行授权的隔离环境执行 21 表 CDC Initial Snapshot 与 CDC Gate，再用 30 个 daily package 执行 Incremental Simulation、Recovery Gate 和 Offline ↔ Realtime Reconciliation。
-5. M1 DolphinScheduler 3.4.2 + MySQL JDBC Registry 门禁已通过；M6 Aggregate Backfill Instance `17` 已完成五 Task 成功终态与调度后双向对账，质量失败验证 Instance `18` 已确认 Quality Task 非零失败、Doris/Reconciliation 未运行且服务表基线不变。M6 Stage Gate 已完成，下一入口为 M7 Spark 性能实验。
+5. M7 Spark 性能实验已完成固定隔离数据集、六个 Smoke、18 个 Measured Applications、Physical Plan 与 Event Log 验收；下一入口回到 M8 Formal Realtime Runtime Inventory 和设计评审收口。
 
 当前明确停止：继续扩展旧 100 单 Generator、为新 Generator 建设独立 Smoke 数据档位、执行 `ods_order_item_create.sql`、继续 `R4 Payment DWD` Pilot、扩展 `ods_cdc_m2_clean_v1`、一表一长期 Flink Application、把 `all-to-zero` / `kafka_offset` Sequence / Pilot Checkpoint 用于正式 V2、创建 `_v2` database、删除 acceptance 环境或混用 Pilot/V2 数据。正式 Topic/Partition/`event_version` 和初始化重置方案仍为 `DECISION_REQUIRED`；本计划不授权数据库清理。`BI / Agent` 是否进入当前 V2 正式交付仍待与 `DR-029` 的后续规划边界确认，不阻塞 Source Data Build。
 

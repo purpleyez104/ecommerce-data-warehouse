@@ -18,7 +18,7 @@
 | 退款（3） | `biz_refund_request`、`biz_refund_transaction`、`biz_refund_event` | 单明细申请、资金重试及额度守恒 |
 | 优惠券（3） | `biz_coupon_template`、`biz_coupon`、`biz_coupon_event` | 模板、实例、锁定/使用/释放历史 |
 
-行为事件不计入这 21 张表。其稳定事件键、业务时间、采集时间、访客/用户、会话及适用的 SKU/页面/数量字段须在正式 Kafka Schema 评审时冻结；三组正式 Topic 名称、分区和保留期目前未确认。
+行为事件不计入这 21 张表。Behavior Generator 已冻结稳定事件键、业务时间、采集时间、访客/用户、会话及适用的 SKU/页面/数量字段；Formal Realtime Foundation 进一步冻结 Behavior Topic 为 `ecommerce.realtime.v1.behavior.raw`、Key 为 `session_id`，并采用与 Raw CDC/Standard Topic 一致的 3 Partition、3 Replica和 7 天保留基础配置。Topic 尚未创建，Runtime 状态仍为 `not_run`。
 
 ## 一期不可变规则
 

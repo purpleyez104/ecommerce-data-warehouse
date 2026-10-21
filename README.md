@@ -6,14 +6,14 @@
 
 | 项目 | 当前值 |
 | --- | --- |
-| 当前阶段 | 离线与实时 Pilot：`completed / HISTORY`；Shared Source Data Build、批量 ODS、M4/M5 离线建模质量与 M6 Doris Serving/调度：`VERIFIED`。Milestone 0、1、3、4、5、6：`completed`；Milestone 2、8、9：`in progress`；Milestone 7：`pending` |
+| 当前阶段 | 离线与实时 Pilot：`completed / HISTORY`；Shared Source Data Build、批量 ODS、M4/M5 离线建模质量、M6 Doris Serving/调度与 M7 Spark 性能实验：`VERIFIED`。Milestone 0、1、3、4、5、6、7：`completed`；Milestone 2、8、9：`in progress` |
 | 规格版本 | `0.5-draft` |
 | 实现状态 | M1 已完成，DolphinScheduler 3.4.2 + MySQL JDBC Registry 已通过成功/失败任务与受控重启复跑。Seed `20260105` 的隔离 ODS 已完成 Day 60～90、29/29 Checkpoint、跨日中断恢复和 1,498/1,498 最终 Gate；Behavior ODS 为 3,000,000 行、90 分区、95/95 Gate；M6 Doris Serving 已完成 90 日首次/幂等装载及 Hive/Doris 22 字段逐行对账。Formal CDC、Kafka Raw Layer 与 Domain Flink Applications 仍为 `not_run` 或未完成 |
-| 当前允许活动 | M6 Stage Gate 已完成：Aggregate Backfill Instance `17` 五 Task 成功；质量失败验证 Instance `18` 按预期失败且未运行 Doris/Reconciliation，Doris 90 日基线未变化。下一入口是 M7 Spark 性能实验；实时仍只进入 Formal CDC Contract 与初始化设计，不并行执行 Runtime |
+| 当前允许活动 | M7 Spark 性能实验 Stage Gate 已完成。Realtime Foundation Contract 已完成静态闭环；下一入口是外部只读 Topic/Checkpoint Inventory，未授权创建 Topic、启动 CDC 或写入/清理 Doris |
 | 运行验证 | 除三条临时技术验收链路外，`hist-v1-001` 已在历史限定范围证明 100 单、69 `PAID`、31 `CANCELED`、88 个 ODS 业务日期分区及三项金额基线；正式 M3 已通过 Snapshot 与 Day 60～90 ODS Stage Gate。实时 R1～R3 在历史限定范围证明 21 表 1,178 条 Snapshot、Binlog 增量、CDC/Order DWD 从 Checkpoint 恢复、订单 `CREATED → CANCELED` Upsert，以及 OrderItem DWD 320 行 Initial Load 与一次同键增量更新；当前实时在线状态仍为 `UNKNOWN`，上述 Pilot 结果不等于 M9 完整业务链路、全字段/乱序、恢复一致性或端到端 Exactly-Once 已完成 |
 | 精确组件版本 | Hadoop 3.4.1、MySQL 8.0.46、Hive 3.1.3、Spark 3.5.9、DataX 202309、Kafka 3.9.1 KRaft、Flink 1.20.5、Flink CDC 3.6.0、Doris 4.0.8、Flink Doris Connector 26.1.1 和 DolphinScheduler 3.4.2 + MySQL JDBC Registry 已在目标 ECS 验证 |
 | 运行平台 | 阿里云 ECS（三节点） |
-| 实时数仓 | M8/M9 为 `in progress`；R1～R3 已完成 Pilot / Acceptance 使命并转为 History，`OrderDwdJob` / `OrderItemDwdJob` 保留为 Verified Prototype 与 Framework Reference。`ecommerce_oltp_m2_acceptance`、`ods_cdc_m2_clean_v1`、`all-to-zero`、Pilot Checkpoint 和 `kafka_offset` Sequence 不进入正式链路。Shared Source Gate 已通过，下一步为 Formal CDC Contract、CDC Gate 与按业务域组织的 DWD/DIM |
+| 实时数仓 | M8/M9 为 `in progress`；R1～R3 已转为 History。Foundation 已冻结 `ecommerce.realtime.v1` Topic/Key/Envelope/`event_version` 与独立 State Root，并通过静态校验；Runtime Inventory、Topic 创建与 Formal CDC 仍为 `not_run`。Pilot Topic、Checkpoint 和 `kafka_offset` Sequence 不进入正式链路 |
 
 仓库中的目录和占位文件只表示模块边界，不表示组件已经安装、任务已经实现或链路已经验证。只有在记录的环境和版本中完成安装、启动、连通、执行和结果对账后，内容才能标记为 `verified`。
 
@@ -70,7 +70,7 @@ MySQL Binlog
   → Kafka 标准事件 / HDFS-Hive 归档 / Doris 实时服务表
 ```
 
-实时链路当前状态为 `in progress`，依据是用户确认链路正在建设。R1 初始 Snapshot 只证明冻结范围内的行数与订单对账，不是项目阶段或当前实施进度。正式 Behavior 60/30 本地输入已经冻结，但尚未写入 Kafka；Topic、Partition、Schema、窗口、Watermark、迟到、去重、状态 TTL、实时维度、Checkpoint 和 Doris 实时表模型仍须经过 Milestone 8 契约和 Runtime 验收。
+实时链路当前状态为 `in progress`。正式 Behavior 60/30 本地输入已经冻结，但尚未写入 Kafka；Foundation Topic、Partition、Schema、Key、`event_version` 与 State Root 已通过静态 Contract 验证，Topic Runtime、窗口、Watermark、迟到、去重、状态 TTL、实时维度和 Doris 实时表模型仍须经过 Milestone 8 后续契约与 Runtime 验收。
 
 ## 技术栈
 
@@ -108,13 +108,13 @@ MySQL Binlog
 | `hive/dwd/` | 原子事实、去重、状态和字段标准化 | Milestone 4-5 | 6 DIM + 8 DWD 当前 Runtime 有效；申请粒度 `dwd_refund` 已通过 60/60 Model Gate |
 | `hive/dws/` | 可复用主题汇总、比率分子和分母 | Milestone 4-5 | 当前已区分退款申请数、成功申请数、成功金额和件数；修正版 Runtime `VERIFIED` |
 | `hive/ads/` | V2 正式指标和面向查询的结果表 | Milestone 4-5 | 当前每日概览使用交易/行为日期并集；修正版 Runtime `VERIFIED`，稳定 Metric ID 与首版版本规则已由 M5-01 确认 |
-| `spark/sql/`、`spark/scripts/` | ODS Publish、DIM/DWD、DWS、ADS 转换、提交脚本和性能实验入口 | Milestone 3-7 | 当前退款事实与六域 Aggregate SQL 已通过 Targeted Test、真实集群 Build、41/41 Gate 和幂等重跑 |
+| `spark/sql/`、`spark/scripts/` | ODS Publish、DIM/DWD、DWS、ADS 转换、提交脚本和性能实验入口 | Milestone 3-7 | 离线分层已通过 Runtime Gate；M7 已完成 6 个 Smoke、18 个 Measured Applications 及 Event Log 指标汇总 |
 | `governance/metric_registry/` | 已发布指标、定义哈希、物理输出与验收证据绑定 | Milestone 5 | 36 个 `metric_id@1.0.0` 已发布并通过 Registry Validator；`TF-05`、`TR-13`、`TR-14` 已绑定正式输出 |
 | `quality/` | 唯一性、完整性、状态、分区、守恒检查及结果 Contract | Milestone 3-6 | 成功运行保存 40 条 Aggregate 规则且 `FAIL=0`；M6 失败验证另以独立 `run_id` 保存 40 条、`FAIL=1` |
 | `reconciliation/` | 跨层及未来离实时对账的通用结果 Contract | Milestone 5、8 | 当前 10 项 × 90 日离线跨层对账共 900 行，`FAIL=0` |
 | `doris/ddl/`、`doris/sql/` | 离线服务表与验证 SQL；实时表在 Milestone 8 后确定 | Milestone 6 | 离线 `ads_daily_business_overview` 90 日装载、幂等和逐字段对账均为 `VERIFIED`；实时表仍待 M8 |
 | `scheduler/dolphinscheduler/` | T+1 DAG、参数、重试、补数、阻断和对账 | Milestone 6 | `VERIFIED`；成功回补与显式质量失败阻断均已完成 Runtime 验证 |
-| `flink/cdc/`、`flink/sql/`、`flink/jobs/`、`flink/scripts/` | CDC、技术验证 SQL、正式 Java 作业和提交/恢复入口 | Milestone 8-9 | 当前正式实现区为 placeholder；现存 Order DWD 工程已归档，R3 最终文件仍缺失。Realtime V2 尚未开始 Formal CDC Contract 或 Domain Job 实现 |
+| `flink/cdc/`、`flink/sql/`、`flink/jobs/`、`flink/scripts/` | CDC Contract/Validator、只读 Runtime Inventory、技术验证 SQL、正式 Java 作业和提交/恢复入口 | Milestone 8-9 | Foundation Contract Validator 与只读 Inventory 已实现并通过静态测试；Domain Job 与 Runtime 尚未开始 |
 | `scripts/` | 参数化执行、健康检查和阶段验证入口 | 按阶段 | implemented；Hadoop 和 MySQL 仓库脚本已有 Runtime 结果；其他组件的当前运行事实来自用户确认的 Step 2～12 验收记录，不虚构尚未进仓的自动化脚本 |
 
 `placeholder` 表示只存在目录或说明文件；`unconfigured` 表示入口明确返回未配置状态；二者都不代表实现可用。
@@ -146,7 +146,7 @@ V2 指标按六个域组织：交易与资金 `TR-01`～`TR-14`、流量与转�
 | 4 | 离线数仓 MVP | DIM/DWD、DWS、ADS 最小垂直链路 | completed（59/59 Model Gate、18/18 Aggregate Gate 与幂等重跑已通过） |
 | 5 | 正式指标与数据质量 | V2 正式指标、质量结果、幂等和回补 | completed（6 DWS + 1 ADS、36 项 Metric Registry、40 条质量规则、10 项跨层对账及 Stage Gate 已通过） |
 | 6 | Doris 服务与调度 | 离线服务表、T+1 DAG、失败阻断和对账 | completed（成功回补、Doris Load、调度后对账、自动重试及显式质量失败阻断均已通过） |
-| 7 | Spark 性能实验 | 倾斜、Join、分区裁剪实验 | pending |
+| 7 | Spark 性能实验 | 倾斜、Join、分区裁剪实验 | completed（固定隔离数据集、Physical Plan、6 个 Smoke、18 个 Measured Applications 与适用边界已验收） |
 | 8 | 实时数仓设计评审 | Topic、窗口、状态、维度、Doris 模型 | in progress |
 | 9 | 实时链路与可靠性 | CDC、Kafka、Flink、恢复、五项对账 | in progress（Order / OrderItem DWD 已完成限定范围 Initial Load 与正常顺序 Upsert；CDC / Order DWD 指定恢复点已验收，可靠性与完整对账未闭合） |
 | 10 | Project 1 面试发布 | 可复现部署、证据、六个只读交接契约 | pending |

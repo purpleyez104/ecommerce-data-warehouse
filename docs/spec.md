@@ -1,8 +1,8 @@
 # 电商离实时一体化数据仓库项目规格
 
 版本：`0.5-draft`
-状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4/M5 离线建模质量与 M6 Doris Serving/调度 `VERIFIED`。Milestone 0、1、3、4、5、6 `completed`；Milestone 2、8、9 `in progress`；Milestone 7 `pending`
-更新时间：2026-10-18
+状态：离线与实时 Pilot `completed / HISTORY`；Shared Source Data Build、批量 ODS、M4/M5 离线建模质量、M6 Doris Serving/调度与 M7 Spark 性能实验 `VERIFIED`。Milestone 0、1、3、4、5、6、7 `completed`；Milestone 2、8、9 `in progress`
+更新时间：2026-10-21
 Repository：`ecommerce-data-warehouse`
 
 ## 0. 文档使用范围
@@ -303,7 +303,7 @@ Flink 实时清洗与计算
 
 Flink CDC 是运行在 Flink 上的采集任务，不是独立于 Flink 的常驻平台。R1～R3 业务切片止于 `ecommerce_oltp_m2_acceptance` → `ods_cdc_m2_clean_v1` → Order / OrderItem DWD → Doris，现统一定位为 Pilot / Acceptance / History。历史 Runtime 证据继续有效，但 acceptance 源库、Pilot Topic、`all-to-zero`、`kafka_offset` Sequence 与旧 Checkpoint 不进入正式 V2。
 
-Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 与 Metrics Contract。Shared Source Gate 已通过；正式 CDC 尚未启动，必须先完成 60/30 输入 Contract、Topic / Checkpoint Inventory，并冻结 Topic Namespace、Partition 数、Key 和 `event_version`。Flink 工程按业务域组织 Domain Applications，运行框架通用化、业务转换分业务维护。当前这些正式实时内容均为已确认设计，不是实现或 Runtime 证明。
+Realtime V2 与离线共享 `ecommerce_oltp`、21 表业务模型、Source Gate 与 Metrics Contract。Shared Source Gate 已通过；Foundation Contract 已冻结 `ecommerce.realtime.v1` Namespace、21 个按表 Raw CDC Topic、Behavior/Standard Topic Pattern、3 Partition / 3 Replica、Key、UTF-8 JSON Envelope、结构化 `event_version` 和独立 Checkpoint/Savepoint Root。Flink 工程按业务域组织 Domain Applications，运行框架通用化、业务转换分业务维护。Contract Validator 与只读 Inventory 已实现并完成静态验证，但 Topic / Checkpoint Runtime Inventory、Topic 创建和 Formal CDC 均为 `not_run`。
 
 正式业务作业部署方式已选为 Java DataStream Jar + YARN Application Mode；正式 Topic、Schema、窗口、状态、Doris 表模型及端到端一致性仍由 Milestone 8 评审。SQL Client + YARN Session 的 M1 验证不作为正式业务作业验收。
 
@@ -471,6 +471,12 @@ Spark 性能实验至少覆盖：
 
 实验必须固定版本、配置和输入，保存执行计划、扫描量、Shuffle、阶段耗时和作业耗时。没有真实实验时不得声称优化有效。
 
+M7 已在隔离 `ecommerce_benchmark` 使用 900,000 订单、2,565,000 订单明细和
+9,000,000 行为事件完成上述三组实验。每个变体一次 Warm-up、三次 Measured Run；
+分区裁剪为已验证有效优化，Broadcast Join 仅验证到资源效率改善，两阶段聚合为当前
+`COUNT/SUM` 数据形态下的负实验。精确结果见
+[`m7-spark-performance-acceptance.md`](acceptance/m7-spark-performance-acceptance.md)。
+
 ## 12. Project 1 数据治理与只读契约
 
 Project 1 是业务语义、SQL、指标和运行结果的唯一事实来源。当前内部建设轻量 Data Governance：真实 Metadata Snapshot、基于真实 SQL/配置的 Table-level Lineage 和 Project 1-owned Metric Registry；不建设独立平台、SQL Assistant、LLM/Agent 或 Column-level Lineage。完整实施顺序见[Project 1 完整交付整改方案](design/project1-completion-remediation-plan.md)。
@@ -506,7 +512,7 @@ Milestone 0～10 用于跟踪模块责任和完整验收。离线按 MySQL → D
 4. **离线数仓 MVP**：Hive ODS 与 Spark DIM/DWD、DWS、ADS 在真实引擎执行并完成逐层对账。
 5. **正式指标与质量**：V2 采用的指标具有稳定发布 ID、口径、血缘、固定样例和质量规则。
 6. **服务与调度**：Doris 离线服务表和 DolphinScheduler T+1 DAG 通过重跑、补数和失败测试。
-7. **Spark 性能实验**：完成倾斜、Join 和分区裁剪的可复现实验。
+7. **Spark 性能实验**：`completed / VERIFIED`；已完成倾斜、Join 和分区裁剪的可复现实验。
 8. **实时设计评审**：确认 Topic、Schema、窗口、迟到、去重、维度、状态、Doris 模型、归档和阈值。
 9. **实时链路与可靠性**：完成 CDC、Kafka、Flink、Doris、恢复及五项离实时对账。
 10. **Project 1 面试发布**：所有简历表述均有代码和运行证据。
@@ -576,7 +582,7 @@ V1 可以在完整 V2 扩展前形成可展示版本，但必须同时满足：
 历史 M2 决策与实现已经整体归档，不自动决定当前 V2 的 21 表实现。当前仍需确认：
 - 当前实时链路已确认实际开发 Topic、订单 DWD 代码/构建/提交、Doris 表模型、两作业 Checkpoint 恢复与正常顺序订单 Upsert；仍须确认当前 YARN/Flink/BE 状态、21 表全字段、乱序/物理 DELETE、R2 更新恢复、完整对账及正式 Topic/Schema。完成这些验收和 M8 评审前不得将 M9 提升为完整 `verified` 或扩展到其他实时表和指标。
 - 21 表 DDL、正式装载与 Source Gate 已通过 Runtime 验收；后续结构变更仍需逐项记录与重新验收。
-- 21 表的状态分布、跨表关系、依赖和生成顺序已由 45-rule Source Gate 验证；更大性能实验规模仍为 `DESIGNED / not_run`。
+- 21 表的状态分布、跨表关系、依赖和生成顺序已由 45-rule Source Gate 验证；M7 隔离性能数据集与三组 Spark 实验已完成 Runtime 验收，但不替代正式业务规模验收。
 - 现有正式 Business / Behavior Generator 的确定性 Seed、显式时间范围、输出 Contract 与失败行为已完成对应证据范围验收；Seed `20260105` 的 Business Bootstrap、30 个 Daily Package、Manifest、预期结果和 r6 Day 60～90 MySQL Runtime 已验证，当前 worktree 重生成的 146 个文件与 r6 复现相同 Business Hash、Replay Manifest 和 Package Manifest。Behavior Bootstrap、30 个 Daily Package、Manifest、Hash 和实体/时间审计仍只完成本地验证；Kafka 写入、依赖锁定和跨链路 Runtime 仍待实现或验收。
 - `LOAD DATA` 的文件格式、装载顺序、事务/失败边界与 Source Gate 入口已实现并验收；非空目标的重跑按设计 fail-fast，任何重置方案仍须单独批准。
 - `ecommerce_ods`、`ecommerce_dwd` 中 Pilot 数据的精确隔离/重置对象、备份、验证和回滚方式；未经单独授权不得执行清理。

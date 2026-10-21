@@ -1,0 +1,48 @@
+{
+  "contract_version": "m7-spark-benchmark-v1",
+  "dataset_version": "m7-spark-20261020-r1",
+  "database": "ecommerce_benchmark",
+  "root": "/warehouse/ecommerce/benchmark/m7-spark-20261020-r1",
+  "storage": {
+    "format": "ORC",
+    "compression": "SNAPPY",
+    "partition_column": "dt"
+  },
+  "history_start": "2025-12-01",
+  "history_end": "2026-02-28",
+  "target_partition": "2026-02-14",
+  "id_stride": 1000000000,
+  "tables": {
+    "benchmark_order": {
+      "source": "ecommerce_dwd.dwd_order",
+      "source_rows": 100000,
+      "multiplier": 9,
+      "expected_rows": 900000
+    },
+    "benchmark_order_item": {
+      "source": "ecommerce_dwd.dwd_order_item",
+      "source_rows": 285000,
+      "multiplier": 9,
+      "expected_rows": 2565000
+    },
+    "benchmark_behavior_event": {
+      "source": "ecommerce_dwd.dwd_behavior_event",
+      "source_rows": 3000000,
+      "multiplier": 3,
+      "expected_rows": 9000000
+    },
+    "benchmark_product": {
+      "source": "ecommerce_dim.dim_product_zip",
+      "source_rows": 4000,
+      "multiplier": 1,
+      "expected_rows": 4000
+    }
+  },
+  "experiments": {
+    "partition_pruning": ["baseline", "optimized"],
+    "join_strategy": ["sort_merge", "broadcast"],
+    "skew_aggregation": ["single_stage", "two_stage"]
+  },
+  "warmup_runs": 1,
+  "measured_runs": 3
+}

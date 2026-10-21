@@ -1,0 +1,90 @@
+{
+  "contract_version": "2026-10-21",
+  "status": {
+    "implementation": "implemented",
+    "static_verification": "static_verified",
+    "runtime_verification": "not_run"
+  },
+  "namespace": "ecommerce.realtime.v1",
+  "topic_defaults": {
+    "partitions": 3,
+    "replication_factor": 3,
+    "min_insync_replicas": 2,
+    "cleanup_policy": "delete",
+    "compression_type": "producer",
+    "retention_ms": 604800000
+  },
+  "raw_cdc": {
+    "topic_pattern": "ecommerce.realtime.v1.cdc.<table>",
+    "key_strategy": "table_primary_key",
+    "topics": {
+      "biz_user": {"topic": "ecommerce.realtime.v1.cdc.biz_user", "primary_key": ["user_id"]},
+      "biz_visitor": {"topic": "ecommerce.realtime.v1.cdc.biz_visitor", "primary_key": ["visitor_id"]},
+      "biz_identity_mapping": {"topic": "ecommerce.realtime.v1.cdc.biz_identity_mapping", "primary_key": ["mapping_id"]},
+      "biz_category": {"topic": "ecommerce.realtime.v1.cdc.biz_category", "primary_key": ["category_id"]},
+      "biz_spu": {"topic": "ecommerce.realtime.v1.cdc.biz_spu", "primary_key": ["spu_id"]},
+      "biz_sku": {"topic": "ecommerce.realtime.v1.cdc.biz_sku", "primary_key": ["sku_id"]},
+      "biz_product_change_event": {"topic": "ecommerce.realtime.v1.cdc.biz_product_change_event", "primary_key": ["change_id"]},
+      "biz_cart": {"topic": "ecommerce.realtime.v1.cdc.biz_cart", "primary_key": ["cart_id"]},
+      "biz_cart_item": {"topic": "ecommerce.realtime.v1.cdc.biz_cart_item", "primary_key": ["cart_item_id"]},
+      "biz_cart_merge_record": {"topic": "ecommerce.realtime.v1.cdc.biz_cart_merge_record", "primary_key": ["merge_id"]},
+      "biz_coupon_template": {"topic": "ecommerce.realtime.v1.cdc.biz_coupon_template", "primary_key": ["template_id"]},
+      "biz_coupon": {"topic": "ecommerce.realtime.v1.cdc.biz_coupon", "primary_key": ["coupon_id"]},
+      "biz_order": {"topic": "ecommerce.realtime.v1.cdc.biz_order", "primary_key": ["order_id"]},
+      "biz_order_item": {"topic": "ecommerce.realtime.v1.cdc.biz_order_item", "primary_key": ["order_item_id"]},
+      "biz_order_status_event": {"topic": "ecommerce.realtime.v1.cdc.biz_order_status_event", "primary_key": ["order_event_id"]},
+      "biz_payment_attempt": {"topic": "ecommerce.realtime.v1.cdc.biz_payment_attempt", "primary_key": ["payment_attempt_id"]},
+      "biz_payment_event": {"topic": "ecommerce.realtime.v1.cdc.biz_payment_event", "primary_key": ["payment_event_id"]},
+      "biz_refund_request": {"topic": "ecommerce.realtime.v1.cdc.biz_refund_request", "primary_key": ["refund_request_id"]},
+      "biz_refund_transaction": {"topic": "ecommerce.realtime.v1.cdc.biz_refund_transaction", "primary_key": ["refund_txn_id"]},
+      "biz_refund_event": {"topic": "ecommerce.realtime.v1.cdc.biz_refund_event", "primary_key": ["refund_event_id"]},
+      "biz_coupon_event": {"topic": "ecommerce.realtime.v1.cdc.biz_coupon_event", "primary_key": ["coupon_event_id"]}
+    }
+  },
+  "behavior": {
+    "topic": "ecommerce.realtime.v1.behavior.raw",
+    "key_fields": ["session_id"]
+  },
+  "standard": {
+    "topic_pattern": "ecommerce.realtime.v1.standard.<domain>",
+    "key_strategy": "domain_aggregate_key",
+    "domains": ["identity", "product", "cart", "trade", "payment", "refund", "marketing"]
+  },
+  "envelope": {
+    "serialization": "json_utf8",
+    "compatibility": "backward",
+    "required_fields": [
+      "contract_version",
+      "event_id",
+      "event_version",
+      "event_time",
+      "ingest_time",
+      "op",
+      "key",
+      "before",
+      "after",
+      "source",
+      "transaction"
+    ],
+    "allowed_ops": ["r", "c", "u", "d"],
+    "event_version": {
+      "strategy": "source_epoch_phase_position",
+      "forbidden_strategies": ["kafka_offset"],
+      "common_fields": ["source_epoch", "phase"],
+      "phase_order": ["snapshot", "binlog"],
+      "snapshot": {
+        "phase": "snapshot",
+        "position_fields": ["snapshot_run_id", "table", "pk_hash"]
+      },
+      "binlog": {
+        "phase": "binlog",
+        "position_fields": ["file_index", "pos", "row"]
+      }
+    }
+  },
+  "flink_state": {
+    "checkpoint_root": "hdfs:///warehouse/ecommerce/realtime/v1/checkpoints/<application>",
+    "savepoint_root": "hdfs:///warehouse/ecommerce/realtime/v1/savepoints/<application>",
+    "pilot_state_reuse": false
+  }
+}

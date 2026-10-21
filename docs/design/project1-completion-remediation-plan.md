@@ -2,7 +2,7 @@
 
 状态：`confirmed / implementation-guidance`
 确认日期：2026-10-15
-当前执行位置：Stage 1～5 已完成；下一入口为 Stage 6 Spark 性能实验
+当前执行位置：Stage 1～6 已完成；下一入口为 Stage 7 Formal CDC 与 Realtime Domain
 适用范围：Project 1 Milestone 1～10、离线链路、实时链路、数据治理、验收证据与简历结论
 
 ## 1. 目的与事实边界
@@ -181,6 +181,12 @@ Source Ready
 
 性能实验必须由真实 Job 和执行计划驱动。至少完成分区裁剪，以及 Join 策略或数据倾斜中的一个真实场景；保存固定输入、SQL、执行计划、Input Size、扫描量、Shuffle、Stage、Job 耗时、多次执行结果和适用限制。
 
+当前状态：`completed / VERIFIED`。M7 使用隔离数据集完成分区裁剪、Join 与倾斜聚合三组
+实验，保存六个 Smoke 和 18 个 Measured Applications 的 Physical Plan、Spark Event Log
+与中位数汇总。只有分区裁剪验证到端到端耗时改善；Broadcast Join 的结论限定为资源效率
+改善；两阶段聚合作为当前场景的负实验保留。证据见
+[`m7-spark-performance-acceptance.md`](../acceptance/m7-spark-performance-acceptance.md)。
+
 ### Stage 7：Formal CDC 与 Realtime Domain
 
 进入实现前冻结 Topic Namespace、Partition/Key、Schema、`event_version`、Checkpoint Root、Doris 实时表模型、Watermark、迟到、状态 TTL、恢复和对账目标。
@@ -314,7 +320,8 @@ Targeted Test
 1. Stage 1～3 已完成：Scope/Architecture/Plan、Source/Replay、正式 ODS、DIM/DWD、Model Gate 与 M4 Aggregate MVP 均已有对应证据。
 2. Stage 4 已完成：六域 DWS/ADS、Metric Acceptance、Quality、Reconciliation 与 Cohort P0 指标均已通过 Runtime Gate。
 3. Stage 5 已完成：Doris Serving、DolphinScheduler JDBC Registry、成功回补、调度后对账、自动重试及显式质量失败阻断均已有 Runtime 证据。
-4. 后续依次完成 Spark 性能实验、正式实时链路与轻量 Data Governance。
-5. `docs/status/resume-evidence-current.md` 持续收集已验证候选数据；最后统一完成 Release Evidence Index 和简历结论映射。
+4. Stage 6 已完成：Spark 性能实验包含固定输入、执行计划、扫描/Shuffle/Stage/耗时及多次运行证据。
+5. 后续依次完成正式实时链路与轻量 Data Governance。
+6. `docs/status/resume-evidence-current.md` 持续收集已验证候选数据；最后统一完成 Release Evidence Index 和简历结论映射。
 
 本方案不授权数据库清理、外部系统写入、安装新 Dependency、Commit 或 Push。相关操作仍按项目授权规则单独确认。

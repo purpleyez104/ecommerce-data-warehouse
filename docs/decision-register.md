@@ -58,6 +58,7 @@
 | `DR-039` | 正式 60/30 Replay 固定 Seed 与历史 Source Gate 输入隔离 | `superseded` | 2026-10-15 | Business Replay、固定输入、Manifest、Bootstrap Source、ODS/CDC 时间推进式验收 |
 | `DR-040` | Replay 时间 FK 修复与正式 Dataset r2 版本化 | `accepted` | 2026-10-15 | Business Generator、Replay Bootstrap、Manifest Hash、MySQL Dry-run、数据库授权入口 |
 | `DR-049` | DolphinScheduler 使用 MySQL JDBC Registry | `accepted` | 2026-10-19 | M1/M6 调度架构、MySQL、DolphinScheduler、端口与运维边界 |
+| `DR-052` | Formal Realtime Foundation Topic 与 State Contract | `accepted` | 2026-10-21 | M8 Kafka、CDC Envelope、事件版本、Checkpoint/Savepoint、Runtime Inventory |
 
 ## DR-001：DataX 直写 Hive ODS 对应 HDFS 分区
 
@@ -1341,6 +1342,8 @@ Milestone 2 状态为 `in progress`。21 表方案保持 `candidate`；正式 DD
 
 ## DR-032：实时 Pilot 收口与离实时统一 V2 开发路线
 
+> 当前适用边界：Pilot 收口、共享业务源、Domain Application 与 Gate 路线继续有效；其中 Topic、Partition/Key、`event_version` 和 State Root 的待决项已由 `DR-052` 冻结。
+
 - 状态：`accepted`
 - 决策日期：2026-09-27
 - 决策人：用户
@@ -2137,6 +2140,39 @@ Doris Load 成功后，双向对账确认全部 89 行只有 `load_time` 不同�
 ### 回滚方式
 
 删除两个 Serving `spark-submit` 命令的任务级 Serializer 覆盖，并移除 `load_time` 秒级规范化即可恢复原行为；回滚后必须重新执行相同只读计数与双向对账，不能沿用本次成功证据。
+
+## DR-052：Formal Realtime Foundation Topic 与 State Contract
+
+- 状态：`accepted`
+- 决策日期：`2026-10-21`
+- 决策人：用户批准并行进入实时链路建设
+- 影响范围：M8 Kafka、CDC Envelope、事件版本、Checkpoint/Savepoint、Runtime Inventory
+- 替代决策：细化 `DR-032` 的 Formal Realtime V2 基础层
+
+### 背景
+
+Shared Source Gate、Business/Behavior 60/30 固定输入和三节点 Kafka/Flink 组件能力已经具备，但 Pilot Topic、单 Partition `kafka_offset` Sequence 与历史 Checkpoint 不允许进入正式链路。Domain Job 开发前必须先形成可校验、可隔离且能够被 Runtime Inventory 复核的 Foundation Contract。
+
+### 决策
+
+1. Namespace 使用 `ecommerce.realtime.v1`。21 张源表各使用一个 Raw CDC Topic；Behavior 使用独立 Raw Topic；Standard Topic 按 7 个业务域组织。
+2. 当前三节点开发集群的初始 Topic 配置为 3 Partition、3 Replica、`min.insync.replicas=2`、7 天保留、`delete` cleanup 和 producer compression。
+3. Raw CDC 以表主键分区；Standard Domain 按业务聚合键重新分区；Behavior 以 `session_id` 分区。跨表业务顺序不从 Raw Topic Partition 推导。
+4. Envelope 使用 backward-compatible UTF-8 JSON。`event_version` 使用 `source_epoch + phase + source position`，Snapshot 排在 Binlog 之前，禁止使用 Kafka Offset 作为业务版本。
+5. Checkpoint/Savepoint 使用 `hdfs:///warehouse/ecommerce/realtime/v1/{checkpoints,savepoints}/<application>`，不得复用 Pilot State。
+6. Runtime Inventory 只允许 Kafka list/describe、YARN application list 和 HDFS list；目标、CLI 与 Root 必须显式传入，输出必须去敏。Inventory、Topic 创建和 Formal CDC Runtime 分属不同证据等级。
+
+### 验证方法
+
+执行严格 Contract Validator、漂移失败测试、只读命令构造/HDFS Root/Secret 去敏测试与 Python 语法检查。目标环境 Inventory、Topic 创建、21 表 Snapshot 和 CDC Gate 必须另行执行，静态验证不得提升为 Runtime 证明。
+
+### 影响与风险
+
+按表 Raw Topic 增加 Topic 数量，但保持源表 Schema、Key 与重放边界清晰，适合当前 21 表规模。3 Partition 是三节点开发集群的初始 Contract，不是性能结论；若 Inventory 或吞吐实测不支持，须通过 Correct Course 调整。JSON 易于审查和面试讲解，但体积高于二进制格式；当前优先保证可解释性和低运维成本。
+
+### 回滚方式
+
+Runtime 尚未创建资产时，可通过新增替代决策和 Contract 版本回滚设计；不得静默修改冻结 JSON。Runtime 创建后，回滚必须使用新 Namespace/Topic 与独立 State Root，不能清理或复用 Pilot 资产。
 
 ## 记录模板
 

@@ -1,6 +1,6 @@
 # 实时链路架构规范（Milestone 8 设计输入）
 
-状态：M8/M9 `in progress`；R1～R3 已完成 Pilot / Acceptance 使命并转为 History。60 天初始化与 30 天双链路回放为 `DESIGNED / not_run`，Formal CDC 尚未实现。当前在线、最新 Checkpoint、正式 Topic/Partition/`event_version`、全字段/跨分区/乱序与端到端 Exactly-Once 仍未验证。更新时间：2026-10-13。
+状态：M8/M9 `in progress`；R1～R3 已完成 Pilot / Acceptance 使命并转为 History。Formal Realtime Foundation Contract 已实现并通过静态校验，Runtime Inventory、Topic 创建、Formal CDC 与 60/30 实时回放仍为 `not_run`。当前在线、最新 Checkpoint、全字段/跨分区/乱序与端到端 Exactly-Once 仍未验证。更新时间：2026-10-21。
 
 本文件展开[工程架构基线](../architecture/baseline.md)的实时视图，并以[业务源设计](business-source-design.md)及[指标口径](../business/metrics.md)为上游。用户已确认实时链路正在建设，但本文不是 Milestone 8 已完成评审或 Milestone 9 已验证的证明。
 
@@ -48,6 +48,18 @@ Initial Snapshot 只初始化切换点当前状态，不能把前 60 天存量�
 
 Flink 工程按业务域组织 Domain Applications，例如交易域统一处理 order、order_item、payment、refund。运行框架复用 Kafka Source、CDC Envelope Parser、DB/Table Router、Metadata、Checkpoint、Error Handling、Doris Sink、提交、日志和恢复；业务 Transform 分业务过程维护。实时 DWS/ADS 按指标域组织，并复用离线 Metrics Contract。
 
+## Formal Realtime Foundation Contract
+
+`kafka/realtime_foundation_contract.json` 是当前基础层的机器可读 Contract，`flink/cdc/validate_realtime_foundation_contract.py` 负责严格拒绝缺失、额外字段和冻结值漂移。该 Contract 已冻结：
+
+- Namespace 为 `ecommerce.realtime.v1`；21 张源表各使用一个 `ecommerce.realtime.v1.cdc.<table>` Raw CDC Topic，Behavior 使用 `ecommerce.realtime.v1.behavior.raw`，Standard Topic 使用 `ecommerce.realtime.v1.standard.<domain>`。
+- 当前三节点开发集群的初始 Topic 配置为 3 Partition、3 Replica、`min.insync.replicas=2`、7 天保留、`delete` cleanup 和 producer compression。配置改变须重新评审 Contract，并以 Runtime Inventory 与 Topic Gate 证明集群可承载。
+- Raw CDC 以 `table + primary key` 保证单表同主键有序；Standard Domain 在转换后按业务聚合键重新分区；Behavior 以 `session_id` 为 Key。跨表业务顺序不从 Raw Topic Partition 推导。
+- Envelope 使用 UTF-8 JSON 与 backward compatibility，要求 `contract_version/event_id/event_version/event_time/ingest_time/op/key/before/after/source/transaction`。`event_version` 使用 `source_epoch + phase + source position`；Snapshot 先于 Binlog，禁止使用 `kafka_offset` 作为业务版本。
+- Checkpoint 与 Savepoint 分别使用 `hdfs:///warehouse/ecommerce/realtime/v1/checkpoints/<application>` 和 `hdfs:///warehouse/ecommerce/realtime/v1/savepoints/<application>`；禁止复用 Pilot State。
+
+`flink/scripts/inventory_realtime_runtime.py` 只构造并执行 Kafka Topic、YARN Application、HDFS Checkpoint/Savepoint 查询，所有连接目标和 CLI 路径必须显式传入。其静态命令边界已验证，但尚未连接目标环境，因此上述 Contract 只能记为 `implemented / static_verified`，Runtime 保持 `not_run`。
+
 ## 运行与 Java 边界
 
 Flink Client 使用 Java 17；当前 YARN Container 与 Flink Doris User Jar 使用 Java 11 兼容边界。R3 的 Java 17 产物曾因 class major version 61 触发 `UnsupportedClassVersionError`，最终以 `javac --release 11`、major version 55 修复。正式 Jar 的依赖、序列化、状态、连接器组合和目标字节码必须在固定版本下重新验证。提交命令退出 0 仅表示提交成功，作业成败须核查 YARN application final state、Flink 作业状态和目标端结果；故障后不能仅凭 Checkpoint 配置宣称端到端 Exactly-Once。
@@ -56,7 +68,7 @@ Flink Client 使用 Java 17；当前 YARN Container 与 Flink Doris User Jar 使
 
 | 范围 | 必须形成的结论 |
 | --- | --- |
-| Kafka | Raw/标准事件 Topic 划分、Key、Partition、副本、保留、压缩、Schema 和演进 |
+| Kafka | Foundation 的 Raw/Behavior/Standard Topic、Key、Partition、副本、保留、压缩、Envelope 与版本策略已冻结；Topic Runtime 与后续 Schema 变更流程仍待验证 |
 | Flink | CDC 与计算作业拆分、业务事件时间、Watermark、窗口、允许迟到、去重键、状态 TTL、撤回与补偿 |
 | 维度和指标 | 历史/当前维度版本、首批实时指标稳定发布 ID、与离线一致的公式和时间归属 |
 | 状态与恢复 | Checkpoint/Savepoint、重启策略、源端继续写入后的恢复、一致性目标与可重放边界 |
@@ -68,6 +80,6 @@ Flink Client 使用 Java 17；当前 YARN Container 与 Flink Doris User Jar 使
 
 ## Milestone 9 验收边界
 
-当前下一开发入口为 60/30 时间推进式输入 Contract 与 Formal CDC 初始化设计；`R4 Payment DWD` 已暂停。SOURCE GATE 已通过，但启动正式 CDC 前仍须准备隔离的切换点源状态，审计现有 Topic / Checkpoint，冻结 Formal CDC Topic Namespace、Partition/Key Strategy、`event_version` 和独立 Checkpoint Root。随后执行 21 表 Initial Snapshot 与 CDC Gate，再以 30 个 daily package 集中执行 Incremental Simulation、Realtime Model Gate、Recovery Gate、实时指标验收和 Offline ↔ Realtime Reconciliation，不再逐表重复完整 Initial + Incremental + Recovery 大验收。
+当前下一开发入口为在获得外部只读授权后执行 Topic / Checkpoint Runtime Inventory，并核对 Foundation Contract 与目标环境；`R4 Payment DWD` 已暂停。Inventory 通过后，另行授权创建正式 Topic、准备隔离切换点并执行 21 表 Initial Snapshot 与 CDC Gate；再以 30 个 daily package 集中执行 Incremental Simulation、Realtime Model Gate、Recovery Gate、实时指标验收和 Offline ↔ Realtime Reconciliation，不再逐表重复完整 Initial + Incremental + Recovery 大验收。
 
 正式 V2 启动前必须制定可回滚的 Doris 初始化重置方案，清除或隔离 `ecommerce_serving.dwd_order`、`dwd_order_item` 中的 Pilot 数据，但继续使用正式 database 命名，不创建 `ecommerce_serving_v2`。本设计不授权当前执行数据库清理。完整 M9 固定输入仍须覆盖 Snapshot 与持续 Binlog、INSERT/UPDATE/DELETE、重复和乱序、源端不停写时的 Flink 中断与恢复、Doris 重放/Upsert、离线 T+1 对账；未解释的重复、丢失、迟到或对账差异均阻断 `verified`。

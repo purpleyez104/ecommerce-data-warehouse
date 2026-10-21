@@ -1,5 +1,11 @@
 # Kafka
 
-本目录已按用户批准建立为 `placeholder`。Kafka 3.9.1 KRaft 的组件级验收不等于业务 Topic 已设计完成。
+本目录保存 Formal Realtime Foundation 的 Kafka 静态 Contract。Kafka 3.9.1 KRaft 的组件级验收不等于业务 Topic 已创建或运行通过。
 
-Topic、Partition、副本、保留期、压缩、Schema 和重放策略必须在 Milestone 8 评审后才能形成正式配置；当前不创建 `topics.sh`，也不把验收 Topic 当作正式 Topic。
+`realtime_foundation_contract.json` 冻结 21 个 Raw CDC Topic、Behavior Topic、Standard Topic Pattern、Partition/Key、Envelope 和 `event_version`。当前状态仅为 `implemented / static_verified`，Runtime 为 `not_run`；本目录不创建 Topic，也不把 Pilot Topic 或 Offset 当作正式状态。
+
+静态验证：
+
+```powershell
+python flink/cdc/validate_realtime_foundation_contract.py --contract kafka/realtime_foundation_contract.json
+```

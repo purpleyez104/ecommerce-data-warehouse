@@ -8,6 +8,8 @@
 
 ### 新增
 
+- 新增并验收 M7 Spark 性能实验：隔离构建 900,000 订单、2,565,000 订单明细和 9,000,000 行为事件，完成分区裁剪、Sort Merge/Broadcast Join、普通/两阶段倾斜聚合的 6 个 Smoke 与 18 个 Measured Applications；保存 Physical Plan、Spark Event Log、扫描量、Shuffle、Stage、Task 与三次中位数。分区裁剪验证为有效，Broadcast Join 仅验证到资源效率改善，两阶段聚合保留为当前 `COUNT/SUM` 场景的负实验。
+- 新增 Formal Realtime Foundation Contract、严格 Validator 与只读 Runtime Inventory：冻结 `ecommerce.realtime.v1` 的 21 个 Raw CDC Topic、Behavior/Standard Topic Pattern、初始 Kafka durability、Key、Envelope、结构化 `event_version` 和独立 Checkpoint/Savepoint Root；当前仅完成静态验证，Topic、CDC、Kafka/YARN/HDFS Inventory 与 Doris Runtime 均为 `not_run`。
 - 完成 M6 Stage Gate：新增独立显式质量失败验证 Contract；DolphinScheduler Instance `18` 产生 40 条质量结果和唯一一条预期 FAIL，Quality Task 非零失败并阻断 Doris/Reconciliation，Doris 90 日服务表基线保持不变；验证 Workflow 随后切换为 `OFFLINE`。
 - 整理仓库文档结构：统一 `docs/architecture/` 与 `docs/operations/` 入口，删除已被当前 21 表模型替代的旧 19 表实现文件及失效 `.gitkeep`；旧 19 表仅保留设计背景文档，不再保留可执行副本。
 

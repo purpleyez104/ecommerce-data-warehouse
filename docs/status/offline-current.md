@@ -1,9 +1,9 @@
 # Offline Current Status
 
-更新时间：2026-10-19
+更新时间：2026-10-21
 状态口径：`VERIFIED / DOING / DESIGNED / HISTORY / UNKNOWN`
 
-本文件描述截至 2026-10-20 已核对的离线链路事实与当前开发方向。Runtime 结论来自 Development Chat 的 File Fact Ledger、YARN/Application 终态与验收输出；仓库文件存在本身不等于 `VERIFIED`。100 单链路已完成 Pilot / Acceptance 使命，Shared Source Data Build、批量 ODS、M4/M5 离线建模质量与 M6 Doris Serving/调度均已通过对应 Runtime 验收。
+本文件描述截至 2026-10-21 已核对的离线链路事实与当前开发方向。Runtime 结论来自 Development Chat 的 File Fact Ledger、YARN/Application 终态与验收输出；仓库文件存在本身不等于 `VERIFIED`。100 单链路已完成 Pilot / Acceptance 使命，Shared Source Data Build、批量 ODS、M4/M5 离线建模质量、M6 Doris Serving/调度与 M7 Spark 性能实验均已通过对应 Runtime 验收。
 
 ## VERIFIED
 
@@ -91,7 +91,7 @@
 - 2026-10-18 Behavior 60/30 Bundle 已通过独立第 22 张 ODS 表 `ecommerce_ods.ods_behavior_event` 完成 Runtime Gate：Dataset `v2.3-behavior-replay-formal-20260105-r1` 共 3,000,000 行，发布为 2025-12-01～2026-02-28 的 90 个 `dt` 分区，HDFS 目标为 `/warehouse/ecommerce/ods/ods_behavior_event`。最终 Gate Application `application_1792297746029_0005` 为 `FINISHED / SUCCEEDED`，95/95 项断言通过并输出 `BEHAVIOR_ODS_GATE_PASS`；证据见 `docs/acceptance/behavior-ods-acceptance.md`。
 - 2026-10-18 首批 6 张 DIM、8 张 DWD 已在 `ecommerce_dim` / `ecommerce_dwd` 完成 Spark on YARN 构建；Model Gate Application `application_1792309323393_0007` 为 `FINISHED / SUCCEEDED`，59/59 条断言通过。精确行数覆盖 60 个类目、30 个券模板、24,000 条身份映射、6,000 条商品 SCD2、40,000 用户、80,000 访客及 3,000,000 条 Behavior DWD 等 14 张表；证据见 `docs/acceptance/m4-dim-dwd-model-gate-acceptance.md`。
 - 2026-10-18 两张日粒度 DWS 与一张 ADS 已在 `ecommerce_dws` / `ecommerce_ads` 完成 Spark on YARN 构建；Aggregate Gate 首次和幂等重跑后均为 18/18 条断言无违规，重跑 Application `application_1792325482148_0003`、Gate Application `application_1792325482148_0004` 均为 `FINISHED / SUCCEEDED`，重跑前后 8 项核心结果完全一致。证据见 `docs/acceptance/m4-dws-ads-aggregate-gate-acceptance.md`。
-- 2026-10-20 当前完整统一测试共 140 项通过：Business 6、Behavior 6、DataX/ODS 33、Model 19、Governance 6、Quality 5、Reconciliation 4、Doris 6、Scheduler 18、MySQL 37。
+- 2026-10-21 当前完整统一测试共 155 项通过：Business 6、Behavior 6、DataX/ODS 33、Model 19、Governance 6、Quality 5、Reconciliation 4、Doris 6、Scheduler 18、Benchmark 9、Realtime Foundation 6、MySQL 37。
 
 ### M6 Doris 离线 Serving 与 DolphinScheduler 组件门禁
 
@@ -115,8 +115,15 @@
 - `mysql/ddl/001_ecommerce_oltp.sql` 已部署；DDL 采用订单到优惠券的单向物理 FK，券反向订单引用由索引与 Source Gate 校验。
 - V2 正式数据路径冻结为 Python Generator → CSV → MySQL `LOAD DATA` → `ecommerce_oltp`。
 - 该 Source Data Build 同时是正式实时链路的历史初始化基线；Source Gate 已通过，可进入 Formal CDC Contract 与初始化设计，但不能复用 Pilot Topic 直接外推完成状态。
-- 正式数据规模已确认为 90 天、100,000 笔订单、285,000 条订单明细、实测 1,328,502 条 OLTP 记录和 3,000,000～5,000,000 条行为事件；Business 数据已完成目标 MySQL 装载与 Source Gate。性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件，仍为 `DESIGNED / not_run`。
+- 正式数据规模已确认为 90 天、100,000 笔订单、285,000 条订单明细、实测 1,328,502 条 OLTP 记录和 3,000,000～5,000,000 条行为事件；Business 数据已完成目标 MySQL 装载与 Source Gate。M7 性能实验已使用隔离数据集真实构建 900,000 笔订单、2,565,000 条订单明细和 9,000,000 条行为事件。
 - 正式 V2 数据进入 `ecommerce_ods`、`ecommerce_dwd` 前，必须对现有 100 单 Pilot 数据执行有边界、可回滚的初始化重置；本决策不授权当前执行数据库清理。
+
+### M7 Spark 性能实验
+
+- 隔离 Hive `ecommerce_benchmark` 只读复用已验收 DIM/DWD；Setup 行数和唯一键断言输出 `M7_BENCHMARK_SETUP_PASS`。
+- 六个 Smoke 与 18 个 Measured Applications 全部成功，三组方案结果指纹一致；Physical Plan 分别证明 `PartitionFilters`、`SortMergeJoin`、`BroadcastHashJoin` 和两阶段 `HashAggregate`。
+- 三次运行中位数显示：分区裁剪 Input 9,274,966 → 3,311,644 bytes、Tasks 99 → 3、Duration 35,672 → 32,979 ms；Broadcast Join Shuffle 6,114,668 → 12,186 bytes，但 Duration 42,587 → 43,333 ms；两阶段聚合 Shuffle 409,103 → 6,316,203 bytes、Duration 38,456 → 39,625 ms。
+- 结论边界：分区裁剪验证为有效；Broadcast Join 只证明资源效率改善；两阶段聚合在当前 `COUNT/SUM` 场景中没有收益。完整证据见 `docs/acceptance/m7-spark-performance-acceptance.md`。
 
 ## DESIGNED
 
@@ -153,7 +160,7 @@
 - 当前 ECS 服务是否仍保持 Handoff 验收时的在线状态不在本次离线基线证明范围内。
 - 21 表 DDL、CSV 字段映射、正式库部署、`LOAD DATA`、数据库约束和 Shared Source Gate 已在记录环境中 `VERIFIED`；该结论不包含 DataX/Hive ODS 或正式 CDC。
 - Behavior Generator 已强制读取 Business Generator 的版本化 Entity Manifest；正式 60/30 Bundle 的跨源身份、Session、商品生效时间和事件唯一性本地检查为 `VERIFIED`，且 3,000,000 行已进入 HDFS/Hive `ods_behavior_event` 并通过 Gate；Kafka Raw Layer 仍为 `not_run`。
-- 性能实验规模约 900,000 笔订单和 9,000,000 条行为事件仍为 `DESIGNED / not_run`，不得用本轮正式规模耗时外推性能结论。
+- M7 Spark 性能结论仅适用于记录的 Spark 3.5.9、隔离数据集、SQL 和三次测量；不得外推为 Flink/Kafka/Doris 性能、生产容量或其他数据形态下的通用提升。
 - V2 初始化重置的精确对象、备份/回滚、执行命令与验收方法：`DECISION_REQUIRED`；不得直接清理现有数据库。
 - `BI / Agent` 是否进入当前 V2 正式交付，还是继续遵循 `DR-029` 作为 M0～M10 之后规划：`DECISION_REQUIRED`。
 
@@ -161,5 +168,5 @@
 
 1. M5-01、M5-02、六域 Aggregate Runtime、36 项 Metric Registry、40 条持久化质量结果和 10 项跨层 Reconciliation 已完成。
 2. M5 Stage Gate 已通过；`TR-13/TR-14` Cohort Contract、Runtime、Gate、质量和对账均为 `VERIFIED`。
-3. M6 Stage Gate 已完成；下一入口是 M7 Spark 性能实验，使用固定输入保存优化前后 Plan、扫描量、Shuffle、Stage 与作业耗时。Instance `17` 和 `18` 已闭合，不得为重复证明而重跑已验收链路。
-4. 任何隔离库构建、重置、回滚或重新装载需要新的 Database Operation 授权；不继续执行 `ods_order_item_create.sql`，不删除旧 acceptance 环境。
+3. M6 与 M7 Stage Gate 均已完成；下一入口为 M8 外部只读 Topic/Checkpoint Inventory 与 Formal Realtime 设计评审收口，不重复运行已验收 Benchmark。
+4. `ecommerce_benchmark` 与版本化 HDFS Root 当前保留用于复现；任何清理、重置或重新装载仍需要新的 Database Operation 授权。

@@ -1,6 +1,6 @@
 # Project 1 简历证据当前台账
 
-日期：2026-10-19  
+日期：2026-10-21
 状态：`DOING`
 
 本文件按 `docs/design/project1-completion-remediation-plan.md` 的 Stage 10 要求，持续汇总可用于最终简历和面试发布的证据候选。只有具有代码、命令或验收记录支持的 Runtime 结果才能进入 `VERIFIED`；本台账不是最终简历文案，也不把未完成 Stage 提升为已完成。
@@ -18,7 +18,8 @@
 | `P1-RESUME-RECON-01` | 完成 10 项指标 × 90 日跨层对账，共 900 行且零差异 | `docs/acceptance/m5-cohort-metrics-acceptance.md` | 当前为离线层间对账，不是离实时对账 |
 | `P1-RESUME-DORIS-01` | 将 90 日 ADS 写入 Doris，幂等重跑后保持 90 个唯一业务日，并完成 90 行 × 22 字段逐行对账 | `docs/acceptance/m6-doris-offline-serving-acceptance.md` | 离线 Serving；不代表实时 Doris 或调度 DAG |
 | `P1-RESUME-SCHEDULER-01` | DolphinScheduler 3.4.2 使用 MySQL JDBC Registry；正式 Aggregate Backfill Instance `17` 五 Task 全部成功，显式质量失败 Instance `18` 阻断 Doris/Reconciliation 且服务数据不变 | `docs/acceptance/m1-dolphinscheduler-jdbc-acceptance.md`、`docs/acceptance/m6-doris-offline-serving-acceptance.md` | 离线调度链路；不代表正式实时链路完成 |
-| `P1-RESUME-TEST-01` | 当前统一 Unit Test 入口通过 140/140 | `tests/run_unit.sh`、`docs/status/offline-current.md` | 证明本地自动化范围，不替代集群 Runtime |
+| `P1-RESUME-SPARK-01` | 在 90 万订单、256.5 万订单明细和 900 万行为事件上完成分区、Join、倾斜三组实验；分区裁剪将扫描量从 9.27 MB 降至 3.31 MB、Tasks 从 99 降至 3，三次中位耗时从 35.672s 降至 32.979s | `docs/acceptance/m7-spark-performance-acceptance.md` | 仅适用于固定 Spark 3.5.9 隔离数据集；Join 不宣称耗时提升，两阶段聚合为负实验 |
+| `P1-RESUME-TEST-01` | 当前统一 Unit Test 入口通过 155/155 | `tests/run_unit.sh`、`docs/status/offline-current.md` | 证明本地自动化范围，不替代集群 Runtime |
 
 ## 暂不进入最终简历数字
 
@@ -30,7 +31,6 @@
 
 | 范围 | 当前状态 | 需要补齐的简历证据 |
 | --- | --- | --- |
-| Spark Benchmark | `pending` | 固定规模下优化前后 Plan、扫描量、Shuffle、Stage 与耗时 |
 | 正式实时链路 | `in progress` | Formal CDC、Kafka/Flink、Checkpoint/恢复、Doris Upsert 与离实时对账 |
 | 轻量 Data Governance | `planned` | Metadata Snapshot、Table-level Lineage、Metric/Quality/Reconciliation/Task 关联 |
 | 可复现发布 | `pending` | 新环境最小复现、Evidence Index、去敏摘要和最终简历结论映射 |

@@ -47,6 +47,11 @@ PYTHONPATH="$repo/mock/generator/business_generator/src${PYTHONPATH:+:$PYTHONPAT
   spark/scripts/render_doris_load.py \
   spark/scripts/render_doris_range_load.py \
   spark/scripts/render_doris_reconciliation.py \
+  spark/scripts/render_benchmark_sql.py \
+  spark/scripts/collect_spark_event_metrics.py \
+  spark/scripts/summarize_benchmark_metrics.py \
+  flink/cdc/validate_realtime_foundation_contract.py \
+  flink/scripts/inventory_realtime_runtime.py \
   scheduler/dolphinscheduler/render_workflow_payload.py \
   scheduler/dolphinscheduler/deploy_workflow.py \
   scheduler/dolphinscheduler/verify_ods_ready.py \
@@ -73,6 +78,12 @@ PYTHONPATH="$repo/mock/generator/behavior_generator/src${PYTHONPATH:+:$PYTHONPAT
 "$python_bin" -m unittest discover -s tests/doris -p 'test_*.py' -v
 
 "$python_bin" -m unittest discover -s tests/scheduler -p 'test_*.py' -v
+
+"$python_bin" -m unittest discover -s tests/benchmark -p 'test_*.py' -v
+
+bash -n spark/scripts/run_benchmark.sh
+
+"$python_bin" -m unittest discover -s tests/realtime -p 'test_*.py' -v
 
 PYTHONPATH="$repo/mock/generator/business_generator/src${PYTHONPATH:+:$PYTHONPATH}" \
   "$python_bin" -m unittest discover -s tests/mysql -p 'test_*.py' -v

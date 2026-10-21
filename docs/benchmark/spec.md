@@ -1,7 +1,7 @@
 # 离实时一体化数仓数据规模与 Benchmark 设计规范
 
-> 版本：v1.2
-> 状态：`candidate / DESIGNED / not_run`
+> 版本：v1.3
+> 状态：Spark M7 `VERIFIED`；Flink / Kafka / Doris 专项 Benchmark `not_run`
 > 数据基线：本规范不单独定义业务生成规则；候选设计参考 [V2 数据规格候选稿](../archive/data-spec-candidate-2026-09-28.md)，正式范围和门禁以 `docs/spec.md`、`docs/plan.md` 为准。
 > 规模方案：正式数据规模为 100,000 笔订单和 3,000,000～5,000,000 条行为事件；性能实验规模为约 900,000 笔订单和 9,000,000 条行为事件；不建设独立 Smoke 数据档位。
 
@@ -235,6 +235,23 @@ behavior_events = 9,000,000
 ```
 
 性能实验数据沿用相同的 90 天范围、21 表 Contract、状态机、金额规则、Behavior Contract 和实体空间，但必须使用独立的 `dataset_version` 与输出目录。该规模只用于 Spark、Kafka、Flink、Doris 及离实时链路的性能实验，不替代正式数据规模的业务验收，也不预设吞吐或性能提升结论。
+
+## 4.2 M7 Spark 已验证数据集
+
+2026-10-21 使用 `dataset_version=m7-spark-20261020-r1` 在隔离
+`ecommerce_benchmark` 完成 Spark Benchmark。数据由已验收 DIM/DWD 确定性放大：
+
+- 900,000 笔订单；
+- 2,565,000 条订单明细；
+- 9,000,000 条行为事件；
+- 4,000 条当前商品维度记录。
+
+实验完成分区裁剪、Sort Merge / Broadcast Join、普通/两阶段倾斜聚合三组对比，
+每个变体一次 Warm-up、三次 Measured Run，并保存 Physical Plan 与 Spark Event Log。
+分区裁剪验证为有效；Broadcast Join 只验证到 Shuffle 和 Executor 资源改善，未验证端到端
+耗时改善；两阶段聚合在当前 `COUNT/SUM` 场景中产生更多 Shuffle 和耗时，不适合作为
+正向优化结论。精确中位数、Application ID 和边界见
+[M7 Spark 性能实验验收](../acceptance/m7-spark-performance-acceptance.md)。
 
 ---
 
@@ -1591,61 +1608,13 @@ P95
 
 # 34. 当前阶段的实施重点
 
-现在还不需要开始做 Spark/Flink 性能实验。
+Spark M7 已完成固定输入、Physical Plan、Event Log 与三次测量验收。后续不继续为获得
+更好数字而调整本次数据或 SQL；需要引用性能结论时以
+[M7 Spark 性能实验验收](../acceptance/m7-spark-performance-acceptance.md) 为唯一边界。
 
-当前只需要确保新的 V2 Business Generator 在 Bootstrap 第一版就输出：
-
-```text
-数据规模
-状态分布
-时间分布
-商品分布
-用户分布
-商品变化分布
-CSV 大小
-Manifest
-```
-
-同时从工程设计上保留 Continuous 模式：Bootstrap 完成后，同一 Business Generator 从 2026-03-01 起继续通过业务事务 `INSERT / UPDATE ecommerce_oltp` 产生增量。
-
-DolphinScheduler 当前阶段只需要保留编排设计和运行证据字段，
-不需要在每建设一层时同步制作 DAG。
-
-正确顺序：
-
-```text
-批处理任务独立验证
-→ 参数化
-→ Workflow Integration
-→ Continuous T+1 正式由 DolphinScheduler 运行
-```
-
-然后：
-
-```text
-CSV
-→ LOAD DATA
-```
-
-阶段开始记录：
-
-```text
-导入数据量
-导入时间
-吞吐
-```
-
-等离线和实时链路全部建成后，再分别进行：
-
-```text
-Spark Benchmark
-Flink Benchmark
-Kafka Benchmark
-Doris Benchmark
-离实时一致性 Benchmark
-```
-
-这样最后写进简历的所有数字都有完整工程证据链，而不是开发结束后临时补性能数据。
+Flink、Kafka、Doris 与离实时一致性专项 Benchmark 尚未执行。它们必须等待对应正式链路
+和业务正确性 Gate 完成后单独设计固定输入与验收，不能从 Spark M7 结果外推吞吐、延迟
+或服务查询性能。
 
 ---
 
